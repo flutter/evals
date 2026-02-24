@@ -18,10 +18,18 @@ was for a different project), you probably don't need to do it again.
 Visit <https://cla.developers.google.com/> to see your current agreements or to
 sign a new one.
 
-### Review our Community Guidelines
+### Read our code of conduct
 
-This project follows [Google's Open Source Community
-Guidelines](https://opensource.google/conduct/).
+Before you get started, we encourage you to read these documents from the main Flutter repo, which 
+describe some of our community norms:
+
+1. [Our code of conduct](https://github.com/flutter/flutter/blob/master/CODE_OF_CONDUCT.md), 
+   which stipulates explicitly that everyone must be gracious, respectful, and professional. 
+   This also documents our conflict resolution policy and encourages people
+   to ask questions.
+
+2. [Values](https://github.com/flutter/flutter/blob/master/docs/about/Values.md),
+   which talks about what we care most about.
 
 ## Contribution process
 
