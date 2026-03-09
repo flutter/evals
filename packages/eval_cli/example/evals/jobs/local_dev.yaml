@@ -1,0 +1,86 @@
+# =============================================================================
+# Job Configuration: local_dev
+# =============================================================================
+# A job defines what subset of your dataset to run and how to run it.
+# Jobs are the primary way to control evaluation runs.
+#
+# To run this job:
+#   devals run local_dev
+
+
+# =============================================================================
+# RUNTIME SETTINGS (Optional)
+# =============================================================================
+# !!!Important!!!
+# These override built-in defaults. If you're just getting started,
+# I recommend you ignore these for now.
+# Uncomment and modify as needed.
+
+# Directory for evaluation logs (relative to dataset root)
+# A timestamped subdirectory is created automatically for each run.
+# logs_dir: ../logs
+
+# Sandbox environment: "local", "docker", or "podman"
+# - local: Run directly on host (fastest, no isolation)
+# - docker: Run in Docker containers (recommended for code execution)
+# - podman: Run in Podman containers (rootless alternative to Docker)
+# sandbox_type: local
+
+# Maximum concurrent API connections to model providers.
+# Higher = faster but may hit rate limits with a large dataset
+# max_connections: 10
+
+# Maximum retry attempts for failed API calls.
+# Helps handle transient errors.
+# max_retries: 3
+
+# =============================================================================
+# MODELS
+# =============================================================================
+# Which models to evaluate. Format: "provider/model-name"
+# If omitted, falls back to DEFAULT_MODELS from the Python registries.
+models:
+  - google/gemini-2.0-flash
+
+# =============================================================================
+# VARIANTS (Optional)
+# =============================================================================
+# Which configuration variants to test.
+# Variants control access to tools and context.
+# Each variant is a map of feature flags. An empty map {} is the baseline.
+# If omitted, only the baseline (no features) is used.
+#
+# Example:
+#   variants:
+#     baseline: {}                              # no extra features
+#     context_only: { context_files: [../../context/flutter.md] }
+#     mcp_only: { mcp_servers: [dart] }
+
+# =============================================================================
+# TASKS
+# =============================================================================
+# Which tasks to run and how. Uses paths for discovery and inline for overrides.
+# If omitted, runs ALL discovered tasks.
+#
+# Task discovery via glob patterns (relative to dataset root):
+#   tasks:
+#     paths: [tasks/*]
+#
+# Per-task overrides:
+#   tasks:
+#     inline:
+#       task_id:
+#         # (use allowed_variants in task.yaml to whitelist variants)
+#         include-samples: [sample1]   # Only run specific samples (mutually exclusive with exclude)
+#         exclude-samples: [sample2]   # Skip specific samples (mutually exclusive with include)
+#         system_message: |            # Override system prompt for this task
+#           Custom instructions...
+#
+# Simple format (run all samples with job-level settings):
+#   tasks:
+#     inline:
+#       task_id: {}
+#
+tasks:
+  inline:
+    get_started: {}
