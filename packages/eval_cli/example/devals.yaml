@@ -1,0 +1,3 @@
+# Marks this directory as a project that contains dash evals.
+# Created by `devals init`.
+dataset: ./evals
