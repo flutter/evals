@@ -1,0 +1,46 @@
+class: TaskSummary
+table: evals_task_summaries
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+
+  ### Task this summary belongs to.
+  task: Task?, relation(onDelete=Cascade)
+
+  ### Total number of samples in this task.
+  totalSamples: int
+
+  ### Number of samples that passed.
+  passedSamples: int
+
+  ### Accuracy as a value from 0.0 to 1.0.
+  accuracy: double
+
+  ### The Inspect AI task function name (e.g., "qa_task").
+  taskName: String?
+
+  ### Input tokens used.
+  inputTokens: int
+
+  ### Output tokens generated.
+  outputTokens: int
+
+  ### Total tokens used.
+  totalTokens: int
+
+  ### Reasoning tokens used (for models that support it).
+  reasoningTokens: int
+
+  ### Variant configuration used (e.g., "baseline", "dart_mcp").
+  variant: String?
+
+  ### Total execution time in seconds.
+  executionTimeSeconds: int
+
+  ### Number of samples that needed retries.
+  samplesWithRetries: int
+
+  ### Number of samples that failed all retries (excluded from accuracy).
+  samplesNeverSucceeded: int
+
+  ### Total number of retries across all samples.
+  totalRetries: int

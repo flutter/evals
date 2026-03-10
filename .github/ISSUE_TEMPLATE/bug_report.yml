@@ -1,0 +1,29 @@
+name: Bug report
+about: Create a report to help us improve
+title: '[Bug]: '
+labels: ['bug', 'triage']
+body:
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Please describe the expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: Actual
+    attributes:
+      label: Actual behavior
+      description: Please describe the behvior you're actually seeing.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Please list concise steps to reproduce the issue. Without reporoduction steps, we likely won't be able address this issue.
+  - type: textarea
+    id: version
+    attributes:
+      label: Additional details
+      description: Please include relevant details to this problem, such as: Dart/Flutter sdk version number, python version number, platform, and any other relevant details.

@@ -1,0 +1,40 @@
+### A collection of tasks executed together.
+class: Run
+table: evals_runs
+fields:
+  id: UuidValue?, defaultPersist=random_v7 
+
+  ### InspectAI-generated Id.
+  inspectId: String
+
+  ### Run status (e.g., "complete", "inProgress", "failed").
+  status: Status
+
+  ### The variant configurations used in this run.
+  variants: List<String>
+
+  ### Version of the MCP server used during evaluation.
+  mcpServerVersion: String
+
+  ### Total script runtime in seconds.
+  batchRuntimeSeconds: int
+
+  ### List of models evaluated in this run.
+  models: List<Model>?, relation
+
+  ### List of datasets evaluated in this run.
+  datasets: List<Dataset>?, relation
+
+  ### List of Inspect AI task names that were run.
+  tasks: List<Task>?, relation
+
+  ### Creation time for this record.
+  createdAt: DateTime, default=now
+
+indexes:
+  runs_status_idx:
+    fields: status
+  runs_inspect_id_idx:
+    fields: inspectId
+  runs_created_at_idx:
+    fields: createdAt

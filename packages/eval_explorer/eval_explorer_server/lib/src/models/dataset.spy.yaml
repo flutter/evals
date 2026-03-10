@@ -1,0 +1,20 @@
+### A dataset is an Inspect AI term that refers to a collection of samples.
+###
+### In our case, each dataset corresponds to a collection of sample types.
+### (i.e. "dart_qa_dataset", "flutter_code_execution") And each sample type
+### refers to a specific file in the /datasets directory.
+class: Dataset
+table: evals_datasets
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  
+  # Unique identifier for the dataset.
+  name: String
+
+  # True if the dataset is still active and included in eval runs.
+  isActive: bool, default=true
+
+indexes:
+  datasets_unique_name:
+    fields: name
+    unique: true

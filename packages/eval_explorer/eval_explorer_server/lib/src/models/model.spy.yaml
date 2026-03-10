@@ -1,0 +1,13 @@
+### An LLM being evaluated.
+class: Model
+table: evals_models
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+
+  ### Unique identifier for the model.  
+  name: String
+
+indexes:
+  evals_models_unique_name:
+    fields: name
+    unique: true

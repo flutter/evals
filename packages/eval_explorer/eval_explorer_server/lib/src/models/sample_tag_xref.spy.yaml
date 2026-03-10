@@ -1,0 +1,10 @@
+### Cross reference table for samples and tags.
+class: SampleTagXref
+table: evals_samples_tags_xref
+fields:
+  sample: Sample?, relation(name=sample_tags_xref)
+  tag: Tag?, relation(name=tag_samples_xref)
+indexes:
+  sample_tag_index_idx:
+    fields: sampleId, tagId
+    unique: true

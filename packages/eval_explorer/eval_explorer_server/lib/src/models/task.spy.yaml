@@ -1,0 +1,32 @@
+### Results from evaluating one model against one dataset.
+class: Task
+table: evals_tasks
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+
+  ### InspectAI-generated Id.
+  inspectId: String
+
+  ### Model identifier (e.g., "google/gemini-2.5-pro").
+  model: Model?, relation(onDelete=Cascade)
+
+  ### Dataset identifier (e.g., "flutter_qa_dataset").
+  dataset: Dataset?, relation(onDelete=Cascade)
+
+  ### Run this task belongs to.
+  run: Run?, relation(onDelete=Cascade)
+
+  ### When this task was evaluated.
+  createdAt: DateTime, default=now
+
+indexes:
+  evals_task_run_id_idx:
+    fields: runId
+  evals_task_inspect_id_idx:
+    fields: inspectId
+  evals_task_model_id_idx:
+    fields: modelId
+  evals_task_dataset_id_idx:
+    fields: datasetId
+  evals_task_created_at_idx:
+    fields: createdAt

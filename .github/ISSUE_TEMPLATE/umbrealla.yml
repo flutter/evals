@@ -1,0 +1,26 @@
+name: Create an umbrella issue
+description: |
+ Create an umbrella issue for a new feature. 
+title: '☂️: '
+labels: ['feature', 'triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing an issue. 
+        
+        Note: Umbrella issues require at least one individual child issue to exist.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Please describe the feature you are adding.
+    validations:
+      required: true
+  - type: textarea
+    id: tracking_issues
+    attributes:
+      label: Tracking Issues
+      description: List of issues associated with this feature.
+    validations:
+      required: true
