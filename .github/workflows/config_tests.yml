@@ -3,13 +3,13 @@ name: Config Tests
 on:
   pull_request:
     paths:
-      - 'packages/eval_config/**'
+      - 'packages/dataset_config/**'
       - '.github/workflows/config_tests.yml'
   push:
     branches:
       - main
     paths:
-      - 'packages/eval_config/**'
+      - 'packages/dataset_config/**'
       - '.github/workflows/config_tests.yml'
 
 jobs:
@@ -31,9 +31,9 @@ jobs:
         run: flutter pub get
 
       - name: Analyze
-        working-directory: packages/eval_config
+        working-directory: packages/dataset_config
         run: dart analyze --fatal-infos
 
       - name: Run tests
-        working-directory: packages/eval_config
+        working-directory: packages/dataset_config
         run: dart test
