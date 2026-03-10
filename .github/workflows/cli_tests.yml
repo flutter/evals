@@ -3,14 +3,14 @@ name: CLI Tests
 on:
   pull_request:
     paths:
-      - 'packages/eval_cli/**'
+      - 'packages/devals_cli/**'
       - 'packages/eval_config/**'
       - '.github/workflows/cli_tests.yml'
   push:
     branches:
       - main
     paths:
-      - 'packages/eval_cli/**'
+      - 'packages/devals_cli/**'
       - 'packages/eval_config/**'
       - '.github/workflows/cli_tests.yml'
 
@@ -33,9 +33,9 @@ jobs:
         run: flutter pub get
 
       - name: Analyze
-        working-directory: packages/eval_cli
+        working-directory: packages/devals_cli
         run: dart analyze --fatal-infos
 
       - name: Run tests
-        working-directory: packages/eval_cli
+        working-directory: packages/devals_cli
         run: flutter test

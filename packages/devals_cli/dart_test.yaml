@@ -1,0 +1,9 @@
+# Test configuration for the devals_cli package.
+# Run tests serially to avoid race conditions with Directory.current
+# mutations in filesystem_utils_test.dart and dataset_reader_test.dart.
+concurrency: 1
+
+tags:
+  e2e:
+    # E2E tests spawn subprocesses and may be slower
+    timeout: 120s

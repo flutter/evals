@@ -7,8 +7,8 @@ environment:
   sdk: ^3.10.0
 
 workspace:
-  - packages/eval_cli
-  - packages/eval_config
+  - packages/devals_cli
+  - packages/dataset_config
 
 dependencies:
   args: ^2.7.0

@@ -1,0 +1,19 @@
+name: dataset_config
+description: Core library for resolving eval dataset YAML into run manifests.
+version: 0.0.1
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  freezed_annotation: ^3.1.0
+  glob: ^2.1.0
+  json_annotation: ^4.9.0
+  path: ^1.9.0
+  yaml: ^3.1.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: any
