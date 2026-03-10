@@ -46,7 +46,7 @@ void main() {
         final variants = reader.getVariants();
         expect(
           variants,
-          containsAll(['baseline', 'context_only', 'mcp_only', 'full']),
+          containsAll(['baseline', 'flutter_rules', 'with_skills', 'with_mcp']),
         );
       } finally {
         Directory.current = originalDir;
