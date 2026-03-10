@@ -1,0 +1,34 @@
+### A single challenge to be presented to a [Model] and evaluated by one or more [Scorer]s.
+class: Sample
+table: evals_samples
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+
+  ### Short sample name/ID (e.g., "dart_futures_vs_streams").
+  name: String
+
+  ### The dataset this sample belongs to (e.g., "dart_qa_dataset").
+  dataset: Dataset?, relation(onDelete=Cascade)
+
+  ### The input prompt/question for the model.
+  input: String
+
+  ### The expected answer or grading guidance.
+  target: String
+
+  ### Tags associated with this sample (e.g., ["dart", "flutter"]).
+  ### Technically, this relationship only reaches the cross-reference table,
+  ### not the tags themselves.
+  tagsXref: List<SampleTagXref>?, relation(name=sample_tags_xref)
+
+  ### True if the sample is still active and included in eval runs.
+  isActive: bool, default=true
+
+  ### Creation time for this record.
+  createdAt: DateTime, default=now
+  
+indexes:
+  evals_sample_dataset_id_idx:
+    fields: datasetId
+  evals_sample_created_at_idx:
+    fields: createdAt

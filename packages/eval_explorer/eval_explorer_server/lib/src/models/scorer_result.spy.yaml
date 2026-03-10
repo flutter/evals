@@ -1,0 +1,20 @@
+### A scorer's assessment of a task.
+class: ScorerResult
+table: evals_scorer_results
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+
+  ### Scorer this summary belongs to.
+  scorer: Scorer?, relation(onDelete=Cascade)
+
+  ### Whether this scorer data is for a baseline run.
+  evaluation: Evaluation?, relation(onDelete=Cascade)
+
+  ### Flexible data archived by the scorer.
+  data: ScorerResultData
+
+indexes:
+  scorer_result_scorer_id_idx:
+    fields: scorerId
+  scorer_result_evaluation_id_idx:
+    fields: evaluationId

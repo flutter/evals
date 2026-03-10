@@ -1,0 +1,11 @@
+name: eval_explorer_client
+description: Starting point for a Serverpod client.
+resolution: workspace
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  serverpod_auth_idp_client: any
+  serverpod_client: any
+

@@ -1,0 +1,14 @@
+### Ye who watch the watchers.
+class: Scorer
+table: evals_scorers
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+
+  ### Name of the scorer (e.g., "bleu").
+  name: String
+  
+indexes:
+  scorers_unique_name:
+    fields: name
+    unique: true
+  

@@ -1,0 +1,36 @@
+name: eval_explorer_server
+description: Starting point for a Serverpod server.
+resolution: workspace
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  ansicolor: any
+  args: any
+  eval_explorer_shared:
+    path: ../eval_explorer_shared
+  path: any
+  serverpod: any
+  serverpod_auth_idp_server: any
+  yaml: any
+
+dev_dependencies:
+  lints: ">=3.0.0 <7.0.0"
+  serverpod_test: 3.2.0
+  test: any
+
+serverpod:
+  scripts:
+    # Starts the server and applies migrations
+    start: dart bin/main.dart --apply-migrations
+
+    # Build the Flutter web app and move it to the server's web directory
+    #
+    # Unfortunately, we can't use the `-o` flag directly because of an error
+    # that happens on windows. Issue is tracked in the flutter
+    # repository here: https://github.com/flutter/flutter/issues/157886
+    flutter_build: cd ../eval_explorer_flutter && flutter build web --base-href
+      /app/ --wasm && rm -rf ../eval_explorer_server/web/app && mv build/web/
+      ../eval_explorer_server/web/app
+
+    fixtures: dart bin/command.dart fixtures --path lib/datasets --verbose

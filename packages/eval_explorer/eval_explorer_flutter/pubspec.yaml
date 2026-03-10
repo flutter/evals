@@ -1,0 +1,47 @@
+name: eval_explorer_flutter
+description: A new Flutter project with Serverpod.
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+version: 1.0.0+1
+resolution: workspace
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  cupertino_icons: ^1.0.5
+  eval_explorer_client:
+    path: ../eval_explorer_client
+  eval_explorer_shared:
+    path: ../eval_explorer_shared
+  flutter:
+    sdk: flutter
+  flutter_bloc: any
+  flutter_web_plugins:
+    sdk: flutter
+  freezed_annotation: any
+  go_router: ^17.0.1
+  json_annotation: any
+  logging: any
+  meta: any
+  provider: any
+  serverpod_auth_idp_flutter: any
+  serverpod_flutter: any
+
+dev_dependencies:
+  build_runner: any
+  flutter_lints: ">=3.0.0 <7.0.0"
+  flutter_test:
+    sdk: flutter
+  freezed: any
+  json_serializable: any
+  mocktail: any
+
+flutter:
+
+  uses-material-design: true
+
+  assets:
+    - assets/config.json
+
+dependency_overrides:
+  flutter_secure_storage: ^10.0.0

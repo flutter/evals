@@ -1,0 +1,41 @@
+### Metadata for the outcomes of a given [Run]. This is a separate table from [Run] because
+### otherwise each of these columns would have to be nullable on [Run], as they are generated
+### after the run is completed.
+class: RunSummary
+table: evals_run_summaries
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+
+  ### Run this summary belongs to.
+  run: Run?, relation(onDelete=Cascade)
+
+  ### Number of tasks in this run.
+  totalTasks: int
+
+  ### Total number of samples evaluated.
+  totalSamples: int
+
+  ### Average accuracy across all tasks (0.0 to 1.0).
+  avgAccuracy: double
+
+  ### Total token usage.
+  totalTokens: int
+
+  ### Input tokens used.
+  inputTokens: int
+
+  ### Output tokens generated.
+  outputTokens: int
+
+  ### Reasoning tokens used (for models that support it).
+  reasoningTokens: int
+
+  ### Creation time for this record.
+  createdAt: DateTime, default=now
+
+indexes:
+  run_summaries_unique_run:
+    fields: runId
+    unique: true
+  run_summaries_created_at_idx:
+    fields: createdAt

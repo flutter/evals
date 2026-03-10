@@ -1,0 +1,9 @@
+### Result of a tool call made during evaluation. Not a database table.
+class: ToolCallData
+fields:
+  
+  ### Name of the tool.
+  name: String
+
+  ### Arguments passed to the tool.
+  arguments: Map<String, String>

@@ -1,0 +1,7 @@
+type: server
+
+client_package_path: ../eval_explorer_client
+server_test_tools_path: test/integration/test_tools
+
+extraClasses:
+  - package:eval_explorer_shared/eval_explorer_shared.dart:ScorerResultData

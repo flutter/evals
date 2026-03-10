@@ -1,0 +1,18 @@
+### Category for a sample.
+class: Tag
+table: evals_tags
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+
+  ### Unique identifier for the tag.
+  name: String
+
+  ### Samples associated with this tag.
+  ### Technically, this relationship only reaches the cross-reference table,
+  ### not the samples themselves.
+  samplesXref: List<SampleTagXref>?, relation(name=tag_samples_xref)  
+  
+indexes:
+  tags_unique_name:
+    fields: name
+    unique: true
