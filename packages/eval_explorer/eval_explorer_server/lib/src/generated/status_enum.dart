@@ -15,7 +15,8 @@ import 'package:serverpod/serverpod.dart' as _i1;
 enum Status implements _i1.SerializableModel {
   complete,
   inProgress,
-  failed;
+  failed
+  ;
 
   static Status fromJson(String name) {
     switch (name) {

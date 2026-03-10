@@ -7,7 +7,8 @@ enum WorkspaceType { template, path, git, create }
 enum TemplatePackage {
   flutterApp('flutter_app', 'flutter_eval_app'),
   dartPackage('dart_package', 'dart_eval_package'),
-  jasprApp('jaspr_app', 'jaspr_eval_app');
+  jasprApp('jaspr_app', 'jaspr_eval_app')
+  ;
 
   const TemplatePackage(this.yamlValue, this.packageName);
 
