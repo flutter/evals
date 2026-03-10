@@ -1,26 +1,36 @@
-name: Analyze
+name: Eval Explorer Analyze
 
 on:
-  push:
-    branches: [main]
   pull_request:
-    branches: [main]
+    paths:
+      - 'packages/eval_explorer/**'
+      - '.github/workflows/eval_explorer_analyze.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/eval_explorer/**'
+      - '.github/workflows/eval_explorer_analyze.yml'
 
 jobs:
   analyze:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
-      - uses: dart-lang/setup-dart@v1
-        with:
-          sdk: 3.10.0
+      - name: Install Flutter
+        run: |
+          git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
+          echo "$HOME/flutter/bin" >> $GITHUB_PATH
+          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        working-directory: packages/eval_explorer/eval_explorer_server
-        run: dart pub get
+        working-directory: packages/eval_explorer
+        run: flutter pub get
 
       - name: Analyze
-        working-directory: packages/eval_explorer/eval_explorer_server
+        working-directory: packages/eval_explorer
         run: dart analyze --fatal-infos

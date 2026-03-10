@@ -1,37 +1,41 @@
-name: Tests
+name: Eval Explorer Tests
 
 on:
-  push:
-    branches: [main]
   pull_request:
-    branches: [main]
+    paths:
+      - 'packages/eval_explorer/**'
+      - '.github/workflows/eval_explorer_tests.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/eval_explorer/**'
+      - '.github/workflows/eval_explorer_tests.yml'
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      VERSION: '3.1.1'
-      SERVERPOD_PASSWORD_database: 'bSHGKL1oWXcZpXxDyx7m0B-ONg-xo-Tl'
-      SERVERPOD_PASSWORD_redis: 'onSS_GYAL4GwJsARIM_-iOS2c5P5A7Ky'
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.32.8'
+      - name: Install Flutter
+        run: |
+          git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
+          echo "$HOME/flutter/bin" >> $GITHUB_PATH
+          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
 
       - name: Start containers
         working-directory: packages/eval_explorer/eval_explorer_server
         run: docker compose up --build -d
 
       - name: Install dependencies
-        working-directory: packages/eval_explorer/eval_explorer_server
-        run: dart pub get
+        working-directory: packages/eval_explorer
+        run: flutter pub get
 
       - name: Install Serverpod CLI
-        working-directory: packages/eval_explorer/eval_explorer_server
-        run: dart pub global activate serverpod_cli $VERSION
+        run: dart pub global activate serverpod_cli
 
       - name: Run Serverpod generator
         working-directory: packages/eval_explorer/eval_explorer_server
