@@ -3,14 +3,14 @@ name: Config Tests
 on:
   pull_request:
     paths:
-      - 'packages/dataset_config/**'
-      - '.github/workflows/config_tests.yml'
+      - 'packages/dataset_config_dart/**'
+      - '.github/workflows/config_dart_tests.yml'
   push:
     branches:
       - main
     paths:
-      - 'packages/dataset_config/**'
-      - '.github/workflows/config_tests.yml'
+      - 'packages/dataset_config_dart/**'
+      - '.github/workflows/config_dart_tests.yml'
 
 jobs:
   config-tests:
@@ -31,9 +31,9 @@ jobs:
         run: flutter pub get
 
       - name: Analyze
-        working-directory: packages/dataset_config
+        working-directory: packages/dataset_config_dart
         run: dart analyze --fatal-infos
 
       - name: Run tests
-        working-directory: packages/dataset_config
+        working-directory: packages/dataset_config_dart
         run: dart test
