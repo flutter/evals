@@ -1,0 +1,12 @@
+{
+  "hosting": {
+    "site": "evals-docs",
+    "public": "docs/_build/html",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "**/dart_docs/"
+    ]
+  }
+}

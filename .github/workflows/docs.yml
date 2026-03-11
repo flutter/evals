@@ -1,0 +1,75 @@
+name: Documentation
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'packages/dataset_config_dart/**'
+      - 'tool/**'
+      - '.github/workflows/docs.yml'
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e
+        with:
+          channel: stable
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r docs/requirements.txt
+          pip install -e packages/dash_evals
+
+      - name: Install Dart dependencies
+        run: |
+          flutter pub get
+          cd tool/dartdoc_to_md && dart pub get
+
+      - name: Build documentation
+        working-directory: docs
+        run: make html
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: docs-html
+          path: docs/_build/html
+          retention-days: 1
+
+  deploy:
+    # Only deploy on push to main
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: docs-html
+          path: docs/_build/html
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: evals
+          target: evals-docs
+          channelId: live
