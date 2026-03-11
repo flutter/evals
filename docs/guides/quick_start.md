@@ -19,7 +19,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -e "packages/dash_evals[dev]"
 pip install -e "packages/dataset_config_python[dev]"
-dart pub global activate devals --source path <path-to-evals>/packages/devals_cli
+dart pub global activate devals --source path packages/devals_cli
 ```
 
 This installs two things:
