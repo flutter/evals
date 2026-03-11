@@ -26,8 +26,6 @@ updates:
           - "minor"
           - "patch"
 
-
-
   # Dart/Flutter dependencies for devals_cli
   - package-ecosystem: "pub"
     directory: "/pkgs/devals_cli"
