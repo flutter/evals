@@ -1,0 +1,7 @@
+logs_dir: ./logs
+sandbox_type: local
+max_connections: 5
+models:
+  - google/gemini-2.5-flash
+variants:
+  baseline: {}

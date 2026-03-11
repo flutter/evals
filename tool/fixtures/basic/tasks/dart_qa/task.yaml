@@ -1,0 +1,14 @@
+id: dart_qa
+func: question_answer
+system_message: "You are an expert."
+samples:
+  inline:
+    - id: sample_1
+      input: "What is Dart?"
+      target: "A programming language."
+      difficulty: easy
+    - id: sample_2
+      input: "What is Flutter?"
+      target: "A UI framework."
+      difficulty: medium
+      tags: ui, framework

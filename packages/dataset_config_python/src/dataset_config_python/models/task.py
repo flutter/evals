@@ -25,6 +25,21 @@ class Task(BaseModel):
     dataset: Dataset | None = None
     """Inline dataset with samples."""
 
+    setup: Any | None = None
+    """Setup step (always run even when the main solver is replaced)."""
+
+    solver: Any | None = None
+    """Solver or list of solvers. Defaults to ``generate()``."""
+
+    cleanup: Any | None = None
+    """Optional cleanup function for task."""
+
+    scorer: Any | None = None
+    """Scorer used to evaluate model output."""
+
+    metrics: Any | None = None
+    """Alternative metrics (overrides the metrics provided by the scorer)."""
+
     sandbox: Any | None = None
     """Sandbox environment type."""
 

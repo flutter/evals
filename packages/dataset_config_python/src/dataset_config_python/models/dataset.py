@@ -15,3 +15,9 @@ class Dataset(BaseModel):
 
     name: str = ""
     """Display name for the dataset."""
+
+    location: str | None = None
+    """Dataset location (file path or remote URL)."""
+
+    shuffled: bool = False
+    """Whether the dataset was shuffled after reading."""
