@@ -1,7 +1,7 @@
 name: Create an umbrella issue
 description: |
  Create an umbrella issue for a new feature. 
-title: '☂️: '
+title: '[☂️] '
 labels: ['feature', 'triage']
 body:
   - type: markdown
@@ -22,5 +22,10 @@ body:
     attributes:
       label: Tracking Issues
       description: List of issues associated with this feature.
+      value: |
+        1. <issue number> - <issue title>
+        2. <issue number> - <issue title>
+        3. <issue number> - <issue title>
+        ...
     validations:
       required: true
