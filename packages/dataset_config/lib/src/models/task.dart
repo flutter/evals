@@ -93,7 +93,7 @@ sealed class Task with _$Task {
     ///
     /// When present, the Python runner uses this to look up a pre-built
     /// `@task` function (e.g. `"flutter_code_gen"` or
-    /// `"eval_runner.runner.tasks.flutter_code_gen"`).
+    /// `"dash_evals.runner.tasks.flutter_code_gen"`).
     /// When absent, the runner hydrates directly from JSON (Mode 2 — future).
     @JsonKey(name: 'task_func') String? taskFunc,
 

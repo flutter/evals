@@ -85,7 +85,7 @@ void main() {
     });
   });
 
-  group('eval_runner check', () {
+  group('dash_evals check', () {
     test('succeeds when installed', () async {
       final checks = buildChecks(
         processRunner: mockProcessRunner({

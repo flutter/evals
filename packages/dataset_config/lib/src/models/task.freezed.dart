@@ -55,7 +55,7 @@ mixin _$Task {
 ///
 /// When present, the Python runner uses this to look up a pre-built
 /// `@task` function (e.g. `"flutter_code_gen"` or
-/// `"eval_runner.runner.tasks.flutter_code_gen"`).
+/// `"dash_evals.runner.tasks.flutter_code_gen"`).
 /// When absent, the runner hydrates directly from JSON (Mode 2 — future).
 @JsonKey(name: 'task_func') String? get taskFunc;/// Task name.
 ///
@@ -346,7 +346,7 @@ class _Task implements Task {
 ///
 /// When present, the Python runner uses this to look up a pre-built
 /// `@task` function (e.g. `"flutter_code_gen"` or
-/// `"eval_runner.runner.tasks.flutter_code_gen"`).
+/// `"dash_evals.runner.tasks.flutter_code_gen"`).
 /// When absent, the runner hydrates directly from JSON (Mode 2 — future).
 @override@JsonKey(name: 'task_func') final  String? taskFunc;
 /// Task name.

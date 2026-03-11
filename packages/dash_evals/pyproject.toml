@@ -1,0 +1,72 @@
+[project]
+name = "dash-evals"
+version = "0.1.0"
+description = ""
+authors = [{ name = "Eric Windmill", email = "eric@ericwindmill.com" }]
+readme = "README.md"
+requires-python = ">=3.13,<4.0.0"
+dependencies = [
+    "inspect-ai>=0.3.142,<0.4.0",
+    "pyyaml>=6.0.3,<7.0.0",
+    "google-genai>=1.47.0,<2.0.0",
+    "mcp>=1.20.0,<2.0.0",
+    "python-dotenv>=1.2.1,<2.0.0",
+    "anthropic>=0.75.0,<0.81.0",
+    "openai>=2.8.1,<3.0.0",
+    "firebase-admin>=6.0.0,<8.0.0",
+    "pydantic>=2.0.0,<3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-mock>=3.12.0",
+    "pytest-cov>=4.1.0",
+    "pylint>=3.0.0",
+]
+
+[project.scripts]
+run-evals = "dash_evals.main:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+# Register podman sandbox with inspect_ai
+[project.entry-points.inspect_ai]
+dash_evals = "dash_evals.runner.sandboxes"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+dash_evals = ["data/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.coverage.run]
+omit = [
+    "src/dash_evals/main.py",
+    "src/dash_evals/uploader.py",
+    "src/dash_evals/uploader_aggregates.py",
+    "src/dash_evals/tasks/*",
+]
+
+[tool.pylint.messages_control]
+disable = [
+    "logging-fstring-interpolation",  # Allow f-strings in logging (modern Python standard)
+]
+
+[tool.pylint.format]
+max-line-length = 100
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]  # Line too long (handled by formatter)

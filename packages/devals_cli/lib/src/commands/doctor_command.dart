@@ -48,7 +48,7 @@ typedef ProcessRunner =
 /// Command that checks whether prerequisites are installed.
 ///
 /// Similar to `flutter doctor`, this verifies the tools needed
-/// for the CLI, eval_runner, and eval_explorer.
+/// for the CLI, dash_evals, and eval_explorer.
 class DoctorCommand extends Command<int> {
   DoctorCommand({ProcessRunner? processRunner})
     : _runProcess = processRunner ?? Process.run;
@@ -61,7 +61,7 @@ class DoctorCommand extends Command<int> {
   @override
   String get description =>
       'Check that all prerequisites are installed for '
-      'the CLI, eval_runner, and eval_explorer.';
+      'the CLI, dash_evals, and eval_explorer.';
 
   @override
   Future<int> run() async {
@@ -151,19 +151,19 @@ List<DoctorCheck> buildChecks({ProcessRunner? processRunner}) {
     ),
     DoctorCheck(
       name: 'Python',
-      component: 'eval_runner',
+      component: 'dash_evals',
       isRequired: true,
       check: () => _checkPython(run),
     ),
     DoctorCheck(
-      name: 'eval_runner installed',
-      component: 'eval_runner',
+      name: 'dash_evals installed',
+      component: 'dash_evals',
       isRequired: true,
-      check: () => _checkEvalRunner(run),
+      check: () => _checkDashEvals(run),
     ),
     DoctorCheck(
       name: 'Podman',
-      component: 'eval_runner',
+      component: 'dash_evals',
       check: () => _checkPodman(run),
     ),
     DoctorCheck(
@@ -179,7 +179,7 @@ List<DoctorCheck> buildChecks({ProcessRunner? processRunner}) {
     ),
     DoctorCheck(
       name: 'API keys',
-      component: 'eval_runner',
+      component: 'dash_evals',
       isRequired: true,
       check: () => _checkApiKeys(),
     ),
@@ -254,13 +254,13 @@ Future<CheckResult> _checkPython(ProcessRunner run) async {
   return CheckResult(status: CheckStatus.ok, version: version);
 }
 
-Future<CheckResult> _checkEvalRunner(ProcessRunner run) async {
+Future<CheckResult> _checkDashEvals(ProcessRunner run) async {
   final output = await _tryRun(run, 'run-evals', ['--help']);
   if (output == null) {
     return const CheckResult(
       status: CheckStatus.error,
       message: 'not found',
-      fix: 'cd path/to/eval_runner && pip install -e .',
+      fix: 'cd path/to/dash_evals && pip install -e .',
     );
   }
   return const CheckResult(status: CheckStatus.ok);

@@ -7,7 +7,7 @@ import 'package:devals/src/dataset/filesystem_utils.dart';
 import 'package:howdy/howdy.dart';
 import 'package:path/path.dart' as p;
 
-/// Command to run evaluations using the Python eval_runner.
+/// Command to run evaluations using the Python dash_evals package.
 ///
 /// Config resolution and dry-run happen entirely in Dart. For actual runs,
 /// Dart writes an EvalSet JSON file, then Python reads it and calls
@@ -25,7 +25,7 @@ class RunCommand extends Command<int> {
   String get name => 'run';
 
   @override
-  String get description => 'Run evaluations using the eval_runner.';
+  String get description => 'Run evaluations using dash_evals.';
 
   @override
   String get invocation => '${runner?.executableName} run <job_name>';
@@ -82,8 +82,8 @@ class RunCommand extends Command<int> {
       if (e.errorCode == 2) {
         Text.error(
           'Command "run-evals" not found.\n'
-          'Please install the eval_runner Python package:\n'
-          '  pip install -e <path-to-dash-evals>/pkgs/eval_runner',
+          'Please install the dash_evals Python package:\n'
+          '  pip install -e <path-to-evals>/packages/dash_evals',
         );
         return 1;
       }
