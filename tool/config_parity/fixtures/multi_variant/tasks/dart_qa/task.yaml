@@ -1,0 +1,7 @@
+id: dart_qa
+func: question_answer
+samples:
+  inline:
+    - id: sample_1
+      input: "Explain null safety."
+      target: "Null safety prevents null pointer exceptions."

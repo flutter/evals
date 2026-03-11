@@ -8,7 +8,8 @@ environment:
 
 workspace:
   - packages/devals_cli
-  - packages/dataset_config
+  - packages/dataset_config_dart
+  - tool/config_parity
 
 dependencies:
   args: ^2.7.0

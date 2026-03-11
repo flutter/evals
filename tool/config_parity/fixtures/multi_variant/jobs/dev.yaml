@@ -1,0 +1,11 @@
+logs_dir: ./logs
+sandbox_type: local
+models:
+  - google/gemini-2.5-flash
+variants:
+  baseline: {}
+  context_only:
+    context_files: []
+  full_mcp:
+    mcp_servers:
+      - my_server

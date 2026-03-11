@@ -21,8 +21,8 @@ dependencies:
     git: 
       url: https://github.com/ericwindmill/howdy.git
       path: packages/howdy-cli
-  dataset_config:
-    path: ../dataset_config
+  dataset_config_dart:
+    path: ../dataset_config_dart
   path: ^1.9.0
   yaml: ^3.1.0
   yaml_edit: ^2.2.0

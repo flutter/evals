@@ -15,6 +15,7 @@ coverage
 /docs/_build
 /docs/dart_docs
 logs/
+**/pyrefly.toml
 
 
 ##

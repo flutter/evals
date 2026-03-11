@@ -1,0 +1,13 @@
+name: config_parity
+publish_to: none
+description: Scripts that keep python-config and dart-config aligned.
+version: 0.0.1
+resolution: workspace
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  path: ^1.9.1
+  dataset_config_dart:
+    path: ../../packages/dataset_config_dart
