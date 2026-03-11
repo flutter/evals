@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:dataset_config/dataset_config.dart';
+import 'package:dataset_config_dart/dataset_config_dart.dart';
 import 'package:test/test.dart';
 import 'package:yaml/yaml.dart';
 

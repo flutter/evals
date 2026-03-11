@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
-import 'package:dataset_config/dataset_config.dart';
+import 'package:dataset_config_dart/dataset_config_dart.dart';
 import 'package:devals/src/cli_exception.dart';
 import 'package:devals/src/dataset/eval_writer.dart';
 import 'package:devals/src/dataset/file_templates/job_template.dart';

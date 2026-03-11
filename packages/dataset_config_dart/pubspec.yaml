@@ -1,4 +1,4 @@
-name: dataset_config
+name: dataset_config_dart
 description: Core library for resolving eval dataset YAML into run manifests.
 version: 0.0.1
 publish_to: none

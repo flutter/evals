@@ -1,4 +1,4 @@
-import 'package:dataset_config/dataset_config.dart';
+import 'package:dataset_config_dart/dataset_config_dart.dart';
 
 /// Preview resolved config without running evaluations.
 ///

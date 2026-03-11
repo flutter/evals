@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:dataset_config/src/models/models.dart';
+import 'package:dataset_config_dart/src/models/models.dart';
 
 part 'eval_set.freezed.dart';
 part 'eval_set.g.dart';
