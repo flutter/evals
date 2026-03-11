@@ -1,0 +1,420 @@
+/* Custom styling for dash_evals documentation */
+
+
+/* ============================================
+   BRAND COLORS (PyData CSS variables)
+   ============================================ */
+
+html[data-theme="light"] {
+    --pst-color-primary: #7C4DFF;
+    --pst-color-primary-highlight: #9C7CFF;
+}
+
+html[data-theme="dark"] {
+    --pst-color-primary: #B388FF;
+    --pst-color-primary-highlight: #D1B3FF;
+}
+
+
+/* ============================================
+   LINKS: Color and underline overrides
+   ============================================ */
+
+html[data-theme="light"] {
+    --pst-color-link: #7C4DFF;
+    --pst-color-link-hover: #5C35CC;
+}
+
+html[data-theme="dark"] {
+    --pst-color-link: #B388FF;
+    --pst-color-link-hover: #D1B3FF;
+}
+
+.bd-article-container a {
+    color: var(--pst-color-link);
+    text-decoration: none;
+    text-decoration-thickness: max(1px, .0625rem);
+    text-underline-offset: 0.15em;
+    overflow-wrap: break-word;
+}
+
+.bd-article-container a:hover {
+    color: var(--pst-color-link-hover);
+    text-decoration-thickness: max(3px, .1875rem, .12em);
+    text-decoration-skip-ink: none;
+}
+
+.bd-article-container a:visited {
+    color: var(--pst-color-link);
+}
+
+/* Links in headings should not be underlined */
+.bd-article-container h1 a,
+.bd-article-container h2 a,
+.bd-article-container h3 a,
+.bd-article-container h4 a {
+    text-decoration: none;
+}
+
+.bd-article-container h1 a:hover,
+.bd-article-container h2 a:hover,
+.bd-article-container h3 a:hover,
+.bd-article-container h4 a:hover {
+    text-decoration: underline;
+}
+
+.navbar-brand:hover, .navbar-brand:visited:hover {
+    text-decoration: none;
+    color: var(--pst-color-link-hover);
+}
+
+.bd-header ul.navbar-nav>li.nav-item.current>.nav-link:before {
+    border-bottom: none;
+}
+
+.bd-header ul.navbar-nav>li.nav-item>.nav-link:hover:before {
+    border-bottom: none;
+}
+
+.prev-next-area a.left-prev:hover,
+.prev-next-area a.right-next:hover {
+    text-decoration: none !important;
+    border-bottom: none;
+}
+
+/* The theme puts the underline on p.prev-next-title inside the <a>, not on <a> itself */
+.prev-next-area a p.prev-next-title, .prev-next-area a:hover p.prev-next-title, .prev-next-area a p.prev-next-title:hover {
+    text-decoration: none !important;
+}
+
+.prev-next-info {
+    width: 200px;
+    padding: .25rem;
+    border: .5px solid #D1B3FF;
+    border-radius: 4px;
+}
+
+.prev-next-info:hover { 
+   background: #eae0f9;
+}
+
+/* ============================================
+   LISTS: Spacing and bullet styles
+   ============================================ */
+
+.bd-article-container ul {
+    list-style-type: disc;
+    padding-left: 1.5em;
+}
+
+.bd-article-container ol {
+    padding-left: 1.5em;
+}
+
+.bd-article-container li {
+    margin-bottom: 0.35em;
+    line-height: 1.65;
+}
+
+.bd-article-container ul ul {
+    list-style-type: circle;
+    margin-top: 0.35em;
+}
+
+.bd-article-container ul ul ul {
+    list-style-type: square;
+}
+
+/* Tighter spacing for nested lists */
+.bd-article-container li > ul,
+.bd-article-container li > ol {
+    margin-bottom: 0;
+}
+
+
+/* ============================================
+   BLOCKQUOTES
+   ============================================ */
+
+.bd-article-container blockquote {
+    border-left: 3px solid var(--pst-color-primary);
+    padding: 0.5rem 1rem;
+    margin: 1rem 0 1.2rem 0;
+    color: var(--pst-color-text-muted);
+    background-color: transparent;
+}
+
+.bd-article-container blockquote p {
+    margin-bottom: 0.5rem;
+}
+
+.bd-article-container blockquote p:last-child {
+    margin-bottom: 0;
+}
+
+
+/* ============================================
+   INLINE CODE (not in code blocks)
+   ============================================ */
+
+html[data-theme="light"] {
+    --pst-color-inline-code: #912583;
+}
+
+html[data-theme="dark"] {
+    --pst-color-inline-code: #f3c7ee;
+}
+
+.bd-article-container code:not(pre code) {
+    color: var(--pst-color-inline-code);
+    font-size: 0.875em;
+}
+
+
+/* ============================================
+   HORIZONTAL RULES
+   ============================================ */
+
+.bd-article-container hr {
+    border: none;
+    border-top: 1px solid var(--pst-color-border);
+    margin: 2rem 0;
+    opacity: 0.65;
+}
+
+
+/* ============================================
+   STRONG / EMPHASIS
+   ============================================ */
+
+.bd-article-container strong {
+    font-weight: 600;
+    color: var(--pst-color-text-base);
+}
+
+
+/* ============================================
+   DEFINITION LISTS (dl/dt/dd)
+   ============================================ */
+
+.bd-article-container dl {
+    margin-bottom: 1.2rem;
+}
+
+.bd-article-container dt {
+    font-weight: 600;
+    margin-top: 0.8rem;
+    color: var(--pst-color-text-base);
+}
+
+.bd-article-container dd {
+    margin-left: 1.5em;
+    margin-bottom: 0.5rem;
+}
+
+
+/* ============================================
+   MAIN CONTENT: Base font size (~10% smaller)
+   ============================================ */
+
+.bd-article-container .bd-content {
+    font-size: 0.9rem;
+    line-height: 1.7;
+}
+
+
+/* ============================================
+   MAIN CONTENT: Headings (smaller)
+   ============================================ */
+
+.bd-article-container h1 {
+    font-size: 1.6rem;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.bd-article-container h2 {
+    font-size: 1.25rem;
+    margin-top: 1.8rem;
+    margin-bottom: 0.8rem;
+}
+
+.bd-article-container h3 {
+    font-size: 1.05rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.6rem;
+}
+
+.bd-article-container h4 {
+    font-size: 0.95rem;
+    margin-top: 1.2rem;
+    margin-bottom: 0.5rem;
+}
+
+
+/* ============================================
+   MAIN CONTENT: More spacing between elements
+   ============================================ */
+
+.bd-article-container p {
+    margin-bottom: 1rem;
+}
+
+.bd-article-container ul,
+.bd-article-container ol {
+    margin-bottom: 1.2rem;
+}
+
+.bd-article-container section {
+    margin-bottom: 1.5rem;
+}
+
+/* Spacing after code blocks */
+.bd-article-container .highlight {
+    margin-bottom: 1.2rem;
+}
+
+/* Spacing after tables */
+.bd-article-container table {
+    margin-bottom: 1.5rem;
+}
+
+/* Spacing after admonitions */
+.bd-article-container .admonition {
+    margin-bottom: 1.5rem;
+}
+
+
+/* ============================================
+   CODE BLOCKS: Slightly darker background
+   ============================================ */
+
+pre {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background-color: #f5f5f5;
+}
+
+code.literal {
+    border: 1px solid #e0e0e0;
+    border-radius: 3px;
+    padding: 1px 4px;
+    background-color: #f2f2f2;
+}
+
+html[data-theme="light"] .highlight pre { 
+    line-height: 170%;
+}
+
+html[data-theme="dark"] pre {
+    border-color: #444;
+    background-color: #1e1e1e;
+}
+
+html[data-theme="dark"] code.literal {
+    border-color: #444;
+    background-color: #2a2a2a;
+}
+
+
+/* ============================================
+   TABLES: Padding & header background
+   ============================================ */
+
+.bd-article-container table th {
+    padding: 6px 14px;
+    background-color: #f0f0f0;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.bd-article-container table td {
+    padding: 5px 14px;
+    font-size: 0.85rem;
+}
+
+/* Subtle row striping for readability */
+.bd-article-container table tbody tr:nth-child(even) {
+    background-color: #fafafa;
+}
+
+html[data-theme="dark"] .bd-article-container table th {
+    background-color: #2a2a2a;
+}
+
+html[data-theme="dark"] .bd-article-container table tbody tr:nth-child(even) {
+    background-color: #1e1e1e;
+}
+
+
+/* ============================================
+   SIGNATURE COLORS (class/function definitions)
+   ============================================ */
+
+/* Module path: dash_evals.runner.models. */
+.sig-prename.descclassname {
+    color: #666666 !important;
+}
+
+/* Class/function name: TaskResult, flutter_bug_fix */
+.sig-name.descname {
+    color: #7C4DFF !important;
+    font-weight: 600;
+}
+
+/* Property/attribute names in signatures */
+dt.sig.sig-object .sig-name:not(.descname) {
+    color: #005577 !important;
+}
+
+
+/* ============================================
+   TYPE ANNOTATION COLORS
+   ============================================ */
+
+/* The "class" keyword */
+dt.sig.sig-object > .property {
+    color: #0077AA !important;
+    font-weight: 800;
+}
+
+/* Type names in annotations */
+.sig .sig-param span.pre,
+.sig > span.pre:not(:first-child) {
+    color: #A90D91;
+}
+
+/* Parentheses */
+.sig-paren {
+    color: #666666;
+}
+
+
+/* ============================================
+   DARK MODE: Signatures
+   ============================================ */
+
+html[data-theme="dark"] .sig-prename.descclassname {
+    color: #888888 !important;
+}
+
+html[data-theme="dark"] .sig-name.descname {
+    color: #B388FF !important;
+}
+
+html[data-theme="dark"] dt.sig.sig-object .sig-name:not(.descname) {
+    color: #61AFEF !important;
+}
+
+html[data-theme="dark"] dt.sig.sig-object > span.pre:first-child {
+    color: #56B6C2 !important;
+}
+
+html[data-theme="dark"] .sig .sig-param span.pre,
+html[data-theme="dark"] .sig > span.pre:not(:first-child) {
+    color: #CE93D8;
+}
+
+html[data-theme="dark"] .sig-paren {
+    color: #888888;
+}

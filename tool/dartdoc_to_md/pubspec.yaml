@@ -1,0 +1,12 @@
+name: dartdoc_to_md
+description: Generates Sphinx-compatible Markdown from Dart source using the analyzer.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  analyzer: ^11.0.0
+  args: ^2.7.0
+  path: ^1.9.1
