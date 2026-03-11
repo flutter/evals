@@ -14,16 +14,12 @@ You'll also need an API key for at least one model provider (`GOOGLE_API_KEY`, `
 ## 1. Install the packages
 
 ```bash
-git clone https://github.com/flutter/evals.git
-pip install -e <path-to-evals>/packages/dash_evals
-dart pub global activate devals --source path <path-to-evals>/packages/devals_cli
-
-
-## TODO: Integrate in the new repo. This is wrong for this repo
+git clone https://github.com/flutter/evals.git && cd evals
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e "packages/dash_evals[dev]"
 pip install -e "packages/dataset_config_python[dev]"
+dart pub global activate devals --source path packages/devals_cli
 ```
 
 This installs two things:

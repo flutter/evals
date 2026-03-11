@@ -21,7 +21,7 @@ evals/
 
 ## dataset/
 
-Contains all evaluation data, configurations, and resources. See the [Configuration Overview](./config/about.md) for detailed file formats.
+Contains all evaluation data, configurations, and resources. See the [Configuration Overview](../reference/configuration_reference.md) for detailed file formats.
 
 | Path | Description |
 |------|-------------|
@@ -81,7 +81,7 @@ dash_evals/
 
 ### devals_cli/ (devals)
 
-Dart CLI for creating and managing evaluation tasks and jobs. See the [CLI documentation](./cli.md) for full command reference.
+Dart CLI for creating and managing evaluation tasks and jobs. See the [CLI documentation](../reference/cli.md) for full command reference.
 
 ```
 devals_cli/

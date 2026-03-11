@@ -68,6 +68,6 @@ Key terminology for understanding the evals framework.
 
 ---
 
-See the [Configuration Overview](./config/about.md) for detailed configuration file documentation.
+See the [Configuration Reference](./configuration_reference.md) for detailed configuration file documentation.
 
 [Learn more about Inspect AI](https://inspect.aisi.org.uk/)

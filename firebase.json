@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "evals-docs",
+    "site": "dash-evals-docs",
     "public": "docs/_build/html",
     "ignore": [
       "firebase.json",
