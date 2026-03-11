@@ -17,7 +17,7 @@ import 'package:path/path.dart' as p;
 ///   1  — one or more fixtures diverge (diff printed to stderr)
 void main() async {
   final repoRoot = _findRepoRoot();
-  final fixturesDir = Directory(p.join(repoRoot, 'tool', 'fixtures'));
+  final fixturesDir = Directory(p.join(repoRoot, 'tool', 'config_parity', 'fixtures'));
 
   if (!fixturesDir.existsSync()) {
     stderr.writeln('ERROR: fixtures directory not found: ${fixturesDir.path}');
@@ -103,7 +103,7 @@ Future<bool> _verifyFixture({
     'dart',
     [
       'run',
-      p.join(repoRoot, 'tool', 'bin', 'resolve_dart.dart'),
+      p.join(repoRoot, 'tool', 'config_parity', 'bin', 'resolve_dart.dart'),
       datasetPath,
       jobName,
     ],
@@ -122,7 +122,7 @@ Future<bool> _verifyFixture({
   final pythonResult = await Process.run(
     pythonBin,
     [
-      p.join(repoRoot, 'tool', 'bin', 'resolve_python.py'),
+      p.join(repoRoot, 'tool', 'config_parity', 'bin', 'resolve_python.py'),
       datasetPath,
       jobName,
     ],
@@ -194,16 +194,6 @@ dynamic _normalize(dynamic value) {
       if (v is List && v.isEmpty) return true;
       return false;
     });
-    // Strip Dart-only fields that have false/zero defaults and are absent
-    // from Python models (e.g. Dataset.shuffled, Dataset.location).
-    const dartOnlyDefaults = <String, dynamic>{
-      'shuffled': false,
-    };
-    for (final entry in dartOnlyDefaults.entries) {
-      if (sorted[entry.key] == entry.value) {
-        sorted.remove(entry.key);
-      }
-    }
     // Normalize timestamped log_dir paths — both sides append timestamps
     // but at slightly different times; strip the timestamp for comparison
     if (sorted.containsKey('log_dir') && sorted['log_dir'] is String) {
