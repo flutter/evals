@@ -169,7 +169,7 @@ samples:
 | `tests.path` | Path to test files the scorer runs against the generated code. |
 
 > [!NOTE]
-> See [Tasks](config/tasks.md) and [Samples](config/samples.md) for the
+See [Tasks](../reference/configuration_reference.md#task-files) and [Samples](../reference/configuration_reference.md#sample-files) for the
 > complete field reference.
 
 ---
@@ -215,7 +215,7 @@ That's the minimal job — it will:
 >   with_context:
 >     context_files: [./context_files/dart_docs.md]
 > ```
-> See [Configuration Overview](config/about.md#variants) for details.
+> See [Configuration Overview](../reference/configuration_reference.md#variants) for details.
 
 ---
 
@@ -281,7 +281,7 @@ devals view path/to/logs
 Now that you've run your first custom evaluation, here are some things to try:
 
 - **Add more samples** to your task: `devals create sample`
-- **Try different task types** — `question_answer`, `bug_fix`, or `flutter_code_gen`. See [all available task functions](../packages/dash_evals.md).
+**Try different task types** — `question_answer`, `bug_fix`, or `flutter_code_gen`. See [all available task functions](../contributing/packages/dash_evals.md).
 - **Add variants** to test how context files or MCP tools affect performance. See [Variants](config/about.md#variants).
 - **Run multiple models** by adding more entries to the `models` list in your job file
-- **Read the config reference** for [Jobs](config/jobs.md), [Tasks](config/tasks.md), and [Samples](config/samples.md)
+- **Read the config reference** for [Jobs](../reference/configuration_reference.md#job-files), [Tasks](../reference/configuration_reference.md#task-files), and [Samples](../reference/configuration_reference.md#sample-files)
