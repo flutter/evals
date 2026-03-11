@@ -1,0 +1,46 @@
+name: Config Parity
+
+on:
+  pull_request:
+    paths:
+      - 'packages/dataset_config_dart/**'
+      - 'packages/dataset_config_python/**'
+      - 'tool/config_parity/**'
+      - '.github/workflows/config_parity.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/dataset_config_dart/**'
+      - 'packages/dataset_config_python/**'
+      - 'tool/config_parity/**'
+      - '.github/workflows/config_parity.yml'
+
+jobs:
+  config-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Flutter
+        run: |
+          git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
+          echo "$HOME/flutter/bin" >> $GITHUB_PATH
+          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
+
+      - name: Install Dart dependencies
+        run: flutter pub get
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install Python config package
+        run: pip install -e packages/dataset_config_python
+
+      - name: Verify config parity
+        run: dart run tool/config_parity/bin/config_partiy.dart

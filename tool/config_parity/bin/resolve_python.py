@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import sys
 
-from dataset_config_python import resolve
+from dataset_config_python import resolve  # pyrefly: ignore
 
 
 def main() -> None:
