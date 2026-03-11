@@ -1,0 +1,65 @@
+version: 2
+updates:
+  # Python dependencies for eval_runner
+  - package-ecosystem: "pip"
+    directory: "/pkgs/eval_runner"
+    schedule:
+      interval: "monthly"
+    groups:
+      python-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Dart/Flutter dependencies for dataset_config
+  - package-ecosystem: "pub"
+    directory: "/pkgs/dataset_config"
+    schedule:
+      interval: "monthly"
+    groups:
+      all-dart-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+
+
+  # Dart/Flutter dependencies for devals_cli
+  - package-ecosystem: "pub"
+    directory: "/pkgs/devals_cli"
+    schedule:
+      interval: "monthly"
+    groups:
+      all-dart-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Dart/Flutter dependencies for eval_explorer
+  - package-ecosystem: "pub"
+    directory: "/pkgs/eval_explorer"
+    schedule:
+      interval: "monthly"
+    groups:
+      all-dart-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      actions-deps:
+        patterns:
+          - "*"
