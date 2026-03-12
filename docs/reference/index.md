@@ -8,6 +8,7 @@ API documentation, CLI usage, and other reference material.
 glossary
 cli
 configuration_reference
+yaml_config
 ```
 
 ```{toctree}
