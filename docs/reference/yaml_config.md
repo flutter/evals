@@ -4,7 +4,7 @@ This page provides a complete field-by-field reference for each YAML configurati
 
 ## Job
 
-Job files define runtime settings for an evaluation run, including sandbox configuration, rate limits, model selection, variant definitions, and pass-through parameters for Inspect AI's `eval_set()` and `Task` constructors. Located in `eval/jobs/`.
+Job files define runtime settings for an evaluation run, including sandbox configuration, rate limits, model selection, variant definitions, tag-based filtering, and pass-through parameters for Inspect AI's `eval_set()` and `Task` constructors. Located in `eval/jobs/`.
 
 ```{list-table}
 :header-rows: 1
@@ -16,6 +16,12 @@ Job files define runtime settings for an evaluation run, including sandbox confi
   - Dart field
   - Python field
   - Description
+* - `description`
+  - string
+  - Y
+  - `description`
+  - `description`
+  - Human-readable description of the job
 * - `log_dir`
   - string
   - N
@@ -28,6 +34,12 @@ Job files define runtime settings for an evaluation run, including sandbox confi
   - `sandboxType`
   - `sandbox_type`
   - Sandbox type: `local`, `docker`, or `podman` (default: `local`)
+* - `image_prefix`
+  - string
+  - Y
+  - `imagePrefix`
+  - `image_prefix`
+  - Registry prefix prepended to image names during sandbox resolution (e.g. `us-central1-docker.pkg.dev/project/repo/`)
 * - `max_connections`
   - int
   - Y
@@ -78,6 +90,32 @@ Job files define runtime settings for an evaluation run, including sandbox confi
   -
   -
   - Flutter SDK channel (`stable`, `beta`, `main`)
+* - `task_filters`
+  - object
+  - Y
+  - `taskFilters`
+  - `task_filters`
+  - Tag-based task selection filter
+* - `task_filters`\
+    &nbsp;&nbsp;`.include_tags`
+  - list
+  - Y
+  - `TagFilter.includeTags`
+  - `TagFilter.include_tags`
+  - Only run tasks whose metadata tags include **all** of these
+* - `task_filters`\
+    &nbsp;&nbsp;`.exclude_tags`
+  - list
+  - Y
+  - `TagFilter.excludeTags`
+  - `TagFilter.exclude_tags`
+  - Exclude tasks whose metadata tags include **any** of these
+* - `sample_filters`
+  - object
+  - Y
+  - `sampleFilters`
+  - `sample_filters`
+  - Tag-based sample selection filter (same schema as `task_filters`)
 * - `task_paths`
   - list
   - Y
@@ -114,6 +152,14 @@ Job files define runtime settings for an evaluation run, including sandbox confi
   - `JobTask.systemMessage`
   - `JobTask.system_message`
   - Override system message for this task
+* - `tasks`\
+    &nbsp;&nbsp;`.<task_id>`\
+    &nbsp;&nbsp;`.args`
+  - object
+  - Y
+  - `JobTask.args`
+  - `JobTask.args`
+  - Per-task argument overrides passed to the task function
 * - `save_examples`
   - bool
   - Y
@@ -433,9 +479,9 @@ Task files define a single evaluation task with its samples, prompt configuratio
 * - `func`
   - string
   - Y
-  -
-  -
-  - Name of the `@task` function (defaults to directory name)
+  - `func`
+  - `func`
+  - Name of the `@task` function or `module:function` reference (defaults to directory name)
 * - `id`
   - string
   - Y
@@ -445,15 +491,9 @@ Task files define a single evaluation task with its samples, prompt configuratio
 * - `description`
   - string
   - Y
-  -
-  -
+  - `description`
+  - `description`
   - Human-readable description
-* - `system_message`
-  - string
-  - Y
-  -
-  -
-  - Custom system prompt for this task
 * - `samples`
   - object
   - N
@@ -480,12 +520,30 @@ Task files define a single evaluation task with its samples, prompt configuratio
   -
   -
   - Whitelist of variant names this task accepts
+* - `variant_filters`
+  - object
+  - Y
+  -
+  -
+  - Tag-based variant filter (same schema as job-level `task_filters`)
+* - `system_message`
+  - string
+  - Y
+  - `systemMessage`
+  - `system_message`
+  - Custom system prompt for this task
+* - `sandbox_parameters`
+  - object
+  - Y
+  - `sandboxParameters`
+  - `sandbox_parameters`
+  - Pass-through parameters for sandbox plugin configuration
 * - `workspace`
   - string/object
   - Y
   -
   -
-  - Default workspace for all samples
+  - Default workspace for all samples (resolved into `Sample.files` and `Sample.setup`)
 * - `tests`
   - string/object
   - Y
