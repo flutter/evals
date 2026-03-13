@@ -28,7 +28,7 @@ _Variant _$VariantFromJson(Map<String, dynamic> json) => _Variant(
 
 Map<String, dynamic> _$VariantToJson(_Variant instance) => <String, dynamic>{
   'name': instance.name,
-  'context_files': instance.contextFiles.map((e) => e.toJson()).toList(),
+  'context_files': instance.contextFiles,
   'mcp_servers': instance.mcpServers,
   'skill_paths': instance.skillPaths,
   'flutter_channel': instance.flutterChannel,

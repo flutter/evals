@@ -178,7 +178,7 @@ class TestModels:
 
     def test_eval_set_serialization(self):
         es = EvalSet(
-            tasks=[Task(name="test:baseline", task_func="qa")],
+            tasks=[Task(name="test:baseline", func="qa")],
             log_dir="/tmp/logs",
             model=["google/gemini-2.5-flash"],
         )
@@ -312,11 +312,11 @@ class TestWriter:
 
     def test_write_multiple(self, tmp_path):
         es1 = EvalSet(
-            tasks=[Task(name="t1:baseline", task_func="qa")],
+            tasks=[Task(name="t1:baseline", func="qa")],
             log_dir="/tmp/logs1",
         )
         es2 = EvalSet(
-            tasks=[Task(name="t2:baseline", task_func="qa")],
+            tasks=[Task(name="t2:baseline", func="qa")],
             log_dir="/tmp/logs2",
         )
         output_dir = str(tmp_path / "output")

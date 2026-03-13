@@ -21,7 +21,7 @@ class JsonParser extends Parser {
   List<ParsedTask> parseTasksFromMaps(List<Map<String, dynamic>> taskMaps) {
     return taskMaps.map((data) {
       final taskId = data['id'] as String;
-      final taskFunc = (data['func'] as String?) ?? taskId;
+      final func = (data['func'] as String?) ?? taskId;
       final systemMessage = data['system_message'] as String?;
       final allowedVariants = (data['allowed_variants'] as List?)
           ?.cast<String>();
@@ -113,7 +113,7 @@ class JsonParser extends Parser {
 
       return ParsedTask(
         id: taskId,
-        taskFunc: taskFunc,
+        func: func,
         variant: const Variant(),
         samples: samples,
         systemMessage: systemMessage,

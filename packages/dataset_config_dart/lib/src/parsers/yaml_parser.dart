@@ -50,7 +50,7 @@ class YamlParser extends Parser {
     final taskDir = p.dirname(taskPath);
 
     final taskId = (data['id'] as String?) ?? p.basename(taskDir);
-    final taskFunc = (data['func'] as String?) ?? taskId;
+    final func = (data['func'] as String?) ?? taskId;
 
     final taskWorkspaceRaw = data['workspace'];
     final taskTestsRaw = data['tests'];
@@ -102,7 +102,7 @@ class YamlParser extends Parser {
     return [
       ParsedTask(
         id: taskId,
-        taskFunc: taskFunc,
+        func: func,
         variant: const Variant(), // placeholder baseline
         samples: samples,
         systemMessage: systemMessage,

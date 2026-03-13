@@ -146,13 +146,13 @@ def _run_single_manifest(manifest: dict) -> bool:
     task_instances: list[inspect_ai.Task] = []
 
     for task_def in task_defs:
-        task_func_name = task_def.get("task_func")
+        task_func_name = task_def.get("func")
         task_name = task_def.get("name", task_func_name or "(unknown)")
 
         if not task_func_name:
             # Mode 2: hydrate directly from JSON (future)
             job_logger.warning(
-                f"  ⚠ {task_name}: no task_func — Mode 2 hydration not yet supported"
+                f"  ⚠ {task_name}: no func — Mode 2 hydration not yet supported"
             )
             continue
 

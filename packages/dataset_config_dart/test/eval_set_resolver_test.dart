@@ -7,7 +7,7 @@ void main() {
   /// Helper to create a minimal [ParsedTask] for testing.
   ParsedTask makeTask({
     String id = 'test_task',
-    String taskFunc = 'question_answer',
+    String func = 'question_answer',
     List<Sample>? samples,
     Variant? variant,
     List<String>? allowedVariants,
@@ -18,7 +18,7 @@ void main() {
   }) {
     return ParsedTask(
       id: id,
-      taskFunc: taskFunc,
+      func: func,
       samples:
           samples ??
           [
@@ -278,14 +278,14 @@ void main() {
       expect(taskNames.first, contains('included'));
     });
 
-    test('taskFunc is propagated to output Task', () {
+    test('func is propagated to output Task', () {
       final results = resolver.resolve(
-        [makeTask(taskFunc: 'flutter_code_gen')],
+        [makeTask(func: 'flutter_code_gen')],
         makeJob(models: ['m']),
         '/tmp/dataset',
       );
 
-      expect(results.first.tasks.first.taskFunc, 'flutter_code_gen');
+      expect(results.first.tasks.first.func, 'flutter_code_gen');
     });
 
     test('system_message appears in task metadata', () {

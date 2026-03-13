@@ -239,7 +239,7 @@ class EvalSetResolver {
       inspectTasks.add(
         Task(
           name: '${tc.id}:${tc.variant.name}',
-          taskFunc: tc.taskFunc,
+          func: tc.func,
           dataset: dataset,
           sandbox: taskSandbox,
           metadata: metadata,

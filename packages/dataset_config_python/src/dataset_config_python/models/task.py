@@ -19,8 +19,14 @@ class Task(BaseModel):
     name: str = ""
     """Task name (e.g. ``"dart_qa:baseline"``)."""
 
-    task_func: str | None = None
+    func: str | None = None
     """Task function identifier for hydration (e.g. ``"question_answer"``)."""
+
+    system_message: str | None = None
+    """System message override for this task."""
+
+    sandbox_parameters: dict[str, Any] | None = None
+    """Pass-through dict for sandbox plugin configuration."""
 
     dataset: Dataset | None = None
     """Inline dataset with samples."""

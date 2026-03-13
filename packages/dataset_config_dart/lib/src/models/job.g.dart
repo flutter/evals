@@ -7,6 +7,8 @@ part of 'job.dart';
 // **************************************************************************
 
 _Job _$JobFromJson(Map<String, dynamic> json) => _Job(
+  description: json['description'] as String?,
+  imagePrefix: json['image_prefix'] as String?,
   logDir: json['log_dir'] as String,
   sandboxType: json['sandbox_type'] as String? ?? 'local',
   maxConnections: (json['max_connections'] as num?)?.toInt() ?? 10,
@@ -72,16 +74,24 @@ _Job _$JobFromJson(Map<String, dynamic> json) => _Job(
   evalSetId: json['eval_set_id'] as String?,
   evalSetOverrides: json['eval_set_overrides'] as Map<String, dynamic>?,
   taskDefaults: json['task_defaults'] as Map<String, dynamic>?,
+  taskFilters: json['task_filters'] == null
+      ? null
+      : TagFilter.fromJson(json['task_filters'] as Map<String, dynamic>),
+  sampleFilters: json['sample_filters'] == null
+      ? null
+      : TagFilter.fromJson(json['sample_filters'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$JobToJson(_Job instance) => <String, dynamic>{
+  'description': instance.description,
+  'image_prefix': instance.imagePrefix,
   'log_dir': instance.logDir,
   'sandbox_type': instance.sandboxType,
   'max_connections': instance.maxConnections,
   'models': instance.models,
   'variants': instance.variants,
   'task_paths': instance.taskPaths,
-  'tasks': instance.tasks?.map((k, e) => MapEntry(k, e.toJson())),
+  'tasks': instance.tasks,
   'save_examples': instance.saveExamples,
   'retry_attempts': instance.retryAttempts,
   'max_retries': instance.maxRetries,
@@ -132,6 +142,8 @@ Map<String, dynamic> _$JobToJson(_Job instance) => <String, dynamic>{
   'eval_set_id': instance.evalSetId,
   'eval_set_overrides': instance.evalSetOverrides,
   'task_defaults': instance.taskDefaults,
+  'task_filters': instance.taskFilters,
+  'sample_filters': instance.sampleFilters,
 };
 
 _JobTask _$JobTaskFromJson(Map<String, dynamic> json) => _JobTask(
@@ -143,6 +155,7 @@ _JobTask _$JobTaskFromJson(Map<String, dynamic> json) => _JobTask(
       ?.map((e) => e as String)
       .toList(),
   systemMessage: json['system_message'] as String?,
+  args: json['args'] as Map<String, dynamic>?,
 );
 
 Map<String, dynamic> _$JobTaskToJson(_JobTask instance) => <String, dynamic>{
@@ -150,4 +163,5 @@ Map<String, dynamic> _$JobTaskToJson(_JobTask instance) => <String, dynamic>{
   'include_samples': instance.includeSamples,
   'exclude_samples': instance.excludeSamples,
   'system_message': instance.systemMessage,
+  'args': instance.args,
 };

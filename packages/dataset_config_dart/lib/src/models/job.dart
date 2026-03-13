@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'tag_filter.dart';
 
 part 'job.freezed.dart';
 part 'job.g.dart';
@@ -44,6 +45,14 @@ sealed class Job with _$Job {
     // ------------------------------------------------------------------
     // Core job settings
     // ------------------------------------------------------------------
+
+    /// Human-readable description of this job.
+    String? description,
+
+    /// Registry URL prefix prepended to image names during sandbox resolution.
+    ///
+    /// Example: `us-central1-docker.pkg.dev/project/repo/`
+    @JsonKey(name: 'image_prefix') String? imagePrefix,
 
     /// Directory to write evaluation logs to.
     @JsonKey(name: 'log_dir') required String logDir,
@@ -233,6 +242,16 @@ sealed class Job with _$Job {
     ///
     /// Per-task overrides (from `task.yaml`) take precedence.
     @JsonKey(name: 'task_defaults') Map<String, dynamic>? taskDefaults,
+
+    // ------------------------------------------------------------------
+    // Tag-based filtering
+    // ------------------------------------------------------------------
+
+    /// Tag filters applied to tasks.
+    @JsonKey(name: 'task_filters') TagFilter? taskFilters,
+
+    /// Tag filters applied to samples.
+    @JsonKey(name: 'sample_filters') TagFilter? sampleFilters,
   }) = _Job;
 
   factory Job.fromJson(Map<String, dynamic> json) => _$JobFromJson(json);
@@ -256,6 +275,9 @@ sealed class JobTask with _$JobTask {
 
     /// Override system message for this task.
     @JsonKey(name: 'system_message') String? systemMessage,
+
+    /// Per-task argument overrides passed to the task function.
+    @JsonKey(name: 'args') Map<String, dynamic>? args,
   }) = _JobTask;
 
   factory JobTask.fromJson(Map<String, dynamic> json) =>
@@ -274,6 +296,7 @@ sealed class JobTask with _$JobTask {
       includeSamples: (data['include-samples'] as List?)?.cast<String>(),
       excludeSamples: (data['exclude-samples'] as List?)?.cast<String>(),
       systemMessage: data['system_message'] as String?,
+      args: (data['args'] as Map?)?.cast<String, dynamic>(),
     );
   }
 }

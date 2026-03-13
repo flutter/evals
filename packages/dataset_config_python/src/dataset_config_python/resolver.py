@@ -213,7 +213,7 @@ def _build_eval_set(
         inspect_tasks.append(
             Task(
                 name=f"{tc.id}:{tc.variant.name}",
-                task_func=tc.task_func,
+                func=tc.func,
                 dataset=dataset,
                 sandbox=task_sandbox,
                 metadata=task_metadata,

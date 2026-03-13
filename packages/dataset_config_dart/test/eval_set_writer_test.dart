@@ -25,7 +25,7 @@ void main() {
         taskCount,
         (i) => Task(
           name: 'task_$i:baseline',
-          taskFunc: 'func_$i',
+          func: 'func_$i',
           dataset: Dataset(
             samples: [
               Sample(id: 's$i', input: 'input $i', target: 'target $i'),

@@ -32,9 +32,9 @@ bool _validateConfig(EvalSet config) {
   final taskSummaries = <String, int>{};
 
   for (final task in config.tasks) {
-    final name = task.name ?? task.taskFunc ?? '(unknown)';
+    final name = task.name ?? task.func ?? '(unknown)';
 
-    if (task.taskFunc == null) {
+    if (task.func == null) {
       warnings.add(
         'Task "$name" has no task_func — Mode 2 hydration required',
       );

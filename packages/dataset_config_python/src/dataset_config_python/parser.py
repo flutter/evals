@@ -29,7 +29,7 @@ class ParsedTask:
         self,
         *,
         id: str,
-        task_func: str,
+        func: str,
         samples: list[Sample],
         variant: Variant | None = None,
         sandbox_type: str = "local",
@@ -57,7 +57,7 @@ class ParsedTask:
         metadata: dict[str, Any] | None = None,
     ):
         self.id = id
-        self.task_func = task_func
+        self.func = func
         self.samples = samples
         self.variant = variant or Variant()
         self.sandbox_type = sandbox_type
@@ -89,7 +89,7 @@ class ParsedTask:
         self,
         *,
         id: str | None = _UNSET,
-        task_func: str | None = _UNSET,
+        func: str | None = _UNSET,
         samples: list[Sample] | None = _UNSET,
         variant: Variant | None = _UNSET,
         sandbox_type: str | None = _UNSET,
@@ -119,7 +119,7 @@ class ParsedTask:
         _U = ParsedTask._UNSET
         return ParsedTask(
             id=self.id if id is _U else id,  # type: ignore[arg-type]
-            task_func=self.task_func if task_func is _U else task_func,  # type: ignore[arg-type]
+            func=self.func if func is _U else func,  # type: ignore[arg-type]
             samples=self.samples if samples is _U else samples,  # type: ignore[arg-type]
             variant=self.variant if variant is _U else variant,
             sandbox_type=self.sandbox_type if sandbox_type is _U else sandbox_type,  # type: ignore[arg-type]
@@ -260,7 +260,7 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
     return [
         ParsedTask(
             id=task_id,
-            task_func=task_func,
+            func=task_func,
             variant=Variant(),
             samples=samples,
             system_message=system_message,
