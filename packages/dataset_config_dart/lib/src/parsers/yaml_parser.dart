@@ -98,6 +98,7 @@ class YamlParser extends Parser {
     final displayName = data['display_name'] as String?;
     final version = data['version'];
     final taskMetadata = _asMap(data['metadata']);
+    final sandboxParameters = _asMap(data['sandbox_parameters']);
 
     return [
       ParsedTask(
@@ -125,6 +126,7 @@ class YamlParser extends Parser {
         displayName: displayName,
         version: version,
         metadata: taskMetadata,
+        sandboxParameters: sandboxParameters,
       ),
     ];
   }
@@ -370,14 +372,28 @@ class YamlParser extends Parser {
       }
     }
 
+    // Parse tag filters
+    final taskFiltersRaw = data['task_filters'];
+    final sampleFiltersRaw = data['sample_filters'];
+    final TagFilter? taskFilters = taskFiltersRaw is Map
+        ? TagFilter.fromJson(Map<String, dynamic>.from(taskFiltersRaw))
+        : null;
+    final TagFilter? sampleFilters = sampleFiltersRaw is Map
+        ? TagFilter.fromJson(Map<String, dynamic>.from(sampleFiltersRaw))
+        : null;
+
     return Job(
       logDir: logDir,
       sandboxType: sandboxType,
       maxConnections: maxConnections,
+      description: data['description'] as String?,
+      imagePrefix: data['image_prefix'] as String?,
       models: (data['models'] as List?)?.cast<String>(),
       variants: variants,
       taskPaths: taskPaths,
       tasks: tasks,
+      taskFilters: taskFilters,
+      sampleFilters: sampleFilters,
       saveExamples: data['save_examples'] == true,
       // Promoted eval_set() fields
       retryAttempts: data['retry_attempts'] as int?,

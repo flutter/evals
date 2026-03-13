@@ -10,6 +10,7 @@ from dataset_config_python.models.context_file import ContextFile
 from dataset_config_python.models.dataset import Dataset
 from dataset_config_python.models.eval_set import EvalSet
 from dataset_config_python.models.sample import Sample
+from dataset_config_python.models.tag_filter import matches_tag_filter
 from dataset_config_python.models.task import Task
 from dataset_config_python.models.variant import Variant
 from dataset_config_python.parser import ParsedTask, find_job_file, parse_job, parse_tasks
@@ -217,6 +218,8 @@ def _build_eval_set(
                 dataset=dataset,
                 sandbox=task_sandbox,
                 metadata=task_metadata,
+                system_message=tc.system_message,
+                sandbox_parameters=tc.sandbox_parameters,
                 model=tc.model or task_defaults.get("model"),
                 config=tc.config or task_defaults.get("config"),
                 model_roles=tc.model_roles or task_defaults.get("model_roles"),
@@ -372,9 +375,15 @@ def _expand_task_configs(
     for tc in dataset_tasks:
         task_id = tc.id
 
-        # Filter by job.tasks
+        # Filter by job.tasks (ID-based)
         if job.tasks is not None and task_id not in job.tasks:
             continue
+
+        # Filter by job.task_filters (tag-based)
+        if job.task_filters is not None:
+            task_tags = (tc.metadata or {}).get("tags", [])
+            if not matches_tag_filter(task_tags, job.task_filters):
+                continue
 
         # Determine effective variants (intersection)
         effective_variants: dict[str, dict[str, Any]] = {}
@@ -392,6 +401,13 @@ def _expand_task_configs(
                 samples = [s for s in samples if s.id in job_task.include_samples]
             if job_task.exclude_samples:
                 samples = [s for s in samples if s.id not in job_task.exclude_samples]
+
+        # Apply sample tag filtering (job-level)
+        if job.sample_filters is not None:
+            samples = [
+                s for s in samples
+                if matches_tag_filter((s.metadata or {}).get("tags", []), job.sample_filters)
+            ]
 
         # Apply system_message override
         system_message = tc.system_message

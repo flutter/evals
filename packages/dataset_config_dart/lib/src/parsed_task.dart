@@ -25,6 +25,9 @@ class ParsedTask {
   /// Tag filter for variant selection.
   final TagFilter? variantFilters;
 
+  /// Pass-through dict for sandbox plugin configuration.
+  final Map<String, dynamic>? sandboxParameters;
+
   // ------------------------------------------------------------------
   // Task-level settings (from task.yaml)
   // ------------------------------------------------------------------
@@ -91,6 +94,7 @@ class ParsedTask {
     this.saveExamples = false,
     this.examplesDir,
     this.variantFilters,
+    this.sandboxParameters,
     // Task-level settings
     this.model,
     this.config,
@@ -123,6 +127,7 @@ class ParsedTask {
     bool? saveExamples,
     String? examplesDir,
     TagFilter? variantFilters,
+    Map<String, dynamic>? sandboxParameters,
     String? model,
     Map<String, dynamic>? config,
     Map<String, String>? modelRoles,
@@ -152,6 +157,7 @@ class ParsedTask {
       saveExamples: saveExamples ?? this.saveExamples,
       examplesDir: examplesDir ?? this.examplesDir,
       variantFilters: variantFilters ?? this.variantFilters,
+      sandboxParameters: sandboxParameters ?? this.sandboxParameters,
       model: model ?? this.model,
       config: config ?? this.config,
       modelRoles: modelRoles ?? this.modelRoles,

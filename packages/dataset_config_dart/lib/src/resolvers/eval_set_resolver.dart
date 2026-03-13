@@ -243,6 +243,8 @@ class EvalSetResolver {
           dataset: dataset,
           sandbox: taskSandbox,
           metadata: metadata,
+          systemMessage: tc.systemMessage,
+          sandboxParameters: tc.sandboxParameters,
           model: resolvedModel,
           config: resolvedConfig,
           modelRoles: resolvedModelRoles,
@@ -427,8 +429,14 @@ class EvalSetResolver {
     for (final taskConfig in datasetTasks) {
       final taskId = taskConfig.id;
 
-      // Filter by job.tasks
+      // Filter by job.tasks (ID-based)
       if (job.tasks != null && !job.tasks!.containsKey(taskId)) continue;
+
+      // Filter by job.taskFilters (tag-based)
+      if (job.taskFilters != null) {
+        final taskTags = (taskConfig.metadata?['tags'] as List?)?.cast<String>() ?? [];
+        if (!matchesTagFilter(taskTags, job.taskFilters!)) continue;
+      }
 
       // Determine effective variants (intersection)
       final effectiveVariants = <String, Map<String, dynamic>>{};
@@ -457,6 +465,14 @@ class EvalSetResolver {
               .where((s) => !jobTask.excludeSamples!.contains(s.id))
               .toList();
         }
+      }
+
+      // Apply sample tag filtering (job-level)
+      if (job.sampleFilters != null) {
+        samples = samples.where((s) {
+          final sampleTags = (s.metadata?['tags'] as List?)?.cast<String>() ?? [];
+          return matchesTagFilter(sampleTags, job.sampleFilters!);
+        }).toList();
       }
 
       // Apply system_message override

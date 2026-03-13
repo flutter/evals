@@ -12,6 +12,7 @@ import yaml
 
 from dataset_config_python.models.job import Job, JobTask
 from dataset_config_python.models.sample import Sample
+from dataset_config_python.models.tag_filter import TagFilter
 from dataset_config_python.models.variant import Variant
 
 # Default log directory (relative to dataset root).
@@ -55,6 +56,7 @@ class ParsedTask:
         display_name: str | None = None,
         version: Any | None = None,
         metadata: dict[str, Any] | None = None,
+        sandbox_parameters: dict[str, Any] | None = None,
     ):
         self.id = id
         self.func = func
@@ -82,6 +84,7 @@ class ParsedTask:
         self.display_name = display_name
         self.version = version
         self.metadata = metadata
+        self.sandbox_parameters = sandbox_parameters
 
     _UNSET: Any = object()
 
@@ -97,6 +100,7 @@ class ParsedTask:
         allowed_variants: list[str] | None = _UNSET,
         save_examples: bool | None = _UNSET,
         examples_dir: str | None = _UNSET,
+        sandbox_parameters: dict[str, Any] | None = _UNSET,
         model: str | None = _UNSET,
         config: dict[str, Any] | None = _UNSET,
         model_roles: dict[str, str] | None = _UNSET,
@@ -127,6 +131,7 @@ class ParsedTask:
             allowed_variants=self.allowed_variants if allowed_variants is _U else allowed_variants,
             save_examples=self.save_examples if save_examples is _U else save_examples,  # type: ignore[arg-type]
             examples_dir=self.examples_dir if examples_dir is _U else examples_dir,
+            sandbox_parameters=self.sandbox_parameters if sandbox_parameters is _U else sandbox_parameters,
             model=self.model if model is _U else model,
             config=self.config if config is _U else config,
             model_roles=self.model_roles if model_roles is _U else model_roles,
@@ -282,6 +287,7 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
             display_name=data.get("display_name"),
             version=data.get("version"),
             metadata=data.get("metadata") if isinstance(data.get("metadata"), dict) else None,
+            sandbox_parameters=data.get("sandbox_parameters") if isinstance(data.get("sandbox_parameters"), dict) else None,
         )
     ]
 
@@ -542,6 +548,10 @@ def parse_job(job_path: str, dataset_root: str) -> Job:
         task_defaults=(
             data.get("task_defaults") if isinstance(data.get("task_defaults"), dict) else None
         ),
+        description=data.get("description"),
+        image_prefix=data.get("image_prefix"),
+        task_filters=TagFilter(**data["task_filters"]) if isinstance(data.get("task_filters"), dict) else None,
+        sample_filters=TagFilter(**data["sample_filters"]) if isinstance(data.get("sample_filters"), dict) else None,
     )
 
 
