@@ -21,8 +21,10 @@ const List<String> kDefaultModels = [
   'openai/gpt-5-pro',
 ];
 
-/// Available sandbox configurations.
-const Map<String, Map<String, String>> kSandboxRegistry = {
+/// Default sandbox configurations for Flutter evaluations.
+///
+/// Consumers can pass these to [EvalSetResolver] or provide their own.
+const Map<String, Map<String, String>> kDefaultSandboxRegistry = {
   'podman': {'name': 'podman', 'path': './sandboxes/podman/compose.yaml'},
   'podman-beta': {
     'name': 'podman',
@@ -34,8 +36,10 @@ const Map<String, Map<String, String>> kSandboxRegistry = {
   },
 };
 
-/// Maps Flutter SDK channel names to sandbox registry keys.
-const Map<String, String> kSdkChannels = {
+/// Default Flutter SDK channel → sandbox registry key mapping.
+///
+/// Consumers can pass these to [EvalSetResolver] or provide their own.
+const Map<String, String> kDefaultSdkChannels = {
   'stable': 'podman',
   'beta': 'podman-beta',
   'main': 'podman-main',
@@ -50,6 +54,22 @@ const Map<String, String> kSdkChannels = {
 /// 3. Groups by flutter_channel (one [EvalSet] per group)
 /// 4. Propagates job-level and task-level settings to the output
 class EvalSetResolver {
+  /// Creates a resolver with optional sandbox configuration.
+  ///
+  /// If [sandboxRegistry] or [sdkChannels] are not provided, they default
+  /// to empty maps (no sandbox resolution). Pass [kDefaultSandboxRegistry]
+  /// and [kDefaultSdkChannels] for the Flutter-specific sandbox setup.
+  const EvalSetResolver({
+    this.sandboxRegistry = const {},
+    this.sdkChannels = const {},
+  });
+
+  /// Named sandbox configurations (e.g. `'podman'` → compose file path).
+  final Map<String, Map<String, String>> sandboxRegistry;
+
+  /// SDK channel → sandbox registry key mapping.
+  final Map<String, String> sdkChannels;
+
   /// Resolve task configs and job into [EvalSet] objects.
   ///
   /// Groups by flutter_channel so each gets its own sandbox.
@@ -136,7 +156,6 @@ class EvalSetResolver {
 
         if (workspace != null && isContainer) {
           files = {...?files, '/workspace': workspace};
-          setup = setup ?? 'cd /workspace && flutter pub get';
           enriched['workspace'] = '/workspace';
         }
         if (workspaceGit != null) {
@@ -387,10 +406,10 @@ class EvalSetResolver {
     if (sandboxType.isEmpty || sandboxType == 'local') return 'local';
 
     // Channel override → look up channel-specific sandbox
-    if (flutterChannel != null && kSdkChannels.containsKey(flutterChannel)) {
-      final registryKey = kSdkChannels[flutterChannel]!;
-      if (kSandboxRegistry.containsKey(registryKey)) {
-        final def = kSandboxRegistry[registryKey]!;
+    if (flutterChannel != null && sdkChannels.containsKey(flutterChannel)) {
+      final registryKey = sdkChannels[flutterChannel]!;
+      if (sandboxRegistry.containsKey(registryKey)) {
+        final def = sandboxRegistry[registryKey]!;
         var sandboxPath = def['path']!;
         if (!p.isAbsolute(sandboxPath)) {
           sandboxPath = p.normalize(p.join(datasetRoot, sandboxPath));
@@ -400,8 +419,8 @@ class EvalSetResolver {
     }
 
     // Named sandbox from registry
-    if (kSandboxRegistry.containsKey(sandboxType)) {
-      final def = kSandboxRegistry[sandboxType]!;
+    if (sandboxRegistry.containsKey(sandboxType)) {
+      final def = sandboxRegistry[sandboxType]!;
       var sandboxPath = def['path']!;
       if (!p.isAbsolute(sandboxPath)) {
         sandboxPath = p.normalize(p.join(datasetRoot, sandboxPath));

@@ -29,15 +29,16 @@ DEFAULT_MODELS: list[str] = [
     "openai/gpt-5-pro",
 ]
 
-# Available sandbox configurations.
-SANDBOX_REGISTRY: dict[str, dict[str, str]] = {
+# Default sandbox configurations for Flutter evaluations.
+# Consumers can pass these to resolve() or provide their own.
+DEFAULT_SANDBOX_REGISTRY: dict[str, dict[str, str]] = {
     "podman": {"name": "podman", "path": "./sandboxes/podman/compose.yaml"},
     "podman-beta": {"name": "podman", "path": "./sandboxes/podman/compose-beta.yaml"},
     "podman-main": {"name": "podman", "path": "./sandboxes/podman/compose-main.yaml"},
 }
 
-# Maps Flutter SDK channel names to sandbox registry keys.
-SDK_CHANNELS: dict[str, str] = {
+# Default Flutter SDK channel → sandbox registry key mapping.
+DEFAULT_SDK_CHANNELS: dict[str, str] = {
     "stable": "podman",
     "beta": "podman-beta",
     "main": "podman-main",
@@ -51,6 +52,9 @@ def _is_glob(pattern: str) -> bool:
 def resolve(
     dataset_path: str,
     job_names: list[str],
+    *,
+    sandbox_registry: dict[str, dict[str, str]] | None = None,
+    sdk_channels: dict[str, str] | None = None,
 ) -> list[EvalSet]:
     """Resolve dataset + job(s) into EvalSet objects.
 
@@ -59,17 +63,21 @@ def resolve(
     Args:
         dataset_path: Root directory containing ``tasks/`` and ``jobs/``.
         job_names: Job names (looked up in ``jobs/``) or paths.
+        sandbox_registry: Named sandbox configurations. Defaults to empty.
+        sdk_channels: SDK channel → sandbox registry key mapping. Defaults to empty.
 
     Returns:
         A list of EvalSet objects ready for JSON serialization.
     """
+    registry = sandbox_registry or {}
+    channels = sdk_channels or {}
     task_configs = parse_tasks(dataset_path)
     results: list[EvalSet] = []
 
     for job_name in job_names:
         job_path = find_job_file(dataset_path, job_name)
         job = parse_job(job_path, dataset_path)
-        results.extend(_resolve_job(task_configs, job, dataset_path))
+        results.extend(_resolve_job(task_configs, job, dataset_path, registry, channels))
 
     return results
 
@@ -78,6 +86,8 @@ def _resolve_job(
     dataset_tasks: list[ParsedTask],
     job: Any,
     dataset_root: str,
+    sandbox_registry: dict[str, dict[str, str]],
+    sdk_channels: dict[str, str],
 ) -> list[EvalSet]:
     """Resolve task configs and job into EvalSet objects."""
     models = job.models if job.models else list(DEFAULT_MODELS)
@@ -96,7 +106,7 @@ def _resolve_job(
             task_configs=group,
             log_dir=job.log_dir,
             models=models,
-            sandbox=_resolve_sandbox(dataset_root, job, flutter_channel=channel),
+            sandbox=_resolve_sandbox(dataset_root, job, sandbox_registry, sdk_channels, flutter_channel=channel),
             job=job,
         )
         for channel, group in groups.items()
@@ -142,7 +152,6 @@ def _build_eval_set(
 
             if workspace is not None and is_container:
                 files = {**(files or {}), "/workspace": workspace}
-                setup = setup or "cd /workspace && flutter pub get"
                 enriched["workspace"] = "/workspace"
             if workspace_git is not None:
                 enriched["workspace_git"] = workspace_git
@@ -328,6 +337,8 @@ def _resolve_models(job: Any) -> list[str]:
 def _resolve_sandbox(
     dataset_root: str,
     job: Any,
+    sandbox_registry: dict[str, dict[str, str]],
+    sdk_channels: dict[str, str],
     *,
     flutter_channel: str | None = None,
 ) -> Any:
@@ -337,18 +348,18 @@ def _resolve_sandbox(
         return "local"
 
     # Channel override
-    if flutter_channel and flutter_channel in SDK_CHANNELS:
-        registry_key = SDK_CHANNELS[flutter_channel]
-        if registry_key in SANDBOX_REGISTRY:
-            defn = SANDBOX_REGISTRY[registry_key]
+    if flutter_channel and flutter_channel in sdk_channels:
+        registry_key = sdk_channels[flutter_channel]
+        if registry_key in sandbox_registry:
+            defn = sandbox_registry[registry_key]
             sandbox_path = defn["path"]
             if not os.path.isabs(sandbox_path):
                 sandbox_path = os.path.normpath(os.path.join(dataset_root, sandbox_path))
             return {"type": defn["name"], "path": sandbox_path}
 
     # Named sandbox from registry
-    if sandbox_type in SANDBOX_REGISTRY:
-        defn = SANDBOX_REGISTRY[sandbox_type]
+    if sandbox_type in sandbox_registry:
+        defn = sandbox_registry[sandbox_type]
         sandbox_path = defn["path"]
         if not os.path.isabs(sandbox_path):
             sandbox_path = os.path.normpath(os.path.join(dataset_root, sandbox_path))
