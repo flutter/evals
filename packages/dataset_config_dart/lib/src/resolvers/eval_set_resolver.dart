@@ -211,6 +211,9 @@ class EvalSetResolver {
         if (tc.systemMessage != null) 'system_message': tc.systemMessage,
         if (tc.saveExamples) 'save_examples': true,
         if (tc.examplesDir != null) 'examples_dir': tc.examplesDir,
+        // Propagate image_prefix from job for container image resolution
+        if (job.imagePrefix != null && job.imagePrefix!.isNotEmpty)
+          'image_prefix': job.imagePrefix,
         // Merge any task-level metadata from YAML
         ...?tc.metadata,
       };
@@ -466,6 +469,13 @@ class EvalSetResolver {
         }
       }
 
+      // Filter by task-level variant_filters (tag-based)
+      if (taskConfig.variantFilters != null) {
+        effectiveVariants.removeWhere((name, _) {
+          return !matchesTagFilter([name], taskConfig.variantFilters!);
+        });
+      }
+
       // Get job-level task overrides
       final jobTask = (job.tasks != null && job.tasks!.containsKey(taskId))
           ? job.tasks![taskId]
@@ -500,6 +510,12 @@ class EvalSetResolver {
         systemMessage = jobTask!.systemMessage;
       }
 
+      // Merge job-task args into metadata
+      Map<String, dynamic>? mergedMetadata = taskConfig.metadata;
+      if (jobTask?.args != null && jobTask!.args!.isNotEmpty) {
+        mergedMetadata = {...?mergedMetadata, 'args': jobTask.args};
+      }
+
       // Create one ParsedTask per effective variant
       for (final entry in effectiveVariants.entries) {
         final variant = _resolveVariant(entry.key, entry.value, datasetRoot);
@@ -519,6 +535,7 @@ class EvalSetResolver {
             allowedVariants: null,
             saveExamples: job.saveExamples,
             examplesDir: examplesDir,
+            metadata: mergedMetadata,
           ),
         );
       }

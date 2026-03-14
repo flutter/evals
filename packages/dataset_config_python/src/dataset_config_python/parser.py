@@ -57,6 +57,7 @@ class ParsedTask:
         version: Any | None = None,
         metadata: dict[str, Any] | None = None,
         sandbox_parameters: dict[str, Any] | None = None,
+        variant_filters: TagFilter | None = None,
     ):
         self.id = id
         self.func = func
@@ -85,6 +86,7 @@ class ParsedTask:
         self.version = version
         self.metadata = metadata
         self.sandbox_parameters = sandbox_parameters
+        self.variant_filters = variant_filters
 
     _UNSET: Any = object()
 
@@ -118,6 +120,7 @@ class ParsedTask:
         display_name: str | None = _UNSET,
         version: Any = _UNSET,
         metadata: dict[str, Any] | None = _UNSET,
+        variant_filters: TagFilter | None = _UNSET,
     ) -> ParsedTask:
         """Create a copy with overrides."""
         _U = ParsedTask._UNSET
@@ -149,6 +152,7 @@ class ParsedTask:
             display_name=self.display_name if display_name is _U else display_name,
             version=self.version if version is _U else version,
             metadata=self.metadata if metadata is _U else metadata,
+            variant_filters=self.variant_filters if variant_filters is _U else variant_filters,
         )
 
 
@@ -262,6 +266,10 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
         )
     samples = _load_samples_section(samples_raw, dataset_root, task_workspace, task_tests, task_dir)
 
+    # Parse variant_filters (tag-based variant restriction)
+    variant_filters_raw = data.get("variant_filters")
+    variant_filters = TagFilter(**variant_filters_raw) if isinstance(variant_filters_raw, dict) else None
+
     return [
         ParsedTask(
             id=task_id,
@@ -288,6 +296,7 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
             version=data.get("version"),
             metadata=data.get("metadata") if isinstance(data.get("metadata"), dict) else None,
             sandbox_parameters=data.get("sandbox_parameters") if isinstance(data.get("sandbox_parameters"), dict) else None,
+            variant_filters=variant_filters,
         )
     ]
 

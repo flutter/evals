@@ -100,6 +100,12 @@ class YamlParser extends Parser {
     final taskMetadata = _asMap(data['metadata']);
     final sandboxParameters = _asMap(data['sandbox_parameters']);
 
+    // Parse variant_filters (tag-based variant restriction)
+    final variantFiltersRaw = _asMap(data['variant_filters']);
+    final variantFilters = variantFiltersRaw != null
+        ? TagFilter.fromJson(variantFiltersRaw)
+        : null;
+
     return [
       ParsedTask(
         id: taskId,
@@ -127,6 +133,7 @@ class YamlParser extends Parser {
         version: version,
         metadata: taskMetadata,
         sandboxParameters: sandboxParameters,
+        variantFilters: variantFilters,
       ),
     ];
   }

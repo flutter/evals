@@ -202,6 +202,9 @@ def _build_eval_set(
             task_metadata["save_examples"] = True
         if tc.examples_dir is not None:
             task_metadata["examples_dir"] = tc.examples_dir
+        # Propagate image_prefix from job for container image resolution
+        if job.image_prefix:
+            task_metadata["image_prefix"] = job.image_prefix
         if tc.metadata:
             task_metadata.update(tc.metadata)
 
@@ -402,6 +405,14 @@ def _expand_task_configs(
             if tc.allowed_variants is None or vname in tc.allowed_variants:
                 effective_variants[vname] = vdef
 
+        # Filter by task-level variant_filters (tag-based)
+        if tc.variant_filters is not None:
+            effective_variants = {
+                vname: vdef
+                for vname, vdef in effective_variants.items()
+                if matches_tag_filter([vname], tc.variant_filters)
+            }
+
         # Get job-level task overrides
         job_task = job.tasks.get(task_id) if job.tasks else None
 
@@ -425,6 +436,11 @@ def _expand_task_configs(
         if job_task and job_task.system_message is not None:
             system_message = job_task.system_message
 
+        # Merge job-task args into metadata
+        merged_metadata = dict(tc.metadata) if tc.metadata else None
+        if job_task and job_task.args:
+            merged_metadata = {**(merged_metadata or {}), "args": job_task.args}
+
         # Create one ParsedTask per effective variant
         for vname, vdef in effective_variants.items():
             variant = _resolve_variant(vname, vdef, dataset_root)
@@ -442,6 +458,7 @@ def _expand_task_configs(
                     allowed_variants=None,
                     save_examples=job.save_examples,
                     examples_dir=examples_dir,
+                    metadata=merged_metadata,
                 )
             )
 
