@@ -32,5 +32,5 @@ class Variant(BaseModel):
     skill_paths: list[str] = Field(default_factory=list)
     """Resolved paths to agent skill directories."""
 
-    flutter_channel: str | None = None
-    """Flutter SDK channel to use (e.g. 'stable', 'beta', 'main')."""
+    branch: str | None = None
+    """SDK branch/channel to use (e.g. 'stable', 'beta', 'main')."""

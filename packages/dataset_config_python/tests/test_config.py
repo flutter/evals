@@ -165,7 +165,7 @@ class TestModels:
         assert v.context_files == []
         assert v.mcp_servers == []
         assert v.skill_paths == []
-        assert v.flutter_channel is None
+        assert v.branch is None
 
     def test_job_task_from_yaml_none(self):
         jt = JobTask.from_yaml("my_task", None)

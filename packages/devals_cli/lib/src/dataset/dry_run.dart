@@ -36,7 +36,7 @@ bool _validateConfig(EvalSet config) {
 
     if (task.func == null) {
       warnings.add(
-        'Task "$name" has no task_func — Mode 2 hydration required',
+        'Task "$name" has no func — Mode 2 hydration required',
       );
     }
 

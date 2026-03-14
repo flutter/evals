@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import glob as globmod
 import os
+from dataclasses import dataclass, field
 from typing import Any
 
 from dataset_config_python.models.context_file import ContextFile
@@ -37,12 +38,20 @@ DEFAULT_SANDBOX_REGISTRY: dict[str, dict[str, str]] = {
     "podman-main": {"name": "podman", "path": "./sandboxes/podman/compose-main.yaml"},
 }
 
-# Default Flutter SDK channel → sandbox registry key mapping.
-DEFAULT_SDK_CHANNELS: dict[str, str] = {
+# Default SDK branch → sandbox registry key mapping.
+DEFAULT_BRANCH_CHANNELS: dict[str, str] = {
     "stable": "podman",
     "beta": "podman-beta",
     "main": "podman-main",
 }
+
+
+@dataclass
+class SandboxConfig:
+    """Sandbox registry and branch-channel mapping."""
+
+    registry: dict[str, dict[str, str]] = field(default_factory=dict)
+    branch_channels: dict[str, str] = field(default_factory=dict)
 
 
 def _is_glob(pattern: str) -> bool:
@@ -53,8 +62,7 @@ def resolve(
     dataset_path: str,
     job_names: list[str],
     *,
-    sandbox_registry: dict[str, dict[str, str]] | None = None,
-    sdk_channels: dict[str, str] | None = None,
+    sandbox_config: SandboxConfig | None = None,
 ) -> list[EvalSet]:
     """Resolve dataset + job(s) into EvalSet objects.
 
@@ -64,13 +72,14 @@ def resolve(
         dataset_path: Root directory containing ``tasks/`` and ``jobs/``.
         job_names: Job names (looked up in ``jobs/``) or paths.
         sandbox_registry: Named sandbox configurations. Defaults to empty.
-        sdk_channels: SDK channel → sandbox registry key mapping. Defaults to empty.
+        branch_channels: SDK branch → sandbox registry key mapping. Defaults to empty.
 
     Returns:
         A list of EvalSet objects ready for JSON serialization.
     """
-    registry = sandbox_registry or {}
-    channels = sdk_channels or {}
+    sandbox_cfg = sandbox_config or SandboxConfig()
+    registry = sandbox_cfg.registry
+    channels = sandbox_cfg.branch_channels
     task_configs = parse_tasks(dataset_path)
     results: list[EvalSet] = []
 
@@ -87,7 +96,7 @@ def _resolve_job(
     job: Any,
     dataset_root: str,
     sandbox_registry: dict[str, dict[str, str]],
-    sdk_channels: dict[str, str],
+    branch_channels: dict[str, str],
 ) -> list[EvalSet]:
     """Resolve task configs and job into EvalSet objects."""
     models = job.models if job.models else list(DEFAULT_MODELS)
@@ -95,10 +104,10 @@ def _resolve_job(
 
     expanded_tasks = _expand_task_configs(dataset_tasks, job, sandbox_type_str, dataset_root)
 
-    # Group by flutter channel
+    # Group by branch
     groups: dict[str | None, list[ParsedTask]] = {}
     for tc in expanded_tasks:
-        key = tc.variant.flutter_channel
+        key = tc.variant.branch
         groups.setdefault(key, []).append(tc)
 
     return [
@@ -106,7 +115,7 @@ def _resolve_job(
             task_configs=group,
             log_dir=job.log_dir,
             models=models,
-            sandbox=_resolve_sandbox(dataset_root, job, sandbox_registry, sdk_channels, flutter_channel=channel),
+            sandbox=_resolve_sandbox(dataset_root, job, sandbox_registry, branch_channels, branch=channel),
             job=job,
         )
         for channel, group in groups.items()
@@ -152,6 +161,7 @@ def _build_eval_set(
 
             if workspace is not None and is_container:
                 files = {**(files or {}), "/workspace": workspace}
+                setup = setup or "cd /workspace && flutter pub get"
                 enriched["workspace"] = "/workspace"
             if workspace_git is not None:
                 enriched["workspace_git"] = workspace_git
@@ -341,9 +351,9 @@ def _resolve_sandbox(
     dataset_root: str,
     job: Any,
     sandbox_registry: dict[str, dict[str, str]],
-    sdk_channels: dict[str, str],
+    branch_channels: dict[str, str],
     *,
-    flutter_channel: str | None = None,
+    branch: str | None = None,
 ) -> Any:
     """Resolve sandbox spec for a given config."""
     sandbox_type = job.sandbox_type
@@ -351,8 +361,9 @@ def _resolve_sandbox(
         return "local"
 
     # Channel override
-    if flutter_channel and flutter_channel in sdk_channels:
-        registry_key = sdk_channels[flutter_channel]
+    # Branch override → look up branch-specific sandbox
+    if branch and branch in branch_channels:
+        registry_key = branch_channels[branch]
         if registry_key in sandbox_registry:
             defn = sandbox_registry[registry_key]
             sandbox_path = defn["path"]
@@ -529,7 +540,7 @@ def _resolve_variant(
         context_files=context_files,
         mcp_servers=vdef.get("mcp_servers") or [],
         skill_paths=skill_paths,
-        flutter_channel=vdef.get("flutter_channel"),
+        branch=vdef.get("branch"),
     )
 
 

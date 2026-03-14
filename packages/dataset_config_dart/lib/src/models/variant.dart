@@ -43,9 +43,9 @@ sealed class Variant with _$Variant {
     /// Each directory must contain a `SKILL.md` file.
     @JsonKey(name: 'skill_paths') @Default([]) List<String> skillPaths,
 
-    /// Flutter SDK channel to use (e.g., `'stable'`, `'beta'`, `'main'`).
-    /// `null` means use the default (stable) image from the job's sandbox.
-    @JsonKey(name: 'flutter_channel') String? flutterChannel,
+    /// SDK branch/channel to use (e.g., `'stable'`, `'beta'`, `'main'`).
+    /// `null` means use the default image from the job's sandbox.
+    @JsonKey(name: 'branch') String? branch,
   }) = _Variant;
 
   const Variant._();

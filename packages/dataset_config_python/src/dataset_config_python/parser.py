@@ -246,7 +246,7 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
     task_dir = os.path.dirname(task_path)
 
     task_id = data.get("id") or os.path.basename(task_dir)
-    task_func = data.get("func") or task_id
+    func_name = data.get("func") or task_id
 
     task_workspace_raw = data.get("workspace")
     task_tests_raw = data.get("tests")
@@ -273,7 +273,7 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
     return [
         ParsedTask(
             id=task_id,
-            func=task_func,
+            func=func_name,
             variant=Variant(),
             samples=samples,
             system_message=system_message,
@@ -559,8 +559,8 @@ def parse_job(job_path: str, dataset_root: str) -> Job:
         ),
         description=data.get("description"),
         image_prefix=data.get("image_prefix"),
-        task_filters=TagFilter(**data["task_filters"]) if isinstance(data.get("task_filters"), dict) else None,
-        sample_filters=TagFilter(**data["sample_filters"]) if isinstance(data.get("sample_filters"), dict) else None,
+        task_filters=data.get("task_filters"),
+        sample_filters=data.get("sample_filters"),
     )
 
 

@@ -22,10 +22,12 @@ sealed class TagFilter with _$TagFilter {
 /// - No exclude_tags (if any) are present in [itemTags]
 bool matchesTagFilter(List<String> itemTags, TagFilter filter) {
   if (filter.includeTags != null &&
+      filter.includeTags!.isNotEmpty &&
       !filter.includeTags!.every((t) => itemTags.contains(t))) {
     return false;
   }
   if (filter.excludeTags != null &&
+      filter.excludeTags!.isNotEmpty &&
       filter.excludeTags!.any((t) => itemTags.contains(t))) {
     return false;
   }
