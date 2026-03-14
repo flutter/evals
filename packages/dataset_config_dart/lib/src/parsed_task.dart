@@ -13,7 +13,7 @@ const kDefaultSystemMessage =
 /// former `TaskConfig` model-package class.
 class ParsedTask {
   final String id;
-  final String taskFunc;
+  final String func;
   final List<Sample> samples;
   final Variant variant;
   final String sandboxType;
@@ -21,6 +21,12 @@ class ParsedTask {
   final List<String>? allowedVariants;
   final bool saveExamples;
   final String? examplesDir;
+
+  /// Tag filter for variant selection.
+  final TagFilter? variantFilters;
+
+  /// Pass-through dict for sandbox plugin configuration.
+  final Map<String, dynamic>? sandboxParameters;
 
   // ------------------------------------------------------------------
   // Task-level settings (from task.yaml)
@@ -79,7 +85,7 @@ class ParsedTask {
 
   const ParsedTask({
     required this.id,
-    required this.taskFunc,
+    required this.func,
     required this.samples,
     required this.variant,
     this.sandboxType = 'local',
@@ -87,6 +93,8 @@ class ParsedTask {
     this.allowedVariants,
     this.saveExamples = false,
     this.examplesDir,
+    this.variantFilters,
+    this.sandboxParameters,
     // Task-level settings
     this.model,
     this.config,
@@ -110,7 +118,7 @@ class ParsedTask {
   /// Create a copy with overrides.
   ParsedTask copyWith({
     String? id,
-    String? taskFunc,
+    String? func,
     List<Sample>? samples,
     Variant? variant,
     String? sandboxType,
@@ -118,6 +126,8 @@ class ParsedTask {
     List<String>? allowedVariants,
     bool? saveExamples,
     String? examplesDir,
+    TagFilter? variantFilters,
+    Map<String, dynamic>? sandboxParameters,
     String? model,
     Map<String, dynamic>? config,
     Map<String, String>? modelRoles,
@@ -138,7 +148,7 @@ class ParsedTask {
   }) {
     return ParsedTask(
       id: id ?? this.id,
-      taskFunc: taskFunc ?? this.taskFunc,
+      func: func ?? this.func,
       samples: samples ?? this.samples,
       variant: variant ?? this.variant,
       sandboxType: sandboxType ?? this.sandboxType,
@@ -146,6 +156,8 @@ class ParsedTask {
       allowedVariants: allowedVariants ?? this.allowedVariants,
       saveExamples: saveExamples ?? this.saveExamples,
       examplesDir: examplesDir ?? this.examplesDir,
+      variantFilters: variantFilters ?? this.variantFilters,
+      sandboxParameters: sandboxParameters ?? this.sandboxParameters,
       model: model ?? this.model,
       config: config ?? this.config,
       modelRoles: modelRoles ?? this.modelRoles,

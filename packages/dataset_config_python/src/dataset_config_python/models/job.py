@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+
+from dataset_config_python.models.tag_filter import TagFilter
 
 
 class JobTask(BaseModel):
@@ -22,6 +24,9 @@ class JobTask(BaseModel):
     system_message: str | None = None
     """Override system message for this task."""
 
+    args: dict[str, Any] | None = None
+    """Per-task argument overrides passed to the task function."""
+
     @staticmethod
     def from_yaml(task_id: str, data: dict[str, Any] | None) -> JobTask:
         """Create from parsed YAML data."""
@@ -32,6 +37,7 @@ class JobTask(BaseModel):
             include_samples=data.get("include-samples"),
             exclude_samples=data.get("exclude-samples"),
             system_message=data.get("system_message"),
+            args=data.get("args"),
         )
 
 
@@ -39,6 +45,8 @@ class Job(BaseModel):
     """A job configuration defining what to run and how to run it."""
 
     # Core settings
+    description: str | None = None
+    image_prefix: str | None = None
     log_dir: str
     sandbox_type: str = "local"
     max_connections: int = 10
@@ -100,3 +108,7 @@ class Job(BaseModel):
     # Pass-through overrides
     eval_set_overrides: dict[str, Any] | None = None
     task_defaults: dict[str, Any] | None = None
+
+    # Tag-based filtering
+    task_filters: TagFilter | None = None
+    sample_filters: TagFilter | None = None

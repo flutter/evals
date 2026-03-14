@@ -5,6 +5,7 @@ from dataset_config_python.models.dataset import Dataset
 from dataset_config_python.models.eval_set import EvalSet
 from dataset_config_python.models.job import Job, JobTask
 from dataset_config_python.models.sample import Sample
+from dataset_config_python.models.tag_filter import TagFilter, matches_tag_filter
 from dataset_config_python.models.task import Task
 from dataset_config_python.models.variant import Variant
 
@@ -16,6 +17,8 @@ __all__ = [
     "Job",
     "JobTask",
     "Sample",
+    "TagFilter",
     "Task",
     "Variant",
+    "matches_tag_filter",
 ]

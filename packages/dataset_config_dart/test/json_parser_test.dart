@@ -24,7 +24,7 @@ void main() {
 
       expect(tasks, hasLength(1));
       expect(tasks.first.id, 'my_task');
-      expect(tasks.first.taskFunc, 'question_answer');
+      expect(tasks.first.func, 'question_answer');
       expect(tasks.first.samples, hasLength(1));
       expect(tasks.first.samples.first.id, 's1');
       expect(tasks.first.samples.first.input, 'What is Dart?');
@@ -39,7 +39,7 @@ void main() {
         },
       ]);
 
-      expect(tasks.first.taskFunc, 'dart_qa');
+      expect(tasks.first.func, 'dart_qa');
     });
 
     test('throws FormatException when sample missing required field', () {

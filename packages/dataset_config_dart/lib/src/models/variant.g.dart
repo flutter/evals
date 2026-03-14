@@ -23,13 +23,13 @@ _Variant _$VariantFromJson(Map<String, dynamic> json) => _Variant(
           ?.map((e) => e as String)
           .toList() ??
       const [],
-  flutterChannel: json['flutter_channel'] as String?,
+  branch: json['branch'] as String?,
 );
 
 Map<String, dynamic> _$VariantToJson(_Variant instance) => <String, dynamic>{
   'name': instance.name,
-  'context_files': instance.contextFiles.map((e) => e.toJson()).toList(),
+  'context_files': instance.contextFiles,
   'mcp_servers': instance.mcpServers,
   'skill_paths': instance.skillPaths,
-  'flutter_channel': instance.flutterChannel,
+  'branch': instance.branch,
 };

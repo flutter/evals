@@ -21,8 +21,10 @@ const List<String> kDefaultModels = [
   'openai/gpt-5-pro',
 ];
 
-/// Available sandbox configurations.
-const Map<String, Map<String, String>> kSandboxRegistry = {
+/// Default sandbox configurations for Flutter evaluations.
+///
+/// Consumers can pass these to [EvalSetResolver] or provide their own.
+const Map<String, Map<String, String>> kDefaultSandboxRegistry = {
   'podman': {'name': 'podman', 'path': './sandboxes/podman/compose.yaml'},
   'podman-beta': {
     'name': 'podman',
@@ -34,8 +36,10 @@ const Map<String, Map<String, String>> kSandboxRegistry = {
   },
 };
 
-/// Maps Flutter SDK channel names to sandbox registry keys.
-const Map<String, String> kSdkChannels = {
+/// Default SDK branch → sandbox registry key mapping.
+///
+/// Consumers can pass these to [EvalSetResolver] or provide their own.
+const Map<String, String> kDefaultBranchChannels = {
   'stable': 'podman',
   'beta': 'podman-beta',
   'main': 'podman-main',
@@ -47,12 +51,28 @@ const Map<String, String> kSdkChannels = {
 /// This is the resolution engine. It:
 /// 1. Resolves models, sandboxes, and variants
 /// 2. Expands task × variant combinations into [Task] entries
-/// 3. Groups by flutter_channel (one [EvalSet] per group)
+/// 3. Groups by branch (one [EvalSet] per group)
 /// 4. Propagates job-level and task-level settings to the output
 class EvalSetResolver {
+  /// Creates a resolver with optional sandbox configuration.
+  ///
+  /// If [sandboxRegistry] or [branchChannels] are not provided, they default
+  /// to empty maps (no sandbox resolution). Pass [kDefaultSandboxRegistry]
+  /// and [kDefaultBranchChannels] for the Flutter-specific sandbox setup.
+  const EvalSetResolver({
+    this.sandboxRegistry = const {},
+    this.branchChannels = const {},
+  });
+
+  /// Named sandbox configurations (e.g. `'podman'` → compose file path).
+  final Map<String, Map<String, String>> sandboxRegistry;
+
+  /// SDK branch → sandbox registry key mapping.
+  final Map<String, String> branchChannels;
+
   /// Resolve task configs and job into [EvalSet] objects.
   ///
-  /// Groups by flutter_channel so each gets its own sandbox.
+  /// Groups by branch so each gets its own sandbox.
   List<EvalSet> resolve(
     List<ParsedTask> datasetTasks,
     Job job,
@@ -67,10 +87,10 @@ class EvalSetResolver {
       datasetRoot,
     );
 
-    // Group by flutter channel
+    // Group by branch
     final groups = <String?, List<ParsedTask>>{};
     for (final tc in expandedTasks) {
-      final key = tc.variant.flutterChannel;
+      final key = tc.variant.branch;
       (groups[key] ??= []).add(tc);
     }
 
@@ -83,7 +103,7 @@ class EvalSetResolver {
           sandbox: _resolveSandbox(
             datasetRoot,
             job,
-            flutterChannel: entry.key,
+            branch: entry.key,
           ),
           job: job,
         ),
@@ -136,7 +156,7 @@ class EvalSetResolver {
 
         if (workspace != null && isContainer) {
           files = {...?files, '/workspace': workspace};
-          setup = setup ?? 'cd /workspace && flutter pub get';
+          setup ??= 'cd /workspace && flutter pub get';
           enriched['workspace'] = '/workspace';
         }
         if (workspaceGit != null) {
@@ -192,6 +212,9 @@ class EvalSetResolver {
         if (tc.systemMessage != null) 'system_message': tc.systemMessage,
         if (tc.saveExamples) 'save_examples': true,
         if (tc.examplesDir != null) 'examples_dir': tc.examplesDir,
+        // Propagate image_prefix from job for container image resolution
+        if (job.imagePrefix != null && job.imagePrefix!.isNotEmpty)
+          'image_prefix': job.imagePrefix,
         // Merge any task-level metadata from YAML
         ...?tc.metadata,
       };
@@ -239,10 +262,12 @@ class EvalSetResolver {
       inspectTasks.add(
         Task(
           name: '${tc.id}:${tc.variant.name}',
-          taskFunc: tc.taskFunc,
+          func: tc.func,
           dataset: dataset,
           sandbox: taskSandbox,
           metadata: metadata,
+          systemMessage: tc.systemMessage,
+          sandboxParameters: tc.sandboxParameters,
           model: resolvedModel,
           config: resolvedConfig,
           modelRoles: resolvedModelRoles,
@@ -379,16 +404,16 @@ class EvalSetResolver {
   Object _resolveSandbox(
     String datasetRoot,
     Job job, {
-    String? flutterChannel,
+    String? branch,
   }) {
     final sandboxType = job.sandboxType;
     if (sandboxType.isEmpty || sandboxType == 'local') return 'local';
 
-    // Channel override → look up channel-specific sandbox
-    if (flutterChannel != null && kSdkChannels.containsKey(flutterChannel)) {
-      final registryKey = kSdkChannels[flutterChannel]!;
-      if (kSandboxRegistry.containsKey(registryKey)) {
-        final def = kSandboxRegistry[registryKey]!;
+    // Branch override → look up branch-specific sandbox
+    if (branch != null && branchChannels.containsKey(branch)) {
+      final registryKey = branchChannels[branch]!;
+      if (sandboxRegistry.containsKey(registryKey)) {
+        final def = sandboxRegistry[registryKey]!;
         var sandboxPath = def['path']!;
         if (!p.isAbsolute(sandboxPath)) {
           sandboxPath = p.normalize(p.join(datasetRoot, sandboxPath));
@@ -398,8 +423,8 @@ class EvalSetResolver {
     }
 
     // Named sandbox from registry
-    if (kSandboxRegistry.containsKey(sandboxType)) {
-      final def = kSandboxRegistry[sandboxType]!;
+    if (sandboxRegistry.containsKey(sandboxType)) {
+      final def = sandboxRegistry[sandboxType]!;
       var sandboxPath = def['path']!;
       if (!p.isAbsolute(sandboxPath)) {
         sandboxPath = p.normalize(p.join(datasetRoot, sandboxPath));
@@ -427,8 +452,14 @@ class EvalSetResolver {
     for (final taskConfig in datasetTasks) {
       final taskId = taskConfig.id;
 
-      // Filter by job.tasks
+      // Filter by job.tasks (ID-based)
       if (job.tasks != null && !job.tasks!.containsKey(taskId)) continue;
+
+      // Filter by job.taskFilters (tag-based)
+      if (job.taskFilters != null) {
+        final taskTags = (taskConfig.metadata?['tags'] as List?)?.cast<String>() ?? [];
+        if (!matchesTagFilter(taskTags, job.taskFilters!)) continue;
+      }
 
       // Determine effective variants (intersection)
       final effectiveVariants = <String, Map<String, dynamic>>{};
@@ -437,6 +468,13 @@ class EvalSetResolver {
             taskConfig.allowedVariants!.contains(entry.key)) {
           effectiveVariants[entry.key] = entry.value;
         }
+      }
+
+      // Filter by task-level variant_filters (tag-based)
+      if (taskConfig.variantFilters != null) {
+        effectiveVariants.removeWhere((name, _) {
+          return !matchesTagFilter([name], taskConfig.variantFilters!);
+        });
       }
 
       // Get job-level task overrides
@@ -459,10 +497,24 @@ class EvalSetResolver {
         }
       }
 
+      // Apply sample tag filtering (job-level)
+      if (job.sampleFilters != null) {
+        samples = samples.where((s) {
+          final sampleTags = (s.metadata?['tags'] as List?)?.cast<String>() ?? [];
+          return matchesTagFilter(sampleTags, job.sampleFilters!);
+        }).toList();
+      }
+
       // Apply system_message override
       var systemMessage = taskConfig.systemMessage;
       if (jobTask?.systemMessage != null) {
         systemMessage = jobTask!.systemMessage;
+      }
+
+      // Merge job-task args into metadata
+      Map<String, dynamic>? mergedMetadata = taskConfig.metadata;
+      if (jobTask?.args != null && jobTask!.args!.isNotEmpty) {
+        mergedMetadata = {...?mergedMetadata, 'args': jobTask.args};
       }
 
       // Create one ParsedTask per effective variant
@@ -484,6 +536,7 @@ class EvalSetResolver {
             allowedVariants: null,
             saveExamples: job.saveExamples,
             examplesDir: examplesDir,
+            metadata: mergedMetadata,
           ),
         );
       }
@@ -562,7 +615,7 @@ class EvalSetResolver {
       contextFiles: contextFiles,
       mcpServers: (vDef['mcp_servers'] as List?)?.cast<String>() ?? [],
       skillPaths: skillPaths,
-      flutterChannel: vDef['flutter_channel'] as String?,
+      branch: vDef['branch'] as String?,
     );
   }
 

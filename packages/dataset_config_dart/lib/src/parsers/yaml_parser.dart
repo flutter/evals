@@ -50,7 +50,7 @@ class YamlParser extends Parser {
     final taskDir = p.dirname(taskPath);
 
     final taskId = (data['id'] as String?) ?? p.basename(taskDir);
-    final taskFunc = (data['func'] as String?) ?? taskId;
+    final func = (data['func'] as String?) ?? taskId;
 
     final taskWorkspaceRaw = data['workspace'];
     final taskTestsRaw = data['tests'];
@@ -98,11 +98,18 @@ class YamlParser extends Parser {
     final displayName = data['display_name'] as String?;
     final version = data['version'];
     final taskMetadata = _asMap(data['metadata']);
+    final sandboxParameters = _asMap(data['sandbox_parameters']);
+
+    // Parse variant_filters (tag-based variant restriction)
+    final variantFiltersRaw = _asMap(data['variant_filters']);
+    final variantFilters = variantFiltersRaw != null
+        ? TagFilter.fromJson(variantFiltersRaw)
+        : null;
 
     return [
       ParsedTask(
         id: taskId,
-        taskFunc: taskFunc,
+        func: func,
         variant: const Variant(), // placeholder baseline
         samples: samples,
         systemMessage: systemMessage,
@@ -125,6 +132,8 @@ class YamlParser extends Parser {
         displayName: displayName,
         version: version,
         metadata: taskMetadata,
+        sandboxParameters: sandboxParameters,
+        variantFilters: variantFilters,
       ),
     ];
   }
@@ -370,14 +379,28 @@ class YamlParser extends Parser {
       }
     }
 
+    // Parse tag filters
+    final taskFiltersRaw = data['task_filters'];
+    final sampleFiltersRaw = data['sample_filters'];
+    final TagFilter? taskFilters = taskFiltersRaw is Map
+        ? TagFilter.fromJson(Map<String, dynamic>.from(taskFiltersRaw))
+        : null;
+    final TagFilter? sampleFilters = sampleFiltersRaw is Map
+        ? TagFilter.fromJson(Map<String, dynamic>.from(sampleFiltersRaw))
+        : null;
+
     return Job(
       logDir: logDir,
       sandboxType: sandboxType,
       maxConnections: maxConnections,
+      description: data['description'] as String?,
+      imagePrefix: data['image_prefix'] as String?,
       models: (data['models'] as List?)?.cast<String>(),
       variants: variants,
       taskPaths: taskPaths,
       tasks: tasks,
+      taskFilters: taskFilters,
+      sampleFilters: sampleFilters,
       saveExamples: data['save_examples'] == true,
       // Promoted eval_set() fields
       retryAttempts: data['retry_attempts'] as int?,

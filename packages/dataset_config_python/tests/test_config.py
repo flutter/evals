@@ -165,7 +165,7 @@ class TestModels:
         assert v.context_files == []
         assert v.mcp_servers == []
         assert v.skill_paths == []
-        assert v.flutter_channel is None
+        assert v.branch is None
 
     def test_job_task_from_yaml_none(self):
         jt = JobTask.from_yaml("my_task", None)
@@ -178,7 +178,7 @@ class TestModels:
 
     def test_eval_set_serialization(self):
         es = EvalSet(
-            tasks=[Task(name="test:baseline", task_func="qa")],
+            tasks=[Task(name="test:baseline", func="qa")],
             log_dir="/tmp/logs",
             model=["google/gemini-2.5-flash"],
         )
@@ -312,11 +312,11 @@ class TestWriter:
 
     def test_write_multiple(self, tmp_path):
         es1 = EvalSet(
-            tasks=[Task(name="t1:baseline", task_func="qa")],
+            tasks=[Task(name="t1:baseline", func="qa")],
             log_dir="/tmp/logs1",
         )
         es2 = EvalSet(
-            tasks=[Task(name="t2:baseline", task_func="qa")],
+            tasks=[Task(name="t2:baseline", func="qa")],
             log_dir="/tmp/logs2",
         )
         output_dir = str(tmp_path / "output")

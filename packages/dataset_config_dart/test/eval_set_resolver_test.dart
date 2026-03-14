@@ -7,7 +7,7 @@ void main() {
   /// Helper to create a minimal [ParsedTask] for testing.
   ParsedTask makeTask({
     String id = 'test_task',
-    String taskFunc = 'question_answer',
+    String func = 'question_answer',
     List<Sample>? samples,
     Variant? variant,
     List<String>? allowedVariants,
@@ -15,10 +15,12 @@ void main() {
     String? model,
     int? timeLimit,
     int? messageLimit,
+    TagFilter? variantFilters,
+    Map<String, dynamic>? metadata,
   }) {
     return ParsedTask(
       id: id,
-      taskFunc: taskFunc,
+      func: func,
       samples:
           samples ??
           [
@@ -35,6 +37,8 @@ void main() {
       model: model,
       timeLimit: timeLimit,
       messageLimit: messageLimit,
+      variantFilters: variantFilters,
+      metadata: metadata,
     );
   }
 
@@ -47,6 +51,7 @@ void main() {
     Map<String, JobTask>? tasks,
     bool saveExamples = false,
     Map<String, dynamic>? taskDefaults,
+    String? imagePrefix,
   }) {
     return Job(
       logDir: logDir,
@@ -56,6 +61,7 @@ void main() {
       tasks: tasks,
       saveExamples: saveExamples,
       taskDefaults: taskDefaults,
+      imagePrefix: imagePrefix,
     );
   }
 
@@ -278,14 +284,14 @@ void main() {
       expect(taskNames.first, contains('included'));
     });
 
-    test('taskFunc is propagated to output Task', () {
+    test('func is propagated to output Task', () {
       final results = resolver.resolve(
-        [makeTask(taskFunc: 'flutter_code_gen')],
+        [makeTask(func: 'flutter_code_gen')],
         makeJob(models: ['m']),
         '/tmp/dataset',
       );
 
-      expect(results.first.tasks.first.taskFunc, 'flutter_code_gen');
+      expect(results.first.tasks.first.func, 'flutter_code_gen');
     });
 
     test('system_message appears in task metadata', () {
@@ -365,6 +371,69 @@ void main() {
 
       final dataset = results.first.tasks.first.dataset!;
       expect(dataset.name, 'my_eval:baseline');
+    });
+
+    test('variant_filters restricts effective variants', () {
+      final results = resolver.resolve(
+        [
+          makeTask(
+            variantFilters: const TagFilter(
+              includeTags: ['baseline'],
+            ),
+          ),
+        ],
+        makeJob(
+          models: ['m'],
+          variants: {'baseline': {}, 'full': {}, 'mcp_only': {}},
+        ),
+        '/tmp/dataset',
+      );
+
+      final taskNames = results
+          .expand((e) => e.tasks)
+          .map((t) => t.name)
+          .toList();
+      expect(taskNames, ['test_task:baseline']);
+      expect(taskNames, isNot(contains('test_task:full')));
+      expect(taskNames, isNot(contains('test_task:mcp_only')));
+    });
+
+    test('image_prefix from job appears in task metadata', () {
+      final results = resolver.resolve(
+        [makeTask()],
+        makeJob(
+          models: ['m'],
+          imagePrefix: 'us-central1-docker.pkg.dev/my-project/repo/',
+        ),
+        '/tmp/dataset',
+      );
+
+      final metadata = results.first.tasks.first.metadata!;
+      expect(
+        metadata['image_prefix'],
+        'us-central1-docker.pkg.dev/my-project/repo/',
+      );
+    });
+
+    test('JobTask.args appears in task metadata', () {
+      final results = resolver.resolve(
+        [makeTask(id: 'my_task')],
+        makeJob(
+          models: ['m'],
+          tasks: {
+            'my_task': const JobTask(
+              id: 'my_task',
+              args: {'base_url': 'http://localhost', 'timeout': 30},
+            ),
+          },
+        ),
+        '/tmp/dataset',
+      );
+
+      final metadata = results.first.tasks.first.metadata!;
+      expect(metadata['args'], isA<Map>());
+      expect(metadata['args']['base_url'], 'http://localhost');
+      expect(metadata['args']['timeout'], 30);
     });
   });
 }

@@ -12,6 +12,7 @@ import yaml
 
 from dataset_config_python.models.job import Job, JobTask
 from dataset_config_python.models.sample import Sample
+from dataset_config_python.models.tag_filter import TagFilter
 from dataset_config_python.models.variant import Variant
 
 # Default log directory (relative to dataset root).
@@ -29,7 +30,7 @@ class ParsedTask:
         self,
         *,
         id: str,
-        task_func: str,
+        func: str,
         samples: list[Sample],
         variant: Variant | None = None,
         sandbox_type: str = "local",
@@ -55,9 +56,11 @@ class ParsedTask:
         display_name: str | None = None,
         version: Any | None = None,
         metadata: dict[str, Any] | None = None,
+        sandbox_parameters: dict[str, Any] | None = None,
+        variant_filters: TagFilter | None = None,
     ):
         self.id = id
-        self.task_func = task_func
+        self.func = func
         self.samples = samples
         self.variant = variant or Variant()
         self.sandbox_type = sandbox_type
@@ -82,6 +85,8 @@ class ParsedTask:
         self.display_name = display_name
         self.version = version
         self.metadata = metadata
+        self.sandbox_parameters = sandbox_parameters
+        self.variant_filters = variant_filters
 
     _UNSET: Any = object()
 
@@ -89,7 +94,7 @@ class ParsedTask:
         self,
         *,
         id: str | None = _UNSET,
-        task_func: str | None = _UNSET,
+        func: str | None = _UNSET,
         samples: list[Sample] | None = _UNSET,
         variant: Variant | None = _UNSET,
         sandbox_type: str | None = _UNSET,
@@ -97,6 +102,7 @@ class ParsedTask:
         allowed_variants: list[str] | None = _UNSET,
         save_examples: bool | None = _UNSET,
         examples_dir: str | None = _UNSET,
+        sandbox_parameters: dict[str, Any] | None = _UNSET,
         model: str | None = _UNSET,
         config: dict[str, Any] | None = _UNSET,
         model_roles: dict[str, str] | None = _UNSET,
@@ -114,12 +120,13 @@ class ParsedTask:
         display_name: str | None = _UNSET,
         version: Any = _UNSET,
         metadata: dict[str, Any] | None = _UNSET,
+        variant_filters: TagFilter | None = _UNSET,
     ) -> ParsedTask:
         """Create a copy with overrides."""
         _U = ParsedTask._UNSET
         return ParsedTask(
             id=self.id if id is _U else id,  # type: ignore[arg-type]
-            task_func=self.task_func if task_func is _U else task_func,  # type: ignore[arg-type]
+            func=self.func if func is _U else func,  # type: ignore[arg-type]
             samples=self.samples if samples is _U else samples,  # type: ignore[arg-type]
             variant=self.variant if variant is _U else variant,
             sandbox_type=self.sandbox_type if sandbox_type is _U else sandbox_type,  # type: ignore[arg-type]
@@ -127,6 +134,7 @@ class ParsedTask:
             allowed_variants=self.allowed_variants if allowed_variants is _U else allowed_variants,
             save_examples=self.save_examples if save_examples is _U else save_examples,  # type: ignore[arg-type]
             examples_dir=self.examples_dir if examples_dir is _U else examples_dir,
+            sandbox_parameters=self.sandbox_parameters if sandbox_parameters is _U else sandbox_parameters,
             model=self.model if model is _U else model,
             config=self.config if config is _U else config,
             model_roles=self.model_roles if model_roles is _U else model_roles,
@@ -144,6 +152,7 @@ class ParsedTask:
             display_name=self.display_name if display_name is _U else display_name,
             version=self.version if version is _U else version,
             metadata=self.metadata if metadata is _U else metadata,
+            variant_filters=self.variant_filters if variant_filters is _U else variant_filters,
         )
 
 
@@ -237,7 +246,7 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
     task_dir = os.path.dirname(task_path)
 
     task_id = data.get("id") or os.path.basename(task_dir)
-    task_func = data.get("func") or task_id
+    func_name = data.get("func") or task_id
 
     task_workspace_raw = data.get("workspace")
     task_tests_raw = data.get("tests")
@@ -257,10 +266,14 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
         )
     samples = _load_samples_section(samples_raw, dataset_root, task_workspace, task_tests, task_dir)
 
+    # Parse variant_filters (tag-based variant restriction)
+    variant_filters_raw = data.get("variant_filters")
+    variant_filters = TagFilter(**variant_filters_raw) if isinstance(variant_filters_raw, dict) else None
+
     return [
         ParsedTask(
             id=task_id,
-            task_func=task_func,
+            func=func_name,
             variant=Variant(),
             samples=samples,
             system_message=system_message,
@@ -282,6 +295,8 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
             display_name=data.get("display_name"),
             version=data.get("version"),
             metadata=data.get("metadata") if isinstance(data.get("metadata"), dict) else None,
+            sandbox_parameters=data.get("sandbox_parameters") if isinstance(data.get("sandbox_parameters"), dict) else None,
+            variant_filters=variant_filters,
         )
     ]
 
@@ -542,6 +557,10 @@ def parse_job(job_path: str, dataset_root: str) -> Job:
         task_defaults=(
             data.get("task_defaults") if isinstance(data.get("task_defaults"), dict) else None
         ),
+        description=data.get("description"),
+        image_prefix=data.get("image_prefix"),
+        task_filters=data.get("task_filters"),
+        sample_filters=data.get("sample_filters"),
     )
 
 

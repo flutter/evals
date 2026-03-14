@@ -64,7 +64,7 @@ _EvalSet _$EvalSetFromJson(Map<String, dynamic> json) => _EvalSet(
 );
 
 Map<String, dynamic> _$EvalSetToJson(_EvalSet instance) => <String, dynamic>{
-  'tasks': instance.tasks.map((e) => e.toJson()).toList(),
+  'tasks': instance.tasks,
   'log_dir': instance.logDir,
   'retry_attempts': instance.retryAttempts,
   'retry_wait': instance.retryWait,

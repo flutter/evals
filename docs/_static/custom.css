@@ -418,3 +418,22 @@ html[data-theme="dark"] .sig > span.pre:not(:first-child) {
 html[data-theme="dark"] .sig-paren {
     color: #888888;
 }
+
+
+/* ============================================
+   COLLAPSIBLE SIDEBARS ON WIDE SCREENS
+   ============================================ */
+
+.bd-sidebar-primary {
+    padding-right: 30px;
+    width: auto !important;
+}
+
+
+.bd-sidebar-secondary  {
+    width: auto !important;
+}
+
+.bd-article-container {
+    max-width: none !important;
+}

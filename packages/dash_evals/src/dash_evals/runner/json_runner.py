@@ -27,6 +27,7 @@ def _resolve_task_func(name: str):
 
     Supports:
     - Short names: "flutter_code_gen" → dash_evals.runner.tasks.flutter_code_gen
+    - Colon syntax: "my_package.tasks:my_task" → import my_package.tasks, get my_task
     - Dotted paths: "dash_evals.runner.tasks.flutter_code_gen.flutter_code_gen"
 
     For short names, first tries to import a module with the same name.
@@ -36,6 +37,21 @@ def _resolve_task_func(name: str):
 
     Returns the callable task function.
     """
+    # Colon syntax: "module.path:function_name"
+    if ":" in name:
+        module_path, func_name = name.split(":", 1)
+        try:
+            module = importlib.import_module(module_path)
+        except ModuleNotFoundError:
+            raise ValueError(
+                f"Could not find module '{module_path}' for task function '{name}'. "
+                f"Check that the module exists and is importable."
+            )
+        func = getattr(module, func_name, None)
+        if func is None:
+            raise ValueError(f"Module '{module_path}' does not have a function '{func_name}'.")
+        return func
+
     if "." not in name:
         # Short name: try module with the same name first
         module_path = f"dash_evals.runner.tasks.{name}"
@@ -146,13 +162,13 @@ def _run_single_manifest(manifest: dict) -> bool:
     task_instances: list[inspect_ai.Task] = []
 
     for task_def in task_defs:
-        task_func_name = task_def.get("task_func")
+        task_func_name = task_def.get("func")
         task_name = task_def.get("name", task_func_name or "(unknown)")
 
         if not task_func_name:
             # Mode 2: hydrate directly from JSON (future)
             job_logger.warning(
-                f"  ⚠ {task_name}: no task_func — Mode 2 hydration not yet supported"
+                f"  ⚠ {task_name}: no func — Mode 2 hydration not yet supported"
             )
             continue
 

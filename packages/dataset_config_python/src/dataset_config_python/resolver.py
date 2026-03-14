@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import glob as globmod
 import os
+from dataclasses import dataclass, field
 from typing import Any
 
 from dataset_config_python.models.context_file import ContextFile
 from dataset_config_python.models.dataset import Dataset
 from dataset_config_python.models.eval_set import EvalSet
 from dataset_config_python.models.sample import Sample
+from dataset_config_python.models.tag_filter import matches_tag_filter
 from dataset_config_python.models.task import Task
 from dataset_config_python.models.variant import Variant
 from dataset_config_python.parser import ParsedTask, find_job_file, parse_job, parse_tasks
@@ -28,19 +30,28 @@ DEFAULT_MODELS: list[str] = [
     "openai/gpt-5-pro",
 ]
 
-# Available sandbox configurations.
-SANDBOX_REGISTRY: dict[str, dict[str, str]] = {
+# Default sandbox configurations for Flutter evaluations.
+# Consumers can pass these to resolve() or provide their own.
+DEFAULT_SANDBOX_REGISTRY: dict[str, dict[str, str]] = {
     "podman": {"name": "podman", "path": "./sandboxes/podman/compose.yaml"},
     "podman-beta": {"name": "podman", "path": "./sandboxes/podman/compose-beta.yaml"},
     "podman-main": {"name": "podman", "path": "./sandboxes/podman/compose-main.yaml"},
 }
 
-# Maps Flutter SDK channel names to sandbox registry keys.
-SDK_CHANNELS: dict[str, str] = {
+# Default SDK branch → sandbox registry key mapping.
+DEFAULT_BRANCH_CHANNELS: dict[str, str] = {
     "stable": "podman",
     "beta": "podman-beta",
     "main": "podman-main",
 }
+
+
+@dataclass
+class SandboxConfig:
+    """Sandbox registry and branch-channel mapping."""
+
+    registry: dict[str, dict[str, str]] = field(default_factory=dict)
+    branch_channels: dict[str, str] = field(default_factory=dict)
 
 
 def _is_glob(pattern: str) -> bool:
@@ -50,6 +61,8 @@ def _is_glob(pattern: str) -> bool:
 def resolve(
     dataset_path: str,
     job_names: list[str],
+    *,
+    sandbox_config: SandboxConfig | None = None,
 ) -> list[EvalSet]:
     """Resolve dataset + job(s) into EvalSet objects.
 
@@ -58,17 +71,22 @@ def resolve(
     Args:
         dataset_path: Root directory containing ``tasks/`` and ``jobs/``.
         job_names: Job names (looked up in ``jobs/``) or paths.
+        sandbox_registry: Named sandbox configurations. Defaults to empty.
+        branch_channels: SDK branch → sandbox registry key mapping. Defaults to empty.
 
     Returns:
         A list of EvalSet objects ready for JSON serialization.
     """
+    sandbox_cfg = sandbox_config or SandboxConfig()
+    registry = sandbox_cfg.registry
+    channels = sandbox_cfg.branch_channels
     task_configs = parse_tasks(dataset_path)
     results: list[EvalSet] = []
 
     for job_name in job_names:
         job_path = find_job_file(dataset_path, job_name)
         job = parse_job(job_path, dataset_path)
-        results.extend(_resolve_job(task_configs, job, dataset_path))
+        results.extend(_resolve_job(task_configs, job, dataset_path, registry, channels))
 
     return results
 
@@ -77,6 +95,8 @@ def _resolve_job(
     dataset_tasks: list[ParsedTask],
     job: Any,
     dataset_root: str,
+    sandbox_registry: dict[str, dict[str, str]],
+    branch_channels: dict[str, str],
 ) -> list[EvalSet]:
     """Resolve task configs and job into EvalSet objects."""
     models = job.models if job.models else list(DEFAULT_MODELS)
@@ -84,10 +104,10 @@ def _resolve_job(
 
     expanded_tasks = _expand_task_configs(dataset_tasks, job, sandbox_type_str, dataset_root)
 
-    # Group by flutter channel
+    # Group by branch
     groups: dict[str | None, list[ParsedTask]] = {}
     for tc in expanded_tasks:
-        key = tc.variant.flutter_channel
+        key = tc.variant.branch
         groups.setdefault(key, []).append(tc)
 
     return [
@@ -95,7 +115,7 @@ def _resolve_job(
             task_configs=group,
             log_dir=job.log_dir,
             models=models,
-            sandbox=_resolve_sandbox(dataset_root, job, flutter_channel=channel),
+            sandbox=_resolve_sandbox(dataset_root, job, sandbox_registry, branch_channels, branch=channel),
             job=job,
         )
         for channel, group in groups.items()
@@ -192,6 +212,9 @@ def _build_eval_set(
             task_metadata["save_examples"] = True
         if tc.examples_dir is not None:
             task_metadata["examples_dir"] = tc.examples_dir
+        # Propagate image_prefix from job for container image resolution
+        if job.image_prefix:
+            task_metadata["image_prefix"] = job.image_prefix
         if tc.metadata:
             task_metadata.update(tc.metadata)
 
@@ -213,10 +236,12 @@ def _build_eval_set(
         inspect_tasks.append(
             Task(
                 name=f"{tc.id}:{tc.variant.name}",
-                task_func=tc.task_func,
+                func=tc.func,
                 dataset=dataset,
                 sandbox=task_sandbox,
                 metadata=task_metadata,
+                system_message=tc.system_message,
+                sandbox_parameters=tc.sandbox_parameters,
                 model=tc.model or task_defaults.get("model"),
                 config=tc.config or task_defaults.get("config"),
                 model_roles=tc.model_roles or task_defaults.get("model_roles"),
@@ -325,8 +350,10 @@ def _resolve_models(job: Any) -> list[str]:
 def _resolve_sandbox(
     dataset_root: str,
     job: Any,
+    sandbox_registry: dict[str, dict[str, str]],
+    branch_channels: dict[str, str],
     *,
-    flutter_channel: str | None = None,
+    branch: str | None = None,
 ) -> Any:
     """Resolve sandbox spec for a given config."""
     sandbox_type = job.sandbox_type
@@ -334,18 +361,19 @@ def _resolve_sandbox(
         return "local"
 
     # Channel override
-    if flutter_channel and flutter_channel in SDK_CHANNELS:
-        registry_key = SDK_CHANNELS[flutter_channel]
-        if registry_key in SANDBOX_REGISTRY:
-            defn = SANDBOX_REGISTRY[registry_key]
+    # Branch override → look up branch-specific sandbox
+    if branch and branch in branch_channels:
+        registry_key = branch_channels[branch]
+        if registry_key in sandbox_registry:
+            defn = sandbox_registry[registry_key]
             sandbox_path = defn["path"]
             if not os.path.isabs(sandbox_path):
                 sandbox_path = os.path.normpath(os.path.join(dataset_root, sandbox_path))
             return {"type": defn["name"], "path": sandbox_path}
 
     # Named sandbox from registry
-    if sandbox_type in SANDBOX_REGISTRY:
-        defn = SANDBOX_REGISTRY[sandbox_type]
+    if sandbox_type in sandbox_registry:
+        defn = sandbox_registry[sandbox_type]
         sandbox_path = defn["path"]
         if not os.path.isabs(sandbox_path):
             sandbox_path = os.path.normpath(os.path.join(dataset_root, sandbox_path))
@@ -372,15 +400,29 @@ def _expand_task_configs(
     for tc in dataset_tasks:
         task_id = tc.id
 
-        # Filter by job.tasks
+        # Filter by job.tasks (ID-based)
         if job.tasks is not None and task_id not in job.tasks:
             continue
+
+        # Filter by job.task_filters (tag-based)
+        if job.task_filters is not None:
+            task_tags = (tc.metadata or {}).get("tags", [])
+            if not matches_tag_filter(task_tags, job.task_filters):
+                continue
 
         # Determine effective variants (intersection)
         effective_variants: dict[str, dict[str, Any]] = {}
         for vname, vdef in job_variants.items():
             if tc.allowed_variants is None or vname in tc.allowed_variants:
                 effective_variants[vname] = vdef
+
+        # Filter by task-level variant_filters (tag-based)
+        if tc.variant_filters is not None:
+            effective_variants = {
+                vname: vdef
+                for vname, vdef in effective_variants.items()
+                if matches_tag_filter([vname], tc.variant_filters)
+            }
 
         # Get job-level task overrides
         job_task = job.tasks.get(task_id) if job.tasks else None
@@ -393,10 +435,22 @@ def _expand_task_configs(
             if job_task.exclude_samples:
                 samples = [s for s in samples if s.id not in job_task.exclude_samples]
 
+        # Apply sample tag filtering (job-level)
+        if job.sample_filters is not None:
+            samples = [
+                s for s in samples
+                if matches_tag_filter((s.metadata or {}).get("tags", []), job.sample_filters)
+            ]
+
         # Apply system_message override
         system_message = tc.system_message
         if job_task and job_task.system_message is not None:
             system_message = job_task.system_message
+
+        # Merge job-task args into metadata
+        merged_metadata = dict(tc.metadata) if tc.metadata else None
+        if job_task and job_task.args:
+            merged_metadata = {**(merged_metadata or {}), "args": job_task.args}
 
         # Create one ParsedTask per effective variant
         for vname, vdef in effective_variants.items():
@@ -415,6 +469,7 @@ def _expand_task_configs(
                     allowed_variants=None,
                     save_examples=job.save_examples,
                     examples_dir=examples_dir,
+                    metadata=merged_metadata,
                 )
             )
 
@@ -485,7 +540,7 @@ def _resolve_variant(
         context_files=context_files,
         mcp_servers=vdef.get("mcp_servers") or [],
         skill_paths=skill_paths,
-        flutter_channel=vdef.get("flutter_channel"),
+        branch=vdef.get("branch"),
     )
 
 

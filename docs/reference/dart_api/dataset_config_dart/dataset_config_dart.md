@@ -776,8 +776,24 @@ This is the resolution engine. It:
 #### `EvalSetResolver`
 
 ```dart
-EvalSetResolver()
+EvalSetResolver({Map<String, Map<String, String>> sandboxRegistry, Map<String, String> sdkChannels})
 ```
+
+Creates a resolver with optional sandbox configuration.
+
+If [sandboxRegistry] or [sdkChannels] are not provided, they default
+to empty maps (no sandbox resolution). Pass [kDefaultSandboxRegistry]
+and [kDefaultSdkChannels] for the Flutter-specific sandbox setup.
+
+### Properties
+
+- **`sandboxRegistry`** → `Map<String, Map<String, String>>` *(final)*
+
+  Named sandbox configurations (e.g. `'podman'` → compose file path).
+
+- **`sdkChannels`** → `Map<String, String>` *(final)*
+
+  SDK channel → sandbox registry key mapping.
 
 ### Methods
 
@@ -1000,7 +1016,7 @@ task_defaults:
 #### `Job`
 
 ```dart
-Job({required String logDir, String sandboxType, int maxConnections, List<String>? models, Map<String, Map<String, dynamic>>? variants, List<String>? taskPaths, Map<String, JobTask>? tasks, bool saveExamples, int? retryAttempts, int? maxRetries, double? retryWait, double? retryConnections, bool? retryCleanup, double? failOnError, bool? continueOnFail, int? retryOnError, bool? debugErrors, int? maxSamples, int? maxTasks, int? maxSubprocesses, int? maxSandboxes, String? logLevel, String? logLevelTranscript, String? logFormat, List<String>? tags, Map<String, dynamic>? metadata, bool? trace, String? display, bool? score, Object? limit, Object? sampleId, Object? sampleShuffle, Object? epochs, Object? approval, Object? solver, bool? sandboxCleanup, String? modelBaseUrl, Map<String, Object?>? modelArgs, Map<String, String>? modelRoles, Map<String, Object?>? taskArgs, int? messageLimit, int? tokenLimit, int? timeLimit, int? workingLimit, double? costLimit, Map<String, Object?>? modelCostConfig, bool? logSamples, bool? logRealtime, bool? logImages, int? logBuffer, int? logShared, String? bundleDir, bool? bundleOverwrite, bool? logDirAllowDirty, String? evalSetId, Map<String, dynamic>? evalSetOverrides, Map<String, dynamic>? taskDefaults})
+Job({String? description, String? imagePrefix, required String logDir, String sandboxType, int maxConnections, List<String>? models, Map<String, Map<String, dynamic>>? variants, List<String>? taskPaths, Map<String, JobTask>? tasks, bool saveExamples, int? retryAttempts, int? maxRetries, double? retryWait, double? retryConnections, bool? retryCleanup, double? failOnError, bool? continueOnFail, int? retryOnError, bool? debugErrors, int? maxSamples, int? maxTasks, int? maxSubprocesses, int? maxSandboxes, String? logLevel, String? logLevelTranscript, String? logFormat, List<String>? tags, Map<String, dynamic>? metadata, bool? trace, String? display, bool? score, Object? limit, Object? sampleId, Object? sampleShuffle, Object? epochs, Object? approval, Object? solver, bool? sandboxCleanup, String? modelBaseUrl, Map<String, Object?>? modelArgs, Map<String, String>? modelRoles, Map<String, Object?>? taskArgs, int? messageLimit, int? tokenLimit, int? timeLimit, int? workingLimit, double? costLimit, Map<String, Object?>? modelCostConfig, bool? logSamples, bool? logRealtime, bool? logImages, int? logBuffer, int? logShared, String? bundleDir, bool? bundleOverwrite, bool? logDirAllowDirty, String? evalSetId, Map<String, dynamic>? evalSetOverrides, Map<String, dynamic>? taskDefaults, TagFilter? taskFilters, TagFilter? sampleFilters})
 ```
 
 #### `Job.fromJson`
@@ -1025,7 +1041,7 @@ a custom system message.
 #### `JobTask`
 
 ```dart
-JobTask({required String id, List<String>? includeSamples, List<String>? excludeSamples, String? systemMessage})
+JobTask({required String id, List<String>? includeSamples, List<String>? excludeSamples, String? systemMessage, Map<String, dynamic>? args})
 ```
 
 #### `JobTask.fromJson`
@@ -1200,14 +1216,14 @@ former `TaskConfig` model-package class.
 #### `ParsedTask`
 
 ```dart
-ParsedTask({required String id, required String taskFunc, required List<Sample> samples, required Variant variant, String sandboxType, String? systemMessage, List<String>? allowedVariants, bool saveExamples, String? examplesDir, String? model, Map<String, dynamic>? config, Map<String, String>? modelRoles, Object? sandbox, Object? approval, Object? epochs, Object? failOnError, bool? continueOnFail, int? messageLimit, int? tokenLimit, int? timeLimit, int? workingLimit, double? costLimit, Object? earlyStopping, String? displayName, Object? version, Map<String, dynamic>? metadata})
+ParsedTask({required String id, required String func, required List<Sample> samples, required Variant variant, String sandboxType, String? systemMessage, List<String>? allowedVariants, bool saveExamples, String? examplesDir, TagFilter? variantFilters, Map<String, dynamic>? sandboxParameters, String? model, Map<String, dynamic>? config, Map<String, String>? modelRoles, Object? sandbox, Object? approval, Object? epochs, Object? failOnError, bool? continueOnFail, int? messageLimit, int? tokenLimit, int? timeLimit, int? workingLimit, double? costLimit, Object? earlyStopping, String? displayName, Object? version, Map<String, dynamic>? metadata})
 ```
 
 ### Properties
 
 - **`id`** → `String` *(final)*
 
-- **`taskFunc`** → `String` *(final)*
+- **`func`** → `String` *(final)*
 
 - **`samples`** → `List<Sample>` *(final)*
 
@@ -1222,6 +1238,14 @@ ParsedTask({required String id, required String taskFunc, required List<Sample> 
 - **`saveExamples`** → `bool` *(final)*
 
 - **`examplesDir`** → `String?` *(final)*
+
+- **`variantFilters`** → `TagFilter?` *(final)*
+
+  Tag filter for variant selection.
+
+- **`sandboxParameters`** → `Map<String, dynamic>?` *(final)*
+
+  Pass-through dict for sandbox plugin configuration.
 
 - **`model`** → `String?` *(final)*
 
@@ -1296,7 +1320,7 @@ ParsedTask({required String id, required String taskFunc, required List<Sample> 
 #### `copyWith`
 
 ```dart
-ParsedTask copyWith({String? id, String? taskFunc, List<Sample>? samples, Variant? variant, String? sandboxType, String? systemMessage, List<String>? allowedVariants, bool? saveExamples, String? examplesDir, String? model, Map<String, dynamic>? config, Map<String, String>? modelRoles, Object? sandbox, Object? approval, Object? epochs, Object? failOnError, bool? continueOnFail, int? messageLimit, int? tokenLimit, int? timeLimit, int? workingLimit, double? costLimit, Object? earlyStopping, String? displayName, Object? version, Map<String, dynamic>? metadata})
+ParsedTask copyWith({String? id, String? func, List<Sample>? samples, Variant? variant, String? sandboxType, String? systemMessage, List<String>? allowedVariants, bool? saveExamples, String? examplesDir, TagFilter? variantFilters, Map<String, dynamic>? sandboxParameters, String? model, Map<String, dynamic>? config, Map<String, String>? modelRoles, Object? sandbox, Object? approval, Object? epochs, Object? failOnError, bool? continueOnFail, int? messageLimit, int? tokenLimit, int? timeLimit, int? workingLimit, double? costLimit, Object? earlyStopping, String? displayName, Object? version, Map<String, dynamic>? metadata})
 ```
 
 Create a copy with overrides.
@@ -1304,7 +1328,7 @@ Create a copy with overrides.
 **Parameters:**
 
 - `id` (`String?`)
-- `taskFunc` (`String?`)
+- `func` (`String?`)
 - `samples` (`List<Sample>?`)
 - `variant` (`Variant?`)
 - `sandboxType` (`String?`)
@@ -1312,6 +1336,8 @@ Create a copy with overrides.
 - `allowedVariants` (`List<String>?`)
 - `saveExamples` (`bool?`)
 - `examplesDir` (`String?`)
+- `variantFilters` (`TagFilter?`)
+- `sandboxParameters` (`Map<String, dynamic>?`)
 - `model` (`String?`)
 - `config` (`Map<String, dynamic>?`)
 - `modelRoles` (`Map<String, String>?`)
@@ -1460,6 +1486,28 @@ Score.fromJson(Map<String, dynamic> json)
 
 ---
 
+## abstract class `TagFilter`
+
+**Mixins:** `_$TagFilter`
+
+Tag-based filter for including/excluding items by their tags.
+
+### Constructors
+
+#### `TagFilter`
+
+```dart
+TagFilter({List<String>? includeTags, List<String>? excludeTags})
+```
+
+#### `TagFilter.fromJson`
+
+```dart
+TagFilter.fromJson(Map<String, dynamic> json)
+```
+
+---
+
 ## abstract class `Task`
 
 **Mixins:** `_$Task`
@@ -1475,7 +1523,7 @@ constructor.
 #### `Task`
 
 ```dart
-Task({Dataset? dataset, Object? setup, Object? solver, Object? cleanup, Object? scorer, Object? metrics, String? model, Object? config, Map<String, String>? modelRoles, Object? sandbox, Object? approval, Object? epochs, Object? failOnError, bool? continueOnFail, int? messageLimit, int? tokenLimit, int? timeLimit, int? workingLimit, double? costLimit, Object? earlyStopping, String? displayName, String? taskFunc, String? name, Object version, Map<String, dynamic>? metadata})
+Task({Dataset? dataset, Object? setup, Object? solver, Object? cleanup, Object? scorer, Object? metrics, String? model, Object? config, Map<String, String>? modelRoles, Object? sandbox, Object? approval, Object? epochs, Object? failOnError, bool? continueOnFail, int? messageLimit, int? tokenLimit, int? timeLimit, int? workingLimit, double? costLimit, Object? earlyStopping, String? displayName, String? func, String? systemMessage, Map<String, dynamic>? sandboxParameters, String? name, Object version, Map<String, dynamic>? metadata})
 ```
 
 #### `Task.fromJson`
@@ -1519,12 +1567,12 @@ TaskInfo.fromJson(Map<String, dynamic> json)
 #### `TaskMetadata`
 
 ```dart
-TaskMetadata(String taskFunc, Map<String, Object?> additional)
+TaskMetadata(String func, Map<String, Object?> additional)
 ```
 
 ### Properties
 
-- **`taskFunc`** → `String` *(final)*
+- **`func`** → `String` *(final)*
 
 - **`additional`** → `Map<String, Object?>` *(final)*
 
@@ -1718,6 +1766,25 @@ Throws [FileSystemException] if the job file is not found.
 
 - `datasetRoot` (`String`) *(required)*
 - `job` (`String`) *(required)*
+
+---
+
+## `matchesTagFilter`
+
+```dart
+bool matchesTagFilter(List<String> itemTags, TagFilter filter)
+```
+
+Check whether a set of [itemTags] matches the given [filter].
+
+Returns `true` if:
+- All include_tags (if any) are present in [itemTags]
+- No exclude_tags (if any) are present in [itemTags]
+
+**Parameters:**
+
+- `itemTags` (`List<String>`) *(required)*
+- `filter` (`TagFilter`) *(required)*
 
 ---
 

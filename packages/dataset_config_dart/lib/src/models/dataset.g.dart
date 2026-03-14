@@ -18,7 +18,7 @@ _Dataset _$DatasetFromJson(Map<String, dynamic> json) => _Dataset(
 );
 
 Map<String, dynamic> _$DatasetToJson(_Dataset instance) => <String, dynamic>{
-  'samples': instance.samples.map((e) => e.toJson()).toList(),
+  'samples': instance.samples,
   'name': instance.name,
   'location': instance.location,
   'shuffled': instance.shuffled,

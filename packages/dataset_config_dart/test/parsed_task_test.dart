@@ -6,7 +6,7 @@ void main() {
     test('has correct defaults', () {
       const task = ParsedTask(
         id: 'test',
-        taskFunc: 'question_answer',
+        func: 'question_answer',
         samples: [],
         variant: Variant(),
       );
@@ -27,7 +27,7 @@ void main() {
     test('stores all constructor fields', () {
       const task = ParsedTask(
         id: 'my_task',
-        taskFunc: 'flutter_code_gen',
+        func: 'flutter_code_gen',
         samples: [Sample(id: 's1', input: 'q', target: 'a')],
         variant: Variant(name: 'full'),
         sandboxType: 'podman',
@@ -49,7 +49,7 @@ void main() {
       );
 
       expect(task.id, 'my_task');
-      expect(task.taskFunc, 'flutter_code_gen');
+      expect(task.func, 'flutter_code_gen');
       expect(task.samples, hasLength(1));
       expect(task.variant.name, 'full');
       expect(task.sandboxType, 'podman');
@@ -75,7 +75,7 @@ void main() {
     test('overrides specified fields', () {
       const original = ParsedTask(
         id: 'original',
-        taskFunc: 'func_a',
+        func: 'func_a',
         samples: [],
         variant: Variant(name: 'baseline'),
         timeLimit: 100,
@@ -93,7 +93,7 @@ void main() {
     test('preserves fields not overridden', () {
       const original = ParsedTask(
         id: 'task',
-        taskFunc: 'func',
+        func: 'func',
         samples: [],
         variant: Variant(name: 'full'),
         sandboxType: 'podman',
@@ -103,7 +103,7 @@ void main() {
 
       final copy = original.copyWith(id: 'new_id');
 
-      expect(copy.taskFunc, 'func');
+      expect(copy.func, 'func');
       expect(copy.variant.name, 'full');
       expect(copy.sandboxType, 'podman');
       expect(copy.systemMessage, 'Be helpful');
@@ -113,7 +113,7 @@ void main() {
     test('returns a new instance (not the same object)', () {
       const original = ParsedTask(
         id: 'a',
-        taskFunc: 'f',
+        func: 'f',
         samples: [],
         variant: Variant(),
       );
@@ -128,7 +128,7 @@ void main() {
     test('can override samples list', () {
       const original = ParsedTask(
         id: 'task',
-        taskFunc: 'func',
+        func: 'func',
         samples: [Sample(id: 's1', input: 'q', target: 'a')],
         variant: Variant(),
       );
