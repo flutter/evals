@@ -141,7 +141,8 @@ def _resolve_job(
 ) -> list[EvalSet]:
     """Resolve task configs and job into EvalSet objects."""
     models = job.models if job.models else list(DEFAULT_MODELS)
-    sandbox_type_str = job.sandbox_type
+    sandbox_cfg = job.sandbox or {}
+    sandbox_type_str = sandbox_cfg.get("environment", "local")
 
     expanded_tasks = _expand_task_configs(dataset_tasks, job, sandbox_type_str, dataset_root)
 
@@ -178,8 +179,11 @@ def _build_eval_set(
 ) -> EvalSet:
     """Build an EvalSet from resolved ParsedTasks."""
     inspect_tasks: list[Task] = []
-    is_container = job.sandbox_type and job.sandbox_type != "local"
-    task_defaults = job.task_defaults or {}
+    sandbox_cfg = job.sandbox or {}
+    sandbox_type_str = sandbox_cfg.get("environment", "local")
+    is_container = sandbox_type_str and sandbox_type_str != "local"
+    eval_args = job.inspect_eval_arguments or {}
+    task_defaults = eval_args.get("task_defaults") or {}
 
     for tc in task_configs:
         # Enrich each sample with task-level metadata
@@ -254,8 +258,8 @@ def _build_eval_set(
         if tc.examples_dir is not None:
             task_metadata["examples_dir"] = tc.examples_dir
         # Propagate image_prefix from job for container image resolution
-        if job.image_prefix:
-            task_metadata["image_prefix"] = job.image_prefix
+        if (job.sandbox or {}).get("image_prefix"):
+            task_metadata["image_prefix"] = job.sandbox["image_prefix"]
         if tc.metadata:
             task_metadata.update(tc.metadata)
 
@@ -263,7 +267,7 @@ def _build_eval_set(
         task_sandbox = None
         if tc.sandbox is not None:
             task_sandbox = tc.sandbox
-        elif tc.sandbox_type and tc.sandbox_type != "local":
+        elif sandbox_type_str != "local":
             task_sandbox = _serialize_sandbox(sandbox)
 
         # Resolve task-level settings with precedence:
@@ -271,7 +275,7 @@ def _build_eval_set(
         resolved_time_limit = (
             tc.time_limit
             or task_defaults.get("time_limit")
-            or (300 if job.sandbox_type != "local" else None)
+            or (300 if sandbox_type_str != "local" else None)
         )
 
         inspect_tasks.append(
@@ -303,8 +307,18 @@ def _build_eval_set(
             )
         )
 
-    # Build EvalSet with all job-level parameters
-    overrides = job.eval_set_overrides or {}
+    # Build EvalSet with all job-level parameters from inspect_eval_arguments
+    eval_set_overrides = eval_args.get("eval_set_overrides") or {}
+
+    # Helper to get a value from eval_args then overrides
+    def _get(key, default=None):
+        v = eval_args.get(key)
+        if v is not None:
+            return v
+        v = eval_set_overrides.get(key)
+        if v is not None:
+            return v
+        return default
 
     return EvalSet(
         tasks=inspect_tasks,
@@ -312,63 +326,61 @@ def _build_eval_set(
         model=models,
         sandbox=_serialize_sandbox(sandbox),
         # Retry
-        retry_attempts=job.retry_attempts or overrides.get("retry_attempts") or 10,
-        retry_wait=job.retry_wait or overrides.get("retry_wait") or 60.0,
-        retry_connections=job.retry_connections or overrides.get("retry_connections") or 0.5,
-        retry_cleanup=job.retry_cleanup if job.retry_cleanup is not None else overrides.get("retry_cleanup"),
-        retry_on_error=job.retry_on_error or job.max_retries or overrides.get("retry_on_error"),
+        retry_attempts=_get("retry_attempts", 10),
+        retry_wait=float(_get("retry_wait", 60.0)),
+        retry_connections=float(_get("retry_connections", 0.5)),
+        retry_cleanup=_get("retry_cleanup"),
+        retry_on_error=_get("retry_on_error") or _get("max_retries"),
         # Error handling
-        fail_on_error=job.fail_on_error if job.fail_on_error is not None else (overrides.get("fail_on_error") or 0.05),
-        continue_on_fail=job.continue_on_fail if job.continue_on_fail is not None else overrides.get("continue_on_fail"),
-        debug_errors=job.debug_errors if job.debug_errors is not None else overrides.get("debug_errors"),
+        fail_on_error=float(_get("fail_on_error", 0.05)),
+        continue_on_fail=_get("continue_on_fail"),
+        debug_errors=_get("debug_errors"),
         # Concurrency
-        max_samples=job.max_samples or overrides.get("max_samples"),
-        max_tasks=job.max_tasks or overrides.get("max_tasks"),
-        max_subprocesses=job.max_subprocesses or overrides.get("max_subprocesses"),
-        max_sandboxes=job.max_sandboxes or overrides.get("max_sandboxes"),
+        max_samples=_get("max_samples"),
+        max_tasks=_get("max_tasks"),
+        max_subprocesses=_get("max_subprocesses"),
+        max_sandboxes=_get("max_sandboxes"),
         # Logging
-        log_level=job.log_level or overrides.get("log_level") or "info",
-        log_level_transcript=job.log_level_transcript or overrides.get("log_level_transcript"),
-        log_format=job.log_format or overrides.get("log_format") or "json",
-        log_samples=job.log_samples if job.log_samples is not None else overrides.get("log_samples"),
-        log_realtime=job.log_realtime if job.log_realtime is not None else overrides.get("log_realtime"),
-        log_images=job.log_images if job.log_images is not None else overrides.get("log_images"),
-        log_buffer=job.log_buffer or overrides.get("log_buffer"),
-        log_shared=job.log_shared or overrides.get("log_shared"),
-        log_dir_allow_dirty=job.log_dir_allow_dirty if job.log_dir_allow_dirty is not None else overrides.get("log_dir_allow_dirty"),
+        log_level=_get("log_level", "info"),
+        log_level_transcript=_get("log_level_transcript"),
+        log_format=_get("log_format", "json"),
+        log_samples=_get("log_samples"),
+        log_realtime=_get("log_realtime"),
+        log_images=_get("log_images"),
+        log_buffer=_get("log_buffer"),
+        log_shared=_get("log_shared"),
+        log_dir_allow_dirty=_get("log_dir_allow_dirty"),
         # Model config
-        model_base_url=job.model_base_url or overrides.get("model_base_url"),
-        model_args=job.model_args or overrides.get("model_args") or {},
-        model_roles=job.model_roles or overrides.get("model_roles"),
-        task_args=job.task_args or overrides.get("task_args") or {},
-        model_cost_config=job.model_cost_config or overrides.get("model_cost_config"),
+        model_base_url=_get("model_base_url"),
+        model_args=_get("model_args", {}),
+        model_roles=_get("model_roles"),
+        task_args=_get("task_args", {}),
+        model_cost_config=_get("model_cost_config"),
         # Sandbox
-        sandbox_cleanup=job.sandbox_cleanup if job.sandbox_cleanup is not None else overrides.get("sandbox_cleanup"),
+        sandbox_cleanup=_get("sandbox_cleanup"),
         # Sample control
-        limit=job.limit or overrides.get("limit"),
-        sample_id=job.sample_id or overrides.get("sample_id"),
-        sample_shuffle=job.sample_shuffle or overrides.get("sample_shuffle"),
-        epochs=job.epochs or overrides.get("epochs"),
+        limit=_get("limit"),
+        sample_id=_get("sample_id"),
+        sample_shuffle=_get("sample_shuffle"),
+        epochs=_get("epochs"),
         # Misc
-        tags=job.tags or overrides.get("tags"),
-        metadata=job.metadata or overrides.get("metadata"),
-        trace=job.trace if job.trace is not None else overrides.get("trace"),
-        display=job.display or overrides.get("display"),
-        approval=job.approval or overrides.get("approval"),
-        solver=job.solver or overrides.get("solver"),
-        score=job.score if job.score is not None else (overrides.get("score") if overrides.get("score") is not None else True),
+        tags=_get("tags"),
+        metadata=_get("metadata"),
+        trace=_get("trace"),
+        display=_get("display"),
+        approval=_get("approval"),
+        solver=_get("solver"),
+        score=_get("score", True),
         # Limits
-        message_limit=job.message_limit or overrides.get("message_limit"),
-        token_limit=job.token_limit or overrides.get("token_limit"),
-        time_limit=job.time_limit or overrides.get("time_limit"),
-        working_limit=job.working_limit or overrides.get("working_limit"),
-        cost_limit=job.cost_limit if job.cost_limit is not None else (
-            float(overrides["cost_limit"]) if overrides.get("cost_limit") is not None else None
-        ),
+        message_limit=_get("message_limit"),
+        token_limit=_get("token_limit"),
+        time_limit=_get("time_limit"),
+        working_limit=_get("working_limit"),
+        cost_limit=float(_get("cost_limit")) if _get("cost_limit") is not None else None,
         # Bundling
-        bundle_dir=job.bundle_dir or overrides.get("bundle_dir"),
-        bundle_overwrite=job.bundle_overwrite if job.bundle_overwrite is not None else (overrides.get("bundle_overwrite") or False),
-        eval_set_id=job.eval_set_id or overrides.get("eval_set_id"),
+        bundle_dir=_get("bundle_dir"),
+        bundle_overwrite=_get("bundle_overwrite", False),
+        eval_set_id=_get("eval_set_id"),
     )
 
 
@@ -397,7 +409,8 @@ def _resolve_sandbox(
     branch: str | None = None,
 ) -> Any:
     """Resolve sandbox spec for a given config."""
-    sandbox_type = job.sandbox_type
+    sandbox_cfg = job.sandbox or {}
+    sandbox_type = sandbox_cfg.get("environment", "local")
     if not sandbox_type or sandbox_type == "local":
         return "local"
 
@@ -483,10 +496,8 @@ def _expand_task_configs(
                 if matches_tag_filter((s.metadata or {}).get("tags", []), job.sample_filters)
             ]
 
-        # Apply system_message override
+        # Apply system_message from task (no longer overridden by job task)
         system_message = tc.system_message
-        if job_task and job_task.system_message is not None:
-            system_message = job_task.system_message
 
         # Merge job-task args into metadata
         merged_metadata = dict(tc.metadata) if tc.metadata else None

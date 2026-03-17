@@ -45,23 +45,21 @@ void main() {
   /// Helper to create a minimal [Job] for testing.
   Job makeJob({
     String logDir = '/tmp/logs',
-    String sandboxType = 'local',
+    Map<String, dynamic>? sandbox,
     List<String>? models,
     Map<String, Map<String, dynamic>>? variants,
     Map<String, JobTask>? tasks,
     bool saveExamples = false,
-    Map<String, dynamic>? taskDefaults,
-    String? imagePrefix,
+    Map<String, dynamic>? inspectEvalArguments,
   }) {
     return Job(
       logDir: logDir,
-      sandboxType: sandboxType,
+      sandbox: sandbox,
       models: models,
       variants: variants,
       tasks: tasks,
       saveExamples: saveExamples,
-      taskDefaults: taskDefaults,
-      imagePrefix: imagePrefix,
+      inspectEvalArguments: inspectEvalArguments,
     );
   }
 
@@ -237,7 +235,7 @@ void main() {
     test('local sandbox resolves to null in output', () {
       final results = resolver.resolve(
         [makeTask()],
-        makeJob(models: ['m'], sandboxType: 'local'),
+        makeJob(models: ['m'], sandbox: {'environment': 'local'}),
         '/tmp/dataset',
       );
 
@@ -323,7 +321,7 @@ void main() {
         [makeTask()],
         makeJob(
           models: ['m'],
-          taskDefaults: {'time_limit': 999, 'message_limit': 77},
+          inspectEvalArguments: {'task_defaults': {'time_limit': 999, 'message_limit': 77}},
         ),
         '/tmp/dataset',
       );
@@ -338,7 +336,7 @@ void main() {
         [makeTask(timeLimit: 100)],
         makeJob(
           models: ['m'],
-          taskDefaults: {'time_limit': 999},
+          inspectEvalArguments: {'task_defaults': {'time_limit': 999}},
         ),
         '/tmp/dataset',
       );
@@ -349,11 +347,13 @@ void main() {
     test('job-level eval_set fields propagate', () {
       final results = resolver.resolve(
         [makeTask()],
-        const Job(
+        Job(
           logDir: '/tmp/logs',
           models: ['m'],
-          retryAttempts: 42,
-          logLevel: 'debug',
+          inspectEvalArguments: {
+            'retry_attempts': 42,
+            'log_level': 'debug',
+          },
         ),
         '/tmp/dataset',
       );
@@ -398,12 +398,15 @@ void main() {
       expect(taskNames, isNot(contains('test_task:mcp_only')));
     });
 
-    test('image_prefix from job appears in task metadata', () {
+    test('image_prefix from sandbox appears in task metadata', () {
       final results = resolver.resolve(
         [makeTask()],
         makeJob(
           models: ['m'],
-          imagePrefix: 'us-central1-docker.pkg.dev/my-project/repo/',
+          sandbox: {
+            'environment': 'podman',
+            'image_prefix': 'us-central1-docker.pkg.dev/my-project/repo/',
+          },
         ),
         '/tmp/dataset',
       );

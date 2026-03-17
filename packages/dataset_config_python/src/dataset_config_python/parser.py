@@ -257,18 +257,24 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
 
     allowed_variants = data.get("allowed_variants")
 
-    # Parse samples section
+    # Parse samples section (optional)
     samples_raw = data.get("samples")
-    if not isinstance(samples_raw, dict):
+    if samples_raw is None:
+        samples: list[Sample] = []
+    elif not isinstance(samples_raw, dict):
         raise ValueError(
             f"Task '{task_id}': 'samples' must be a dict with 'inline' and/or "
             f"'paths' keys, got {type(samples_raw).__name__}"
         )
-    samples = _load_samples_section(samples_raw, dataset_root, task_workspace, task_tests, task_dir)
+    else:
+        samples = _load_samples_section(samples_raw, dataset_root, task_workspace, task_tests, task_dir)
 
     # Parse variant_filters (tag-based variant restriction)
     variant_filters_raw = data.get("variant_filters")
     variant_filters = TagFilter(**variant_filters_raw) if isinstance(variant_filters_raw, dict) else None
+
+    # Task-level Inspect AI args are nested under inspect_task_args
+    task_args = data.get("inspect_task_args") or {}
 
     return [
         ParsedTask(
@@ -278,20 +284,20 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
             samples=samples,
             system_message=system_message,
             allowed_variants=allowed_variants,
-            model=data.get("model"),
-            config=data.get("config") if isinstance(data.get("config"), dict) else None,
-            model_roles=data.get("model_roles") if isinstance(data.get("model_roles"), dict) else None,
-            sandbox=data.get("sandbox"),
-            approval=data.get("approval"),
-            epochs=data.get("epochs"),
-            fail_on_error=data.get("fail_on_error"),
-            continue_on_fail=data.get("continue_on_fail"),
-            message_limit=data.get("message_limit"),
-            token_limit=data.get("token_limit"),
-            time_limit=data.get("time_limit"),
-            working_limit=data.get("working_limit"),
-            cost_limit=float(data["cost_limit"]) if data.get("cost_limit") is not None else None,
-            early_stopping=data.get("early_stopping"),
+            model=task_args.get("model"),
+            config=task_args.get("config") if isinstance(task_args.get("config"), dict) else None,
+            model_roles=task_args.get("model_roles") if isinstance(task_args.get("model_roles"), dict) else None,
+            sandbox=task_args.get("sandbox"),
+            approval=task_args.get("approval"),
+            epochs=task_args.get("epochs"),
+            fail_on_error=task_args.get("fail_on_error"),
+            continue_on_fail=task_args.get("continue_on_fail"),
+            message_limit=task_args.get("message_limit"),
+            token_limit=task_args.get("token_limit"),
+            time_limit=task_args.get("time_limit"),
+            working_limit=task_args.get("working_limit"),
+            cost_limit=float(task_args["cost_limit"]) if task_args.get("cost_limit") is not None else None,
+            early_stopping=task_args.get("early_stopping"),
             display_name=data.get("display_name"),
             version=data.get("version"),
             metadata=data.get("metadata") if isinstance(data.get("metadata"), dict) else None,
@@ -385,8 +391,11 @@ def _resolve_sample(
                 f"Sample '{doc.get('id', 'unknown')}' missing required field: {field}"
             )
 
-    sample_workspace = doc.get("workspace")
-    sample_tests = doc.get("tests")
+    # Read metadata fields from the metadata dict
+    meta_raw: dict[str, Any] = doc.get("metadata") or {}
+
+    sample_workspace = meta_raw.get("workspace")
+    sample_tests = meta_raw.get("tests")
 
     effective_workspace = sample_workspace if sample_workspace is not None else task_workspace
 
@@ -408,8 +417,8 @@ def _resolve_sample(
     elif task_tests is not None:
         tests = _resolve_resource_path(task_tests, dataset_root)
 
-    # Normalize tags
-    raw_tags = doc.get("tags")
+    # Normalize tags from metadata
+    raw_tags = meta_raw.get("tags")
     if isinstance(raw_tags, str):
         tags = [t.strip() for t in raw_tags.split(",")]
     elif isinstance(raw_tags, list):
@@ -418,8 +427,8 @@ def _resolve_sample(
         tags = []
 
     # Build metadata
-    meta: dict[str, Any] = {**(doc.get("metadata") or {})}
-    meta["difficulty"] = doc.get("difficulty", "medium")
+    meta: dict[str, Any] = {**meta_raw}
+    meta["difficulty"] = meta_raw.get("difficulty", "medium")
     meta["tags"] = tags
     if workspace is not None:
         meta["workspace"] = workspace
@@ -457,7 +466,14 @@ def parse_job(job_path: str, dataset_root: str) -> Job:
     logs_dir = data.get("logs_dir") or _DEFAULT_LOGS_DIR
     log_dir = _resolve_log_dir(logs_dir, dataset_root)
 
-    sandbox_type = data.get("sandbox_type") or "local"
+    # Parse sandbox config
+    sandbox_raw = data.get("sandbox")
+    sandbox = None
+    if isinstance(sandbox_raw, dict):
+        sandbox = sandbox_raw
+    elif isinstance(sandbox_raw, str):
+        sandbox = {"environment": sandbox_raw}
+
     max_connections = data.get("max_connections") or 10
 
     # Parse task filters
@@ -483,82 +499,24 @@ def parse_job(job_path: str, dataset_root: str) -> Job:
             else:
                 variants[str(key)] = {}
 
+    # Parse inspect_eval_arguments
+    inspect_eval_arguments = data.get("inspect_eval_arguments")
+    if isinstance(inspect_eval_arguments, dict):
+        inspect_eval_arguments = dict(inspect_eval_arguments)
+    else:
+        inspect_eval_arguments = None
+
     return Job(
         log_dir=log_dir,
-        sandbox_type=sandbox_type,
         max_connections=max_connections,
         models=data.get("models"),
         variants=variants,
         task_paths=task_paths,
         tasks=tasks,
         save_examples=data.get("save_examples") is True,
-        retry_attempts=data.get("retry_attempts"),
-        max_retries=data.get("max_retries"),
-        retry_wait=float(data["retry_wait"]) if data.get("retry_wait") is not None else None,
-        retry_connections=(
-            float(data["retry_connections"]) if data.get("retry_connections") is not None else None
-        ),
-        retry_cleanup=data.get("retry_cleanup"),
-        fail_on_error=(
-            float(data["fail_on_error"]) if data.get("fail_on_error") is not None else None
-        ),
-        continue_on_fail=data.get("continue_on_fail"),
-        retry_on_error=data.get("retry_on_error"),
-        debug_errors=data.get("debug_errors"),
-        max_samples=data.get("max_samples"),
-        max_tasks=data.get("max_tasks"),
-        max_subprocesses=data.get("max_subprocesses"),
-        max_sandboxes=data.get("max_sandboxes"),
-        log_level=data.get("log_level"),
-        log_level_transcript=data.get("log_level_transcript"),
-        log_format=data.get("log_format"),
-        tags=data.get("tags"),
-        metadata=data.get("metadata") if isinstance(data.get("metadata"), dict) else None,
-        trace=data.get("trace"),
-        display=data.get("display"),
-        score=data.get("score"),
-        limit=data.get("limit"),
-        sample_id=data.get("sample_id"),
-        sample_shuffle=data.get("sample_shuffle"),
-        epochs=data.get("epochs"),
-        approval=data.get("approval"),
-        solver=data.get("solver"),
-        sandbox_cleanup=data.get("sandbox_cleanup"),
-        model_base_url=data.get("model_base_url"),
-        model_args=data.get("model_args") if isinstance(data.get("model_args"), dict) else None,
-        model_roles=(
-            data.get("model_roles") if isinstance(data.get("model_roles"), dict) else None
-        ),
-        task_args=data.get("task_args") if isinstance(data.get("task_args"), dict) else None,
-        message_limit=data.get("message_limit"),
-        token_limit=data.get("token_limit"),
-        time_limit=data.get("time_limit"),
-        working_limit=data.get("working_limit"),
-        cost_limit=float(data["cost_limit"]) if data.get("cost_limit") is not None else None,
-        model_cost_config=(
-            data.get("model_cost_config")
-            if isinstance(data.get("model_cost_config"), dict)
-            else None
-        ),
-        log_samples=data.get("log_samples"),
-        log_realtime=data.get("log_realtime"),
-        log_images=data.get("log_images"),
-        log_buffer=data.get("log_buffer"),
-        log_shared=data.get("log_shared"),
-        bundle_dir=data.get("bundle_dir"),
-        bundle_overwrite=data.get("bundle_overwrite"),
-        log_dir_allow_dirty=data.get("log_dir_allow_dirty"),
-        eval_set_id=data.get("eval_set_id"),
-        eval_set_overrides=(
-            data.get("eval_set_overrides")
-            if isinstance(data.get("eval_set_overrides"), dict)
-            else None
-        ),
-        task_defaults=(
-            data.get("task_defaults") if isinstance(data.get("task_defaults"), dict) else None
-        ),
         description=data.get("description"),
-        image_prefix=data.get("image_prefix"),
+        sandbox=sandbox,
+        inspect_eval_arguments=inspect_eval_arguments,
         task_filters=data.get("task_filters"),
         sample_filters=data.get("sample_filters"),
     )

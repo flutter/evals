@@ -76,9 +76,12 @@ The sandbox registry is **configurable** — the resolver accepts a registry map
 
 ```yaml
 # job.yaml
-sandbox_type: podman          # looks up "podman" in the registry
-image_prefix: us-central1-docker.pkg.dev/my-project/repo/
+sandbox:
+  environment: podman          # looks up "podman" in the registry
+  image_prefix: us-central1-docker.pkg.dev/my-project/repo/
 ```
+
+A string shorthand is also supported — `sandbox: podman` is equivalent to `sandbox: {environment: podman}`.
 
 The `image_prefix` is prepended to image names during sandbox resolution (useful for private registries).
 

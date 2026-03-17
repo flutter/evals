@@ -68,22 +68,24 @@ allowed_variants: [baseline, mcp_only]
 samples:
   inline:
     - id: flutter_bloc_cart_mutation_001
-      difficulty: medium
-      tags: [bloc, state]
       input: |
         Fix the bug where adding items to cart doesn't update the total.
       target: |
         The fix should modify the BLoC to emit a new state instead of mutating.
+      metadata:
+        difficulty: medium
+        tags: [bloc, state]
 
     - id: navigation_crash
-      difficulty: hard
-      tags: [navigation]
       workspace:
         path: ./nav_project    # Override task-level workspace
       input: |
         Fix the crash when navigating back from the detail screen.
       target: |
         The fix should handle the disposed controller properly.
+      metadata:
+        difficulty: hard
+        tags: [navigation]
 ```
 
 For the complete list of task fields (including Inspect AI `Task` parameters), see the [Task fields table](yaml_config.md#task).
@@ -121,14 +123,14 @@ A sample is a single test case containing an input prompt, expected output (grad
 samples:
   inline:
     - id: dart_async_await_001
-      difficulty: medium
-      tags: [async, dart]
       input: |
         Explain the difference between Future.then() and async/await in Dart.
       target: |
         The answer should cover both approaches, explain that they are
         functionally equivalent, and note when each is preferred.
       metadata:
+        difficulty: medium
+        tags: [async, dart]
         added: 2025-02-04
         category: language_fundamentals
 ```
@@ -171,10 +173,12 @@ Job files define **what to run** and can **override built-in runtime defaults**.
 # jobs/local_dev.yaml
 name: local_dev
 
+# Sandbox configuration (string shorthand or object)
+sandbox:
+  environment: podman
+
 # Override runtime defaults
-sandbox_type: podman
 max_connections: 15
-max_retries: 10
 
 # Save the agent's final workspace output to logs/<run>/examples/
 # save_examples: true
@@ -191,21 +195,22 @@ variants:
   mcp_only: { mcp_servers: [dart] }
   full: { context_files: [./context_files/flutter.md], mcp_servers: [dart] }
 
-# Inspect AI eval_set() parameters (all optional)
-retry_attempts: 20
-fail_on_error: 0.05
-log_level: info
-tags: [nightly]
+# Inspect AI eval_set() parameters (all optional, nested under inspect_eval_arguments)
+inspect_eval_arguments:
+  retry_attempts: 20
+  fail_on_error: 0.05
+  log_level: info
+  tags: [nightly]
 
-# Default Task-level overrides applied to every task
-task_defaults:
-  time_limit: 600
-  message_limit: 50
+  # Default Task-level overrides applied to every task
+  task_defaults:
+    time_limit: 600
+    message_limit: 50
 
-# Additional eval_set() parameters not covered above
-# eval_set_overrides:
-#   bundle_dir: ./bundle
-#   log_images: true
+  # Additional eval_set() parameters not covered above
+  # eval_set_overrides:
+  #   bundle_dir: ./bundle
+  #   log_images: true
 ```
 
 For the complete list of job fields (including all Inspect AI `eval_set()` parameters), see the [Job fields table](yaml_config.md#job).
@@ -214,24 +219,26 @@ For the complete list of job fields (including all Inspect AI `eval_set()` param
 
 #### `task_defaults`
 
-Default [Task parameters](yaml_config.md#task) applied to **every task** in this job. Per-task overrides from `task.yaml` take precedence.
+Default [Task parameters](yaml_config.md#task) applied to **every task** in this job. Per-task overrides from `task.yaml` take precedence. Nested under `inspect_eval_arguments`:
 
 ```yaml
-task_defaults:
-  time_limit: 600
-  message_limit: 50
-  cost_limit: 2.0
-  epochs: 3
+inspect_eval_arguments:
+  task_defaults:
+    time_limit: 600
+    message_limit: 50
+    cost_limit: 2.0
+    epochs: 3
 ```
 
 #### `eval_set_overrides`
 
-Arbitrary `eval_set()` kwargs for parameters not covered by the named fields above. Top-level fields take precedence over overrides.
+Arbitrary `eval_set()` kwargs for parameters not covered by the named fields above. Top-level `inspect_eval_arguments` fields take precedence over overrides. Nested under `inspect_eval_arguments`:
 
 ```yaml
-eval_set_overrides:
-  bundle_dir: ./bundle
-  log_images: true
+inspect_eval_arguments:
+  eval_set_overrides:
+    bundle_dir: ./bundle
+    log_images: true
 ```
 
 ### Tasks Object

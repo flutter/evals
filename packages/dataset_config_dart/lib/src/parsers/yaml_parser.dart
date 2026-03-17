@@ -80,21 +80,22 @@ class YamlParser extends Parser {
       taskDir,
     );
 
-    // Parse Task-level settings
-    final model = data['model'] as String?;
-    final config = _asMap(data['config']);
-    final modelRoles = _asStringMap(data['model_roles']);
-    final sandbox = data['sandbox'];
-    final approval = data['approval'];
-    final epochs = data['epochs'];
-    final failOnError = data['fail_on_error'];
-    final continueOnFail = data['continue_on_fail'] as bool?;
-    final messageLimit = data['message_limit'] as int?;
-    final tokenLimit = data['token_limit'] as int?;
-    final timeLimit = data['time_limit'] as int?;
-    final workingLimit = data['working_limit'] as int?;
-    final costLimit = (data['cost_limit'] as num?)?.toDouble();
-    final earlyStopping = data['early_stopping'];
+    // Task-level Inspect AI args are nested under inspect_task_args
+    final taskArgs = _asMap(data['inspect_task_args']) ?? <String, dynamic>{};
+    final model = taskArgs['model'] as String?;
+    final config = _asMap(taskArgs['config']);
+    final modelRoles = _asStringMap(taskArgs['model_roles']);
+    final sandbox = taskArgs['sandbox'];
+    final approval = taskArgs['approval'];
+    final epochs = taskArgs['epochs'];
+    final failOnError = taskArgs['fail_on_error'];
+    final continueOnFail = taskArgs['continue_on_fail'] as bool?;
+    final messageLimit = taskArgs['message_limit'] as int?;
+    final tokenLimit = taskArgs['token_limit'] as int?;
+    final timeLimit = taskArgs['time_limit'] as int?;
+    final workingLimit = taskArgs['working_limit'] as int?;
+    final costLimit = (taskArgs['cost_limit'] as num?)?.toDouble();
+    final earlyStopping = taskArgs['early_stopping'];
     final displayName = data['display_name'] as String?;
     final version = data['version'];
     final taskMetadata = _asMap(data['metadata']);
@@ -259,8 +260,11 @@ class YamlParser extends Parser {
       }
     }
 
-    final sampleWorkspace = doc['workspace'];
-    final sampleTests = doc['tests'];
+    // Read metadata fields from the metadata dict
+    final metaRaw = Map<String, dynamic>.from(doc['metadata'] as Map? ?? {});
+
+    final sampleWorkspace = metaRaw['workspace'];
+    final sampleTests = metaRaw['tests'];
 
     // Sample-level overrides task-level
     final effectiveWorkspace = sampleWorkspace ?? taskWorkspace;
@@ -286,8 +290,8 @@ class YamlParser extends Parser {
       tests = _resolveResourcePath(taskTests, datasetRoot);
     }
 
-    // --- Normalize tags ---
-    final rawTags = doc['tags'];
+    // --- Normalize tags from metadata ---
+    final rawTags = metaRaw['tags'];
     final List<String> tags;
     if (rawTags is String) {
       tags = rawTags.split(',').map((t) => t.trim()).toList();
@@ -299,8 +303,8 @@ class YamlParser extends Parser {
 
     // Build metadata with domain-specific fields
     final metadata = <String, dynamic>{
-      ...Map<String, dynamic>.from(doc['metadata'] as Map? ?? {}),
-      'difficulty': doc['difficulty'] as String? ?? 'medium',
+      ...metaRaw,
+      'difficulty': metaRaw['difficulty'] as String? ?? 'medium',
       'tags': tags,
       'workspace': ?workspace,
       'tests': ?tests,
@@ -339,7 +343,6 @@ class YamlParser extends Parser {
     final data = readYamlFileAsMap(jobPath);
 
     final logsDir = (data['logs_dir'] as String?) ?? _kDefaultLogsDir;
-    final sandboxType = (data['sandbox_type'] as String?) ?? 'local';
     final maxConnections = (data['max_connections'] as int?) ?? 10;
 
     // Resolve log directory with timestamp
@@ -391,10 +394,8 @@ class YamlParser extends Parser {
 
     return Job(
       logDir: logDir,
-      sandboxType: sandboxType,
       maxConnections: maxConnections,
       description: data['description'] as String?,
-      imagePrefix: data['image_prefix'] as String?,
       models: (data['models'] as List?)?.cast<String>(),
       variants: variants,
       taskPaths: taskPaths,
@@ -402,66 +403,29 @@ class YamlParser extends Parser {
       taskFilters: taskFilters,
       sampleFilters: sampleFilters,
       saveExamples: data['save_examples'] == true,
-      // Promoted eval_set() fields
-      retryAttempts: data['retry_attempts'] as int?,
-      maxRetries: data['max_retries'] as int?,
-      retryWait: (data['retry_wait'] as num?)?.toDouble(),
-      retryConnections: (data['retry_connections'] as num?)?.toDouble(),
-      retryCleanup: data['retry_cleanup'] as bool?,
-      failOnError: (data['fail_on_error'] as num?)?.toDouble(),
-      continueOnFail: data['continue_on_fail'] as bool?,
-      retryOnError: data['retry_on_error'] as int?,
-      debugErrors: data['debug_errors'] as bool?,
-      maxSamples: data['max_samples'] as int?,
-      maxTasks: data['max_tasks'] as int?,
-      maxSubprocesses: data['max_subprocesses'] as int?,
-      maxSandboxes: data['max_sandboxes'] as int?,
-      logLevel: data['log_level'] as String?,
-      logLevelTranscript: data['log_level_transcript'] as String?,
-      logFormat: data['log_format'] as String?,
-      tags: (data['tags'] as List?)?.cast<String>(),
-      metadata: _asMap(data['metadata']),
-      trace: data['trace'] as bool?,
-      display: data['display'] as String?,
-      score: data['score'] as bool?,
-      limit: data['limit'],
-      sampleId: data['sample_id'],
-      sampleShuffle: data['sample_shuffle'],
-      epochs: data['epochs'],
-      approval: data['approval'],
-      solver: data['solver'],
-      sandboxCleanup: data['sandbox_cleanup'] as bool?,
-      modelBaseUrl: data['model_base_url'] as String?,
-      modelArgs: _asObjectMap(data['model_args']),
-      modelRoles: _asStringMap(data['model_roles']),
-      taskArgs: _asObjectMap(data['task_args']),
-      messageLimit: data['message_limit'] as int?,
-      tokenLimit: data['token_limit'] as int?,
-      timeLimit: data['time_limit'] as int?,
-      workingLimit: data['working_limit'] as int?,
-      costLimit: (data['cost_limit'] as num?)?.toDouble(),
-      modelCostConfig: _asObjectMap(data['model_cost_config']),
-      logSamples: data['log_samples'] as bool?,
-      logRealtime: data['log_realtime'] as bool?,
-      logImages: data['log_images'] as bool?,
-      logBuffer: data['log_buffer'] as int?,
-      logShared: data['log_shared'] as int?,
-      bundleDir: data['bundle_dir'] as String?,
-      bundleOverwrite: data['bundle_overwrite'] as bool?,
-      logDirAllowDirty: data['log_dir_allow_dirty'] as bool?,
-      evalSetId: data['eval_set_id'] as String?,
-      // Pass-through sections
-      evalSetOverrides: _asMap(data['eval_set_overrides']),
-      taskDefaults: _asMap(data['task_defaults']),
+      // Sandbox configuration
+      sandbox: _parseSandbox(data['sandbox']),
+      // All inspect eval arguments
+      inspectEvalArguments: _asMap(data['inspect_eval_arguments']),
     );
+  }
+
+  /// Parse sandbox config from YAML value.
+  ///
+  /// Supports both string shorthand ('podman') and map form.
+  static Map<String, dynamic>? _parseSandbox(Object? value) {
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    } else if (value is String) {
+      return {'environment': value};
+    }
+    return null;
   }
 
   /// Create a [Job] with default settings (when no job file is provided).
   Job createDefaultJob(String baseDir) {
     return Job(
       logDir: _resolveLogDir(_kDefaultLogsDir, baseDir),
-      sandboxType: 'local',
-      maxConnections: 10,
     );
   }
 
@@ -481,11 +445,6 @@ class YamlParser extends Parser {
     return null;
   }
 
-  /// Safely cast a YAML value to `Map<String, Object?>?`.
-  static Map<String, Object?>? _asObjectMap(Object? value) {
-    if (value is Map) return Map<String, Object?>.from(value);
-    return null;
-  }
 
   // ------------------------------------------------------------------
   // Path resolution helpers

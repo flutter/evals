@@ -79,7 +79,8 @@ class EvalSetResolver {
     String datasetRoot,
   ) {
     final models = _resolveModels(job);
-    final sandboxTypeStr = job.sandboxType;
+    final sandboxCfg = job.sandbox ?? <String, dynamic>{};
+    final sandboxTypeStr = (sandboxCfg['environment'] as String?) ?? 'local';
     final expandedTasks = _expandTaskConfigs(
       datasetTasks,
       job,
@@ -126,11 +127,14 @@ class EvalSetResolver {
     required Job job,
   }) {
     final inspectTasks = <Task>[];
+    final sandboxCfg = job.sandbox ?? <String, dynamic>{};
+    final sandboxTypeStr = (sandboxCfg['environment'] as String?) ?? 'local';
     final isContainer =
-        job.sandboxType.isNotEmpty && job.sandboxType != 'local';
+        sandboxTypeStr.isNotEmpty && sandboxTypeStr != 'local';
 
-    // Parse task_defaults from the job
-    final taskDefaults = job.taskDefaults ?? <String, dynamic>{};
+    // Parse task_defaults from inspect_eval_arguments
+    final evalArgs = job.inspectEvalArguments ?? <String, dynamic>{};
+    final taskDefaults = (evalArgs['task_defaults'] as Map<String, dynamic>?) ?? <String, dynamic>{};
 
     for (final tc in taskConfigs) {
       // Enrich each sample with task-level metadata
@@ -212,9 +216,9 @@ class EvalSetResolver {
         if (tc.systemMessage != null) 'system_message': tc.systemMessage,
         if (tc.saveExamples) 'save_examples': true,
         if (tc.examplesDir != null) 'examples_dir': tc.examplesDir,
-        // Propagate image_prefix from job for container image resolution
-        if (job.imagePrefix != null && job.imagePrefix!.isNotEmpty)
-          'image_prefix': job.imagePrefix,
+        // Propagate image_prefix from sandbox for container image resolution
+        if (sandboxCfg['image_prefix'] != null)
+          'image_prefix': sandboxCfg['image_prefix'],
         // Merge any task-level metadata from YAML
         ...?tc.metadata,
       };
@@ -224,7 +228,7 @@ class EvalSetResolver {
       if (tc.sandbox != null) {
         // Task-level sandbox override
         taskSandbox = tc.sandbox;
-      } else if (tc.sandboxType.isNotEmpty && tc.sandboxType != 'local') {
+      } else if (sandboxTypeStr != 'local') {
         taskSandbox = _serializeSandbox(sandbox);
       }
 
@@ -233,7 +237,7 @@ class EvalSetResolver {
       final resolvedTimeLimit =
           tc.timeLimit ??
           taskDefaults['time_limit'] as int? ??
-          (job.sandboxType != 'local' ? 300 : null);
+          (sandboxTypeStr != 'local' ? 300 : null);
       final resolvedMessageLimit =
           tc.messageLimit ?? taskDefaults['message_limit'] as int?;
       final resolvedTokenLimit =
@@ -287,9 +291,17 @@ class EvalSetResolver {
       );
     }
 
-    // Build the EvalSet with all job-level parameters.
-    // Start with any eval_set_overrides, then apply explicit fields.
-    final overrides = job.evalSetOverrides ?? <String, dynamic>{};
+    // Build the EvalSet with all job-level parameters from inspect_eval_arguments.
+    final evalSetOverrides = (evalArgs['eval_set_overrides'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+
+    // Helper to get a value from evalArgs then overrides
+    T? getArg<T>(String key, [T? defaultVal]) {
+      final v = evalArgs[key] as T?;
+      if (v != null) return v;
+      final o = evalSetOverrides[key] as T?;
+      if (o != null) return o;
+      return defaultVal;
+    }
 
     return EvalSet(
       tasks: inspectTasks,
@@ -297,90 +309,73 @@ class EvalSetResolver {
       model: models,
       sandbox: _serializeSandbox(sandbox),
       // Retry settings
-      retryAttempts:
-          job.retryAttempts ?? overrides['retry_attempts'] as int? ?? 10,
-      retryWait:
-          job.retryWait ?? (overrides['retry_wait'] as num?)?.toDouble() ?? 60,
+      retryAttempts: getArg<int>('retry_attempts', 10),
+      retryWait: (getArg<num>('retry_wait', 60))?.toDouble() ?? 60,
       retryConnections:
-          job.retryConnections ??
-          (overrides['retry_connections'] as num?)?.toDouble() ??
-          0.5,
-      retryCleanup: job.retryCleanup ?? overrides['retry_cleanup'] as bool?,
+          (getArg<num>('retry_connections', 0.5))?.toDouble() ?? 0.5,
+      retryCleanup: getArg<bool>('retry_cleanup'),
       retryOnError:
-          job.retryOnError ??
-          job.maxRetries ??
-          overrides['retry_on_error'] as int?,
+          getArg<int>('retry_on_error') ?? getArg<int>('max_retries'),
       // Error handling
-      failOnError:
-          job.failOnError ??
-          (overrides['fail_on_error'] as num?)?.toDouble() ??
-          0.05,
-      continueOnFail:
-          job.continueOnFail ?? overrides['continue_on_fail'] as bool?,
-      debugErrors: job.debugErrors ?? overrides['debug_errors'] as bool?,
+      failOnError: (getArg<num>('fail_on_error', 0.05))?.toDouble() ?? 0.05,
+      continueOnFail: getArg<bool>('continue_on_fail'),
+      debugErrors: getArg<bool>('debug_errors'),
       // Concurrency
-      maxSamples: job.maxSamples ?? overrides['max_samples'] as int?,
-      maxTasks: job.maxTasks ?? overrides['max_tasks'] as int?,
-      maxSubprocesses:
-          job.maxSubprocesses ?? overrides['max_subprocesses'] as int?,
-      maxSandboxes: job.maxSandboxes ?? overrides['max_sandboxes'] as int?,
+      maxSamples: getArg<int>('max_samples'),
+      maxTasks: getArg<int>('max_tasks'),
+      maxSubprocesses: getArg<int>('max_subprocesses'),
+      maxSandboxes: getArg<int>('max_sandboxes'),
       // Logging
-      logLevel: job.logLevel ?? overrides['log_level'] as String? ?? 'info',
-      logLevelTranscript:
-          job.logLevelTranscript ??
-          overrides['log_level_transcript'] as String?,
-      logFormat: job.logFormat ?? overrides['log_format'] as String? ?? 'json',
-      logSamples: job.logSamples ?? overrides['log_samples'] as bool?,
-      logRealtime: job.logRealtime ?? overrides['log_realtime'] as bool?,
-      logImages: job.logImages ?? overrides['log_images'] as bool?,
-      logBuffer: job.logBuffer ?? overrides['log_buffer'] as int?,
-      logShared: job.logShared ?? overrides['log_shared'] as int?,
-      logDirAllowDirty:
-          job.logDirAllowDirty ?? overrides['log_dir_allow_dirty'] as bool?,
+      logLevel: getArg<String>('log_level', 'info'),
+      logLevelTranscript: getArg<String>('log_level_transcript'),
+      logFormat: getArg<String>('log_format', 'json'),
+      logSamples: getArg<bool>('log_samples'),
+      logRealtime: getArg<bool>('log_realtime'),
+      logImages: getArg<bool>('log_images'),
+      logBuffer: getArg<int>('log_buffer'),
+      logShared: getArg<int>('log_shared'),
+      logDirAllowDirty: getArg<bool>('log_dir_allow_dirty'),
       // Model config
-      modelBaseUrl: job.modelBaseUrl ?? overrides['model_base_url'] as String?,
+      modelBaseUrl: getArg<String>('model_base_url'),
       modelArgs:
-          job.modelArgs ??
-          (overrides['model_args'] as Map<String, Object?>?) ??
+          (evalArgs['model_args'] as Map<String, Object?>?) ??
+          (evalSetOverrides['model_args'] as Map<String, Object?>?) ??
           const {},
       modelRoles:
-          job.modelRoles ?? overrides['model_roles'] as Map<String, String>?,
+          (evalArgs['model_roles'] as Map<String, String>?) ??
+          evalSetOverrides['model_roles'] as Map<String, String>?,
       taskArgs:
-          job.taskArgs ??
-          (overrides['task_args'] as Map<String, Object?>?) ??
+          (evalArgs['task_args'] as Map<String, Object?>?) ??
+          (evalSetOverrides['task_args'] as Map<String, Object?>?) ??
           const {},
       modelCostConfig:
-          job.modelCostConfig ??
-          overrides['model_cost_config'] as Map<String, Object?>?,
+          (evalArgs['model_cost_config'] as Map<String, Object?>?) ??
+          evalSetOverrides['model_cost_config'] as Map<String, Object?>?,
       // Sandbox
-      sandboxCleanup:
-          job.sandboxCleanup ?? overrides['sandbox_cleanup'] as bool?,
+      sandboxCleanup: getArg<bool>('sandbox_cleanup'),
       // Sample control
-      limit: job.limit ?? overrides['limit'],
-      sampleId: job.sampleId ?? overrides['sample_id'],
-      sampleShuffle: job.sampleShuffle ?? overrides['sample_shuffle'],
-      epochs: job.epochs ?? overrides['epochs'],
+      limit: evalArgs['limit'] ?? evalSetOverrides['limit'],
+      sampleId: evalArgs['sample_id'] ?? evalSetOverrides['sample_id'],
+      sampleShuffle: evalArgs['sample_shuffle'] ?? evalSetOverrides['sample_shuffle'],
+      epochs: evalArgs['epochs'] ?? evalSetOverrides['epochs'],
       // Misc
-      tags: job.tags ?? (overrides['tags'] as List?)?.cast<String>(),
-      metadata: job.metadata ?? overrides['metadata'] as Map<String, dynamic>?,
-      trace: job.trace ?? overrides['trace'] as bool?,
-      display: job.display ?? overrides['display'] as String?,
-      approval: job.approval ?? overrides['approval'],
-      solver: job.solver ?? overrides['solver'],
-      score: job.score ?? overrides['score'] as bool? ?? true,
+      tags: (evalArgs['tags'] as List?)?.cast<String>() ?? (evalSetOverrides['tags'] as List?)?.cast<String>(),
+      metadata: (evalArgs['metadata'] as Map<String, dynamic>?) ?? evalSetOverrides['metadata'] as Map<String, dynamic>?,
+      trace: getArg<bool>('trace'),
+      display: getArg<String>('display'),
+      approval: evalArgs['approval'] ?? evalSetOverrides['approval'],
+      solver: evalArgs['solver'] ?? evalSetOverrides['solver'],
+      score: getArg<bool>('score', true) ?? true,
       // Limits
-      messageLimit: job.messageLimit ?? overrides['message_limit'] as int?,
-      tokenLimit: job.tokenLimit ?? overrides['token_limit'] as int?,
-      timeLimit: job.timeLimit ?? overrides['time_limit'] as int?,
-      workingLimit: job.workingLimit ?? overrides['working_limit'] as int?,
-      costLimit: job.costLimit ?? (overrides['cost_limit'] as num?)?.toDouble(),
+      messageLimit: getArg<int>('message_limit'),
+      tokenLimit: getArg<int>('token_limit'),
+      timeLimit: getArg<int>('time_limit'),
+      workingLimit: getArg<int>('working_limit'),
+      costLimit: (getArg<num>('cost_limit'))?.toDouble(),
       // Bundling
-      bundleDir: job.bundleDir ?? overrides['bundle_dir'] as String?,
-      bundleOverwrite:
-          job.bundleOverwrite ??
-          overrides['bundle_overwrite'] as bool? ??
-          false,
-      evalSetId: job.evalSetId ?? overrides['eval_set_id'] as String?,
+      bundleDir: getArg<String>('bundle_dir'),
+      bundleOverwrite: getArg<bool>('bundle_overwrite', false) ?? false,
+      evalSetId: getArg<String>('eval_set_id'),
     );
   }
 
@@ -406,7 +401,8 @@ class EvalSetResolver {
     Job job, {
     String? branch,
   }) {
-    final sandboxType = job.sandboxType;
+    final sandboxCfg = job.sandbox ?? <String, dynamic>{};
+    final sandboxType = (sandboxCfg['environment'] as String?) ?? 'local';
     if (sandboxType.isEmpty || sandboxType == 'local') return 'local';
 
     // Branch override → look up branch-specific sandbox
@@ -505,11 +501,8 @@ class EvalSetResolver {
         }).toList();
       }
 
-      // Apply system_message override
+      // Apply system_message from task (no longer overridden by job task)
       var systemMessage = taskConfig.systemMessage;
-      if (jobTask?.systemMessage != null) {
-        systemMessage = jobTask!.systemMessage;
-      }
 
       // Merge job-task args into metadata
       Map<String, dynamic>? mergedMetadata = taskConfig.metadata;

@@ -28,17 +28,32 @@ Job files define runtime settings for an evaluation run, including sandbox confi
   - `logDir`
   - `log_dir`
   - Directory to write evaluation logs to
-* - `sandbox_type`
+* - `sandbox`
+  - string/object
+  - Y
+  - `sandbox`
+  - `sandbox`
+  - Sandbox configuration. String shorthand (e.g. `podman`) is equivalent to `{environment: podman}`
+* - `sandbox`\\
+    &nbsp;&nbsp;`.environment`
   - string
   - Y
-  - `sandboxType`
-  - `sandbox_type`
+  -
+  -
   - Sandbox type: `local`, `docker`, or `podman` (default: `local`)
-* - `image_prefix`
+* - `sandbox`\\
+    &nbsp;&nbsp;`.parameters`
+  - object
+  - Y
+  -
+  -
+  - Pass-through parameters for sandbox plugin configuration
+* - `sandbox`\\
+    &nbsp;&nbsp;`.image_prefix`
   - string
   - Y
-  - `imagePrefix`
-  - `image_prefix`
+  -
+  -
   - Registry prefix prepended to image names during sandbox resolution (e.g. `us-central1-docker.pkg.dev/project/repo/`)
 * - `max_connections`
   - int
@@ -146,14 +161,6 @@ Job files define runtime settings for an evaluation run, including sandbox confi
   - Exclude these sample IDs
 * - `tasks`\
     &nbsp;&nbsp;`.<task_id>`\
-    &nbsp;&nbsp;`.system_message`
-  - string
-  - Y
-  - `JobTask.systemMessage`
-  - `JobTask.system_message`
-  - Override system message for this task
-* - `tasks`\
-    &nbsp;&nbsp;`.<task_id>`\
     &nbsp;&nbsp;`.args`
   - object
   - Y
@@ -166,305 +173,362 @@ Job files define runtime settings for an evaluation run, including sandbox confi
   - `saveExamples`
   - `save_examples`
   - Copy final workspace to `<logDir>/examples/` after each sample (default: `false`)
-* - `retry_attempts`
+* - `inspect_eval_arguments`
+  - object
+  - Y
+  - `inspectEvalArguments`
+  - `inspect_eval_arguments`
+  - All Inspect AI `eval_set()` parameters. See sub-fields below.
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.retry_attempts`
   - int
   - Y
-  - `retryAttempts`
-  - `retry_attempts`
+  -
+  -
   - Max retry attempts before giving up
-* - `max_retries`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.max_retries`
   - int
   - Y
-  - `maxRetries`
-  - `max_retries`
+  -
+  -
   - Max retry attempts for failed samples
-* - `retry_wait`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.retry_wait`
   - float
   - Y
-  - `retryWait`
-  - `retry_wait`
+  -
+  -
   - Seconds between retries (exponential backoff)
-* - `retry_connections`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.retry_connections`
   - float
   - Y
-  - `retryConnections`
-  - `retry_connections`
+  -
+  -
   - Reduce `max_connections` at this rate per retry
-* - `retry_cleanup`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.retry_cleanup`
   - bool
   - Y
-  - `retryCleanup`
-  - `retry_cleanup`
+  -
+  -
   - Cleanup failed log files after retries
-* - `fail_on_error`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.fail_on_error`
   - float
   - Y
-  - `failOnError`
-  - `fail_on_error`
+  -
+  -
   - Fail if error proportion exceeds threshold (`0.0–1.0`)
-* - `continue_on_fail`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.continue_on_fail`
   - bool
   - Y
-  - `continueOnFail`
-  - `continue_on_fail`
+  -
+  -
   - Continue running even if `fail_on_error` condition is met
-* - `retry_on_error`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.retry_on_error`
   - int
   - Y
-  - `retryOnError`
-  - `retry_on_error`
+  -
+  -
   - Retry samples on error (per-sample)
-* - `debug_errors`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.debug_errors`
   - bool
   - Y
-  - `debugErrors`
-  - `debug_errors`
+  -
+  -
   - Raise task errors for debugging
-* - `max_samples`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.max_samples`
   - int
   - Y
-  - `maxSamples`
-  - `max_samples`
+  -
+  -
   - Max concurrent samples per task
-* - `max_tasks`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.max_tasks`
   - int
   - Y
-  - `maxTasks`
-  - `max_tasks`
+  -
+  -
   - Max tasks to run in parallel
-* - `max_subprocesses`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.max_subprocesses`
   - int
   - Y
-  - `maxSubprocesses`
-  - `max_subprocesses`
+  -
+  -
   - Max subprocesses in parallel
-* - `max_sandboxes`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.max_sandboxes`
   - int
   - Y
-  - `maxSandboxes`
-  - `max_sandboxes`
+  -
+  -
   - Max sandboxes (per-provider) in parallel
-* - `log_level`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.log_level`
   - string
   - Y
-  - `logLevel`
-  - `log_level`
+  -
+  -
   - Console log level (`debug`, `info`, `warning`, `error`)
-* - `log_level_transcript`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.log_level_transcript`
   - string
   - Y
-  - `logLevelTranscript`
-  - `log_level_transcript`
+  -
+  -
   - Log file level
-* - `log_format`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.log_format`
   - string
   - Y
-  - `logFormat`
-  - `log_format`
+  -
+  -
   - Log format (`eval` or `json`)
-* - `log_samples`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.log_samples`
   - bool
   - Y
-  - `logSamples`
-  - `log_samples`
+  -
+  -
   - Log detailed samples and scores
-* - `log_realtime`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.log_realtime`
   - bool
   - Y
-  - `logRealtime`
-  - `log_realtime`
+  -
+  -
   - Log events in realtime
-* - `log_images`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.log_images`
   - bool
   - Y
-  - `logImages`
-  - `log_images`
+  -
+  -
   - Log base64-encoded images
-* - `log_buffer`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.log_buffer`
   - int
   - Y
-  - `logBuffer`
-  - `log_buffer`
+  -
+  -
   - Samples to buffer before log write
-* - `log_shared`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.log_shared`
   - int
   - Y
-  - `logShared`
-  - `log_shared`
+  -
+  -
   - Sync sample events for realtime viewing
-* - `log_dir_allow_dirty`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.log_dir_allow_dirty`
   - bool
   - Y
-  - `logDirAllowDirty`
-  - `log_dir_allow_dirty`
+  -
+  -
   - Allow log dir with unrelated logs
-* - `model_base_url`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.model_base_url`
   - string
   - Y
-  - `modelBaseUrl`
-  - `model_base_url`
+  -
+  -
   - Base URL for the model API
-* - `model_args`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.model_args`
   - object
   - Y
-  - `modelArgs`
-  - `model_args`
+  -
+  -
   - Model creation arguments
-* - `model_roles`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.model_roles`
   - object
   - Y
-  - `modelRoles`
-  - `model_roles`
+  -
+  -
   - Named roles for `get_model()`
-* - `task_args`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.task_args`
   - object
   - Y
-  - `taskArgs`
-  - `task_args`
+  -
+  -
   - Task creation arguments
-* - `model_cost_config`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.model_cost_config`
   - object
   - Y
-  - `modelCostConfig`
-  - `model_cost_config`
+  -
+  -
   - Model prices for cost tracking
-* - `limit`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.limit`
   - int/list
   - Y
-  - `limit`
-  - `limit`
+  -
+  -
   - Limit samples (count or `[start, end]` range)
-* - `sample_id`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.sample_id`
   - string/list
   - Y
-  - `sampleId`
-  - `sample_id`
+  -
+  -
   - Evaluate specific sample(s)
-* - `sample_shuffle`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.sample_shuffle`
   - bool/int
   - Y
-  - `sampleShuffle`
-  - `sample_shuffle`
+  -
+  -
   - Shuffle samples (pass seed for deterministic order)
-* - `epochs`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.epochs`
   - int/object
   - Y
-  - `epochs`
-  - `epochs`
+  -
+  -
   - Repeat samples and optional score reducer
-* - `message_limit`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.message_limit`
   - int
   - Y
-  - `messageLimit`
-  - `message_limit`
+  -
+  -
   - Max messages per sample
-* - `token_limit`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.token_limit`
   - int
   - Y
-  - `tokenLimit`
-  - `token_limit`
+  -
+  -
   - Max tokens per sample
-* - `time_limit`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.time_limit`
   - int
   - Y
-  - `timeLimit`
-  - `time_limit`
+  -
+  -
   - Max clock time (seconds) per sample
-* - `working_limit`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.working_limit`
   - int
   - Y
-  - `workingLimit`
-  - `working_limit`
+  -
+  -
   - Max working time (seconds) per sample
-* - `cost_limit`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.cost_limit`
   - float
   - Y
-  - `costLimit`
-  - `cost_limit`
+  -
+  -
   - Max cost (dollars) per sample
-* - `tags`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.tags`
   - list
   - Y
-  - `tags`
-  - `tags`
+  -
+  -
   - Tags for this evaluation run
-* - `metadata`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.metadata`
   - object
   - Y
-  - `metadata`
-  - `metadata`
+  -
+  -
   - Metadata for this evaluation run
-* - `trace`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.trace`
   - bool
   - Y
-  - `trace`
-  - `trace`
+  -
+  -
   - Trace model interactions to terminal
-* - `display`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.display`
   - string
   - Y
-  - `display`
-  - `display`
+  -
+  -
   - Task display type (default: `full`)
-* - `score`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.score`
   - bool
   - Y
-  - `score`
-  - `score`
+  -
+  -
   - Score output (default: `true`)
-* - `approval`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.approval`
   - string/object
   - Y
-  - `approval`
-  - `approval`
+  -
+  -
   - Tool use approval policies
-* - `solver`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.solver`
   - string/object
   - Y
-  - `solver`
-  - `solver`
+  -
+  -
   - Alternative solver(s)
-* - `sandbox_cleanup`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.sandbox_cleanup`
   - bool
   - Y
-  - `sandboxCleanup`
-  - `sandbox_cleanup`
+  -
+  -
   - Cleanup sandbox after task
-* - `bundle_dir`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.bundle_dir`
   - string
   - Y
-  - `bundleDir`
-  - `bundle_dir`
+  -
+  -
   - Directory for bundled logs + viewer
-* - `bundle_overwrite`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.bundle_overwrite`
   - bool
   - Y
-  - `bundleOverwrite`
-  - `bundle_overwrite`
+  -
+  -
   - Overwrite files in `bundle_dir`
-* - `eval_set_id`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.eval_set_id`
   - string
   - Y
-  - `evalSetId`
-  - `eval_set_id`
+  -
+  -
   - Custom ID for the eval set
-* - `eval_set_overrides`
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.eval_set_overrides`
   - object
   - Y
-  - `evalSetOverrides`
-  - `eval_set_overrides`
-  - Additional `eval_set()` kwargs not covered by top-level fields
-* - `task_defaults`
+  -
+  -
+  - Additional `eval_set()` kwargs not covered by named fields above
+* - `inspect_eval_arguments`\
+    &nbsp;&nbsp;`.task_defaults`
   - object
   - Y
-  - `taskDefaults`
-  - `task_defaults`
+  -
+  -
   - Default `Task` kwargs applied to every task in this job
 ```
 
 ## Task
 
 Task files define a single evaluation task with its samples, prompt configuration, and optional Inspect AI `Task` parameter overrides. Located in `eval/tasks/<task_id>/task.yaml`.
+
+Task-level Inspect AI `Task` parameters (model, limits, sandbox, etc.) are nested under `inspect_task_args`.
 
 ```{list-table}
 :header-rows: 1
@@ -496,18 +560,18 @@ Task files define a single evaluation task with its samples, prompt configuratio
   - Human-readable description
 * - `samples`
   - object
-  - N
+  - Y
   -
   -
-  - Samples config with `inline` and/or `paths` keys
-* - `samples`\
+  - Samples config with `inline` and/or `paths` keys (optional — task can have no samples)
+* - `samples`\\
     &nbsp;&nbsp;`.inline`
   - list
   - Y
   -
   -
   - Inline sample definitions (list of sample objects)
-* - `samples`\
+* - `samples`\\
     &nbsp;&nbsp;`.paths`
   - list
   - Y
@@ -532,12 +596,6 @@ Task files define a single evaluation task with its samples, prompt configuratio
   - `systemMessage`
   - `system_message`
   - Custom system prompt for this task
-* - `sandbox_parameters`
-  - object
-  - Y
-  - `sandboxParameters`
-  - `sandbox_parameters`
-  - Pass-through parameters for sandbox plugin configuration
 * - `workspace`
   - string/object
   - Y
@@ -550,90 +608,6 @@ Task files define a single evaluation task with its samples, prompt configuratio
   -
   -
   - Default test files for all samples
-* - `model`
-  - string
-  - Y
-  - `model`
-  - `model`
-  - Default model for this task
-* - `config`
-  - object
-  - Y
-  - `config`
-  - `config`
-  - Model generation config (e.g. `{temperature: 0.2}`)
-* - `model_roles`
-  - object
-  - Y
-  - `modelRoles`
-  - `model_roles`
-  - Named roles for `get_model()`
-* - `sandbox`
-  - string/object
-  - Y
-  - `sandbox`
-  - `sandbox`
-  - Sandbox environment type or config
-* - `approval`
-  - string/object
-  - Y
-  - `approval`
-  - `approval`
-  - Tool use approval policies
-* - `epochs`
-  - int/object
-  - Y
-  - `epochs`
-  - `epochs`
-  - Number of times to repeat each sample
-* - `fail_on_error`
-  - number/bool
-  - Y
-  - `failOnError`
-  - `fail_on_error`
-  - Fail threshold for sample errors
-* - `continue_on_fail`
-  - bool
-  - Y
-  - `continueOnFail`
-  - `continue_on_fail`
-  - Continue running if `fail_on_error` condition is met
-* - `message_limit`
-  - int
-  - Y
-  - `messageLimit`
-  - `message_limit`
-  - Max total messages per sample
-* - `token_limit`
-  - int
-  - Y
-  - `tokenLimit`
-  - `token_limit`
-  - Max total tokens per sample
-* - `time_limit`
-  - int
-  - Y
-  - `timeLimit`
-  - `time_limit`
-  - Max clock time (seconds) per sample
-* - `working_limit`
-  - int
-  - Y
-  - `workingLimit`
-  - `working_limit`
-  - Max working time (seconds) per sample
-* - `cost_limit`
-  - float
-  - Y
-  - `costLimit`
-  - `cost_limit`
-  - Max cost (dollars) per sample
-* - `early_stopping`
-  - string/object
-  - Y
-  - `earlyStopping`
-  - `early_stopping`
-  - Early stopping callbacks
 * - `display_name`
   - string
   - Y
@@ -652,11 +626,123 @@ Task files define a single evaluation task with its samples, prompt configuratio
   - `metadata`
   - `metadata`
   - Additional metadata to associate with the task
+* - `inspect_task_args`
+  - object
+  - Y
+  -
+  -
+  - Inspect AI `Task` parameters. See sub-fields below.
+* - `inspect_task_args`\\
+    &nbsp;&nbsp;`.model`
+  - string
+  - Y
+  - `model`
+  - `model`
+  - Default model for this task
+* - `inspect_task_args`\\
+    &nbsp;&nbsp;`.config`
+  - object
+  - Y
+  - `config`
+  - `config`
+  - Model generation config (e.g. `{temperature: 0.2}`)
+* - `inspect_task_args`\\
+    &nbsp;&nbsp;`.model_roles`
+  - object
+  - Y
+  - `modelRoles`
+  - `model_roles`
+  - Named roles for `get_model()`
+* - `inspect_task_args`\\
+    &nbsp;&nbsp;`.sandbox`
+  - string/object
+  - Y
+  - `sandbox`
+  - `sandbox`
+  - Sandbox environment type or config
+* - `inspect_task_args`\\
+    &nbsp;&nbsp;`.sandbox_parameters`
+  - object
+  - Y
+  - `sandboxParameters`
+  - `sandbox_parameters`
+  - Pass-through parameters for sandbox plugin configuration
+* - `inspect_task_args`\\
+    &nbsp;&nbsp;`.approval`
+  - string/object
+  - Y
+  - `approval`
+  - `approval`
+  - Tool use approval policies
+* - `inspect_task_args`\\
+    &nbsp;&nbsp;`.epochs`
+  - int/object
+  - Y
+  - `epochs`
+  - `epochs`
+  - Number of times to repeat each sample
+* - `inspect_task_args`\\
+    &nbsp;&nbsp;`.fail_on_error`
+  - number/bool
+  - Y
+  - `failOnError`
+  - `fail_on_error`
+  - Fail threshold for sample errors
+* - `inspect_task_args`\\
+    &nbsp;&nbsp;`.continue_on_fail`
+  - bool
+  - Y
+  - `continueOnFail`
+  - `continue_on_fail`
+  - Continue running if `fail_on_error` condition is met
+* - `inspect_task_args`\\
+    &nbsp;&nbsp;`.message_limit`
+  - int
+  - Y
+  - `messageLimit`
+  - `message_limit`
+  - Max total messages per sample
+* - `inspect_task_args`\\
+    &nbsp;&nbsp;`.token_limit`
+  - int
+  - Y
+  - `tokenLimit`
+  - `token_limit`
+  - Max total tokens per sample
+* - `inspect_task_args`\\
+    &nbsp;&nbsp;`.time_limit`
+  - int
+  - Y
+  - `timeLimit`
+  - `time_limit`
+  - Max clock time (seconds) per sample
+* - `inspect_task_args`\\
+    &nbsp;&nbsp;`.working_limit`
+  - int
+  - Y
+  - `workingLimit`
+  - `working_limit`
+  - Max working time (seconds) per sample
+* - `inspect_task_args`\\
+    &nbsp;&nbsp;`.cost_limit`
+  - float
+  - Y
+  - `costLimit`
+  - `cost_limit`
+  - Max cost (dollars) per sample
+* - `inspect_task_args`\\
+    &nbsp;&nbsp;`.early_stopping`
+  - string/object
+  - Y
+  - `earlyStopping`
+  - `early_stopping`
+  - Early stopping callbacks
+```
 ```
 
 ## Sample
 
-Samples are individual test cases defined either inline in `task.yaml` under `samples.inline`, or in external YAML files referenced via `samples.paths`. Fields like `difficulty`, `tags`, `workspace`, and `tests` are parsed from YAML and stored inside the sample's `metadata` dict.
+Samples are individual test cases defined either inline in `task.yaml` under `samples.inline`, or in external YAML files referenced via `samples.paths`. Fields like `difficulty`, `tags`, `workspace`, and `tests` should be nested inside the sample's `metadata` dict.
 
 ```{list-table}
 :header-rows: 1
@@ -686,24 +772,27 @@ Samples are individual test cases defined either inline in `task.yaml` under `sa
   - `target`
   - `target`
   - Expected output or grading criteria
-* - `difficulty`
+* - `metadata`\\
+    &nbsp;&nbsp;`.difficulty`
   - string
   - Y
   -
   -
-  - `easy`, `medium`, or `hard` (stored in `metadata["difficulty"]`)
-* - `tags`
+  - `easy`, `medium`, or `hard`
+* - `metadata`\\
+    &nbsp;&nbsp;`.tags`
   - list
   - Y
   -
   -
-  - Categories for filtering (stored in `metadata["tags"]`)
-* - `system_message`
+  - Categories for filtering
+* - `metadata`\\
+    &nbsp;&nbsp;`.system_message`
   - string
   - Y
   -
   -
-  - Override system prompt for this sample (stored in `metadata`)
+  - Override system prompt for this sample
 * - `workspace`
   - string/object
   - Y
