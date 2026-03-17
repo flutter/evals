@@ -167,9 +167,7 @@ def _run_single_manifest(manifest: dict) -> bool:
 
         if not task_func_name:
             # Mode 2: hydrate directly from JSON (future)
-            job_logger.warning(
-                f"  ⚠ {task_name}: no func — Mode 2 hydration not yet supported"
-            )
+            job_logger.warning(f"  ⚠ {task_name}: no func — Mode 2 hydration not yet supported")
             continue
 
         try:

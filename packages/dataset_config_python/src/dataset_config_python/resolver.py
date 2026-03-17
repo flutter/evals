@@ -10,6 +10,7 @@ from typing import Any
 from dataset_config_python.models.context_file import ContextFile
 from dataset_config_python.models.dataset import Dataset
 from dataset_config_python.models.eval_set import EvalSet
+from dataset_config_python.models.job import Job
 from dataset_config_python.models.sample import Sample
 from dataset_config_python.models.tag_filter import matches_tag_filter
 from dataset_config_python.models.task import Task
@@ -66,13 +67,61 @@ def resolve(
 ) -> list[EvalSet]:
     """Resolve dataset + job(s) into EvalSet objects.
 
-    This is the main public API of the package.
+    This is a convenience wrapper around :func:`resolve_from_parsed` that
+    handles parsing automatically.  Use ``resolve_from_parsed`` when you
+    need to inspect or mutate the parsed config before resolution.
 
     Args:
         dataset_path: Root directory containing ``tasks/`` and ``jobs/``.
         job_names: Job names (looked up in ``jobs/``) or paths.
-        sandbox_registry: Named sandbox configurations. Defaults to empty.
-        branch_channels: SDK branch → sandbox registry key mapping. Defaults to empty.
+        sandbox_config: Sandbox registry and branch-channel mapping.
+
+    Returns:
+        A list of EvalSet objects ready for JSON serialization.
+    """
+    task_configs = parse_tasks(dataset_path)
+    results: list[EvalSet] = []
+
+    for job_name in job_names:
+        job_path = find_job_file(dataset_path, job_name)
+        job = parse_job(job_path, dataset_path)
+        results.extend(
+            resolve_from_parsed(
+                task_configs=task_configs,
+                job=job,
+                dataset_path=dataset_path,
+                sandbox_config=sandbox_config,
+            )
+        )
+
+    return results
+
+
+def resolve_from_parsed(
+    task_configs: list[ParsedTask],
+    job: Job,
+    dataset_path: str,
+    *,
+    sandbox_config: SandboxConfig | None = None,
+) -> list[EvalSet]:
+    """Resolve pre-parsed task configs and a job into EvalSet objects.
+
+    Use this instead of :func:`resolve` when you need to inspect or modify
+    the parsed configuration before resolution.  A typical workflow::
+
+        tasks = parse_tasks(dataset_path)
+        job = parse_job(find_job_file(dataset_path, "my_job"), dataset_path)
+
+        # Patch values before resolution
+        job.log_dir = f"{job.log_dir}/{execution_id}"
+
+        eval_sets = resolve_from_parsed(tasks, job, dataset_path)
+
+    Args:
+        task_configs: Parsed task configs (from :func:`parse_tasks`).
+        job: A parsed Job object (from :func:`parse_job`).
+        dataset_path: Root directory of the dataset (used for path resolution).
+        sandbox_config: Sandbox registry and branch-channel mapping.
 
     Returns:
         A list of EvalSet objects ready for JSON serialization.
@@ -80,15 +129,7 @@ def resolve(
     sandbox_cfg = sandbox_config or SandboxConfig()
     registry = sandbox_cfg.registry
     channels = sandbox_cfg.branch_channels
-    task_configs = parse_tasks(dataset_path)
-    results: list[EvalSet] = []
-
-    for job_name in job_names:
-        job_path = find_job_file(dataset_path, job_name)
-        job = parse_job(job_path, dataset_path)
-        results.extend(_resolve_job(task_configs, job, dataset_path, registry, channels))
-
-    return results
+    return _resolve_job(task_configs, job, dataset_path, registry, channels)
 
 
 def _resolve_job(
