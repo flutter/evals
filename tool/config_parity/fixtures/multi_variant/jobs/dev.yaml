@@ -5,7 +5,7 @@ models:
 variants:
   baseline: {}
   context_only:
-    context_files: []
+    files: []
   full_mcp:
     mcp_servers:
       - my_server

@@ -1,9 +1,6 @@
 id: code_gen
 func: flutter_code_gen
 time_limit: 600
-allowed_variants:
-  - baseline
-  - context_only
 samples:
   inline:
     - id: sample_1

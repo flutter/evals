@@ -561,8 +561,8 @@ class EvalSetResolver {
       if (srv is Map) {
         mcpServers.add(Map<String, dynamic>.from(srv));
       } else if (srv is String) {
-        // Legacy string format: treat as name
-        mcpServers.add(<String, dynamic>{'name': srv});
+        // String shorthand: treat as a ref (Python import path)
+        mcpServers.add(<String, dynamic>{'ref': srv});
       }
     }
 
