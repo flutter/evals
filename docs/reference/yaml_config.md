@@ -34,21 +34,21 @@ Job files define runtime settings for an evaluation run, including sandbox confi
   - `sandbox`
   - `sandbox`
   - Sandbox configuration. String shorthand (e.g. `podman`) is equivalent to `{environment: podman}`
-* - `sandbox`\\
+* - `sandbox` \
     &nbsp;&nbsp;`.environment`
   - string
   - Y
   -
   -
   - Sandbox type: `local`, `docker`, or `podman` (default: `local`)
-* - `sandbox`\\
+* - `sandbox` \
     &nbsp;&nbsp;`.parameters`
   - object
   - Y
   -
   -
   - Pass-through parameters for sandbox plugin configuration
-* - `sandbox`\\
+* - `sandbox` \
     &nbsp;&nbsp;`.image_prefix`
   - string
   - Y
@@ -73,32 +73,32 @@ Job files define runtime settings for an evaluation run, including sandbox confi
   - `variants`
   - `variants`
   - Named variant definitions (keys are names, values are config maps). Can also be a list of paths to external variant files.
-* - `variants`\
-    &nbsp;&nbsp;`.<name>`\
+* - `variants` \
+    &nbsp;&nbsp;`.<name>` \
     &nbsp;&nbsp;`.files`
   - list
   - Y
   -
   -
   - Paths or glob patterns to context files
-* - `variants`\
-    &nbsp;&nbsp;`.<name>`\
+* - `variants` \
+    &nbsp;&nbsp;`.<name>` \
     &nbsp;&nbsp;`.mcp_servers`
   - list
   - Y
   -
   -
   - MCP server configurations (list of objects with `name`, `command`, `args`, `env`, `transport`; or a `ref:` string to a Python package)
-* - `variants`\
-    &nbsp;&nbsp;`.<name>`\
+* - `variants` \
+    &nbsp;&nbsp;`.<name>` \
     &nbsp;&nbsp;`.skills`
   - list
   - Y
   -
   -
   - Paths or glob patterns to skill directories
-* - `variants`\
-    &nbsp;&nbsp;`.<name>`\
+* - `variants` \
+    &nbsp;&nbsp;`.<name>` \
     &nbsp;&nbsp;`.task_parameters`
   - object
   - Y
@@ -111,14 +111,14 @@ Job files define runtime settings for an evaluation run, including sandbox confi
   - `taskFilters`
   - `task_filters`
   - Tag-based task selection filter
-* - `task_filters`\
+* - `task_filters` \
     &nbsp;&nbsp;`.include_tags`
   - list
   - Y
   - `TagFilter.includeTags`
   - `TagFilter.include_tags`
   - Only run tasks whose metadata tags include **all** of these
-* - `task_filters`\
+* - `task_filters` \
     &nbsp;&nbsp;`.exclude_tags`
   - list
   - Y
@@ -143,40 +143,40 @@ Job files define runtime settings for an evaluation run, including sandbox confi
   - `tasks`
   - `tasks`
   - Per-task configurations with inline overrides
-* - `tasks`\
-    &nbsp;&nbsp;`.<task_id>`\
+* - `tasks` \
+    &nbsp;&nbsp;`.<task_id>` \
     &nbsp;&nbsp;`.include-samples`
   - list
   - Y
   - `JobTask.includeSamples`
   - `JobTask.include_samples`
   - Only run these sample IDs
-* - `tasks`\
-    &nbsp;&nbsp;`.<task_id>`\
+* - `tasks` \
+    &nbsp;&nbsp;`.<task_id>` \
     &nbsp;&nbsp;`.exclude-samples`
   - list
   - Y
   - `JobTask.excludeSamples`
   - `JobTask.exclude_samples`
   - Exclude these sample IDs
-* - `tasks`\
-    &nbsp;&nbsp;`.<task_id>`\
+* - `tasks` \
+    &nbsp;&nbsp;`.<task_id>` \
     &nbsp;&nbsp;`.args`
   - object
   - Y
   - `JobTask.args`
   - `JobTask.args`
   - Per-task argument overrides passed to the task function
-* - `tasks`\\
-    &nbsp;&nbsp;`.<task_id>`\\
+* - `tasks` \
+    &nbsp;&nbsp;`.<task_id>` \
     &nbsp;&nbsp;`.include-variants`
   - list
   - Y
   - `JobTask.includeVariants`
   - `JobTask.include_variants`
   - Only run these variant names for this task
-* - `tasks`\\
-    &nbsp;&nbsp;`.<task_id>`\\
+* - `tasks` \
+    &nbsp;&nbsp;`.<task_id>` \
     &nbsp;&nbsp;`.exclude-variants`
   - list
   - Y
@@ -237,14 +237,14 @@ Task-level Inspect AI `Task` parameters (model, limits, sandbox, etc.) are neste
   -
   -
   - Samples config with `inline` and/or `paths` keys (optional — task can have no samples)
-* - `samples`\\
+* - `samples` \
     &nbsp;&nbsp;`.inline`
   - list
   - Y
   -
   -
   - Inline sample definitions (list of sample objects)
-* - `samples`\\
+* - `samples` \
     &nbsp;&nbsp;`.paths`
   - list
   - Y
@@ -292,112 +292,7 @@ Task-level Inspect AI `Task` parameters (model, limits, sandbox, etc.) are neste
   - Y
   -
   -
-  - Inspect AI `Task` parameters. See sub-fields below.
-* - `inspect_task_args`\\
-    &nbsp;&nbsp;`.model`
-  - string
-  - Y
-  - `model`
-  - `model`
-  - Default model for this task
-* - `inspect_task_args`\\
-    &nbsp;&nbsp;`.config`
-  - object
-  - Y
-  - `config`
-  - `config`
-  - Model generation config (e.g. `{temperature: 0.2}`)
-* - `inspect_task_args`\\
-    &nbsp;&nbsp;`.model_roles`
-  - object
-  - Y
-  - `modelRoles`
-  - `model_roles`
-  - Named roles for `get_model()`
-* - `inspect_task_args`\\
-    &nbsp;&nbsp;`.sandbox`
-  - string/object
-  - Y
-  - `sandbox`
-  - `sandbox`
-  - Sandbox environment type or config
-* - `inspect_task_args`\\
-    &nbsp;&nbsp;`.sandbox_parameters`
-  - object
-  - Y
-  - `sandboxParameters`
-  - `sandbox_parameters`
-  - Pass-through parameters for sandbox plugin configuration
-* - `inspect_task_args`\\
-    &nbsp;&nbsp;`.approval`
-  - string/object
-  - Y
-  - `approval`
-  - `approval`
-  - Tool use approval policies
-* - `inspect_task_args`\\
-    &nbsp;&nbsp;`.epochs`
-  - int/object
-  - Y
-  - `epochs`
-  - `epochs`
-  - Number of times to repeat each sample
-* - `inspect_task_args`\\
-    &nbsp;&nbsp;`.fail_on_error`
-  - number/bool
-  - Y
-  - `failOnError`
-  - `fail_on_error`
-  - Fail threshold for sample errors
-* - `inspect_task_args`\\
-    &nbsp;&nbsp;`.continue_on_fail`
-  - bool
-  - Y
-  - `continueOnFail`
-  - `continue_on_fail`
-  - Continue running if `fail_on_error` condition is met
-* - `inspect_task_args`\\
-    &nbsp;&nbsp;`.message_limit`
-  - int
-  - Y
-  - `messageLimit`
-  - `message_limit`
-  - Max total messages per sample
-* - `inspect_task_args`\\
-    &nbsp;&nbsp;`.token_limit`
-  - int
-  - Y
-  - `tokenLimit`
-  - `token_limit`
-  - Max total tokens per sample
-* - `inspect_task_args`\\
-    &nbsp;&nbsp;`.time_limit`
-  - int
-  - Y
-  - `timeLimit`
-  - `time_limit`
-  - Max clock time (seconds) per sample
-* - `inspect_task_args`\\
-    &nbsp;&nbsp;`.working_limit`
-  - int
-  - Y
-  - `workingLimit`
-  - `working_limit`
-  - Max working time (seconds) per sample
-* - `inspect_task_args`\\
-    &nbsp;&nbsp;`.cost_limit`
-  - float
-  - Y
-  - `costLimit`
-  - `cost_limit`
-  - Max cost (dollars) per sample
-* - `inspect_task_args`\\
-    &nbsp;&nbsp;`.early_stopping`
-  - string/object
-  - Y
-  - `earlyStopping`
-  - `early_stopping`
-  - Early stopping callbacks
+  - Pass-through dict of any valid Inspect AI `Task()` kwargs (e.g. `model`, `time_limit`, `message_limit`, `epochs`, `sandbox`, etc.). See [Inspect AI docs](https://inspect.ai-safety-institute.org.uk/) for the full list.
 ```
 
 ## Sample
@@ -432,21 +327,21 @@ Samples are individual test cases defined either inline in `task.yaml` under `sa
   - `target`
   - `target`
   - Expected output or grading criteria
-* - `metadata`\\
+* - `metadata` \
     &nbsp;&nbsp;`.difficulty`
   - string
   - Y
   -
   -
   - `easy`, `medium`, or `hard`
-* - `metadata`\\
+* - `metadata` \
     &nbsp;&nbsp;`.tags`
   - list
   - Y
   -
   -
   - Categories for filtering
-* - `metadata`\\
+* - `metadata` \
     &nbsp;&nbsp;`.system_message`
   - string
   - Y
