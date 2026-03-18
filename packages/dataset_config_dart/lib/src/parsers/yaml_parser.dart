@@ -60,9 +60,6 @@ class YamlParser extends Parser {
     final taskWorkspace = _preResolveToAbs(taskWorkspaceRaw, taskDir);
     final taskTests = _preResolveToAbs(taskTestsRaw, taskDir);
 
-    // Optional whitelist of variant names
-    final allowedVariants = (data['allowed_variants'] as List?)?.cast<String>();
-
     // Parse samples section
     final samplesRaw = data['samples'];
     if (samplesRaw is! Map) {
@@ -101,12 +98,6 @@ class YamlParser extends Parser {
     final taskMetadata = _asMap(data['metadata']);
     final sandboxParameters = _asMap(data['sandbox_parameters']);
 
-    // Parse variant_filters (tag-based variant restriction)
-    final variantFiltersRaw = _asMap(data['variant_filters']);
-    final variantFilters = variantFiltersRaw != null
-        ? TagFilter.fromJson(variantFiltersRaw)
-        : null;
-
     return [
       ParsedTask(
         id: taskId,
@@ -114,7 +105,7 @@ class YamlParser extends Parser {
         variant: const Variant(), // placeholder baseline
         samples: samples,
         systemMessage: systemMessage,
-        allowedVariants: allowedVariants,
+        sandboxParameters: sandboxParameters,
         // Task-level settings
         model: model,
         config: config,
@@ -133,8 +124,6 @@ class YamlParser extends Parser {
         displayName: displayName,
         version: version,
         metadata: taskMetadata,
-        sandboxParameters: sandboxParameters,
-        variantFilters: variantFilters,
       ),
     ];
   }

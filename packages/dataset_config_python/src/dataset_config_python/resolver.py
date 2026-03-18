@@ -11,6 +11,7 @@ from dataset_config_python.models.context_file import ContextFile
 from dataset_config_python.models.dataset import Dataset
 from dataset_config_python.models.eval_set import EvalSet
 from dataset_config_python.models.job import Job
+from dataset_config_python.models.mcp_server_config import McpServerConfig
 from dataset_config_python.models.sample import Sample
 from dataset_config_python.models.tag_filter import matches_tag_filter
 from dataset_config_python.models.task import Task
@@ -39,20 +40,12 @@ DEFAULT_SANDBOX_REGISTRY: dict[str, dict[str, str]] = {
     "podman-main": {"name": "podman", "path": "./sandboxes/podman/compose-main.yaml"},
 }
 
-# Default SDK branch → sandbox registry key mapping.
-DEFAULT_BRANCH_CHANNELS: dict[str, str] = {
-    "stable": "podman",
-    "beta": "podman-beta",
-    "main": "podman-main",
-}
-
 
 @dataclass
 class SandboxConfig:
-    """Sandbox registry and branch-channel mapping."""
+    """Sandbox registry for named sandbox definitions."""
 
     registry: dict[str, dict[str, str]] = field(default_factory=dict)
-    branch_channels: dict[str, str] = field(default_factory=dict)
 
 
 def _is_glob(pattern: str) -> bool:
@@ -128,8 +121,7 @@ def resolve_from_parsed(
     """
     sandbox_cfg = sandbox_config or SandboxConfig()
     registry = sandbox_cfg.registry
-    channels = sandbox_cfg.branch_channels
-    return _resolve_job(task_configs, job, dataset_path, registry, channels)
+    return _resolve_job(task_configs, job, dataset_path, registry)
 
 
 def _resolve_job(
@@ -137,7 +129,6 @@ def _resolve_job(
     job: Any,
     dataset_root: str,
     sandbox_registry: dict[str, dict[str, str]],
-    branch_channels: dict[str, str],
 ) -> list[EvalSet]:
     """Resolve task configs and job into EvalSet objects."""
     models = job.models if job.models else list(DEFAULT_MODELS)
@@ -146,21 +137,14 @@ def _resolve_job(
 
     expanded_tasks = _expand_task_configs(dataset_tasks, job, sandbox_type_str, dataset_root)
 
-    # Group by branch
-    groups: dict[str | None, list[ParsedTask]] = {}
-    for tc in expanded_tasks:
-        key = tc.variant.branch
-        groups.setdefault(key, []).append(tc)
-
     return [
         _build_eval_set(
-            task_configs=group,
+            task_configs=expanded_tasks,
             log_dir=job.log_dir,
             models=models,
-            sandbox=_resolve_sandbox(dataset_root, job, sandbox_registry, branch_channels, branch=channel),
+            sandbox=_resolve_sandbox(dataset_root, job, sandbox_registry),
             job=job,
         )
-        for channel, group in groups.items()
     ]
 
 
@@ -233,24 +217,26 @@ def _build_eval_set(
 
         # Task metadata (variant config, system message, etc.)
         task_metadata: dict[str, Any] = {"variant": tc.variant.name}
-        if tc.variant.context_files:
-            task_metadata["variant_config"] = {
-                "context_files": [
-                    {
-                        "title": cf.metadata.title,
-                        "version": cf.metadata.version,
-                        "content": cf.content,
-                    }
-                    for cf in tc.variant.context_files
-                ],
-                "mcp_servers": tc.variant.mcp_servers,
-                "skill_paths": tc.variant.skill_paths,
-            }
-        elif tc.variant.mcp_servers or tc.variant.skill_paths:
-            task_metadata["variant_config"] = {
-                "mcp_servers": tc.variant.mcp_servers,
-                "skill_paths": tc.variant.skill_paths,
-            }
+        variant_config: dict[str, Any] = {}
+        if tc.variant.files:
+            variant_config["files"] = [
+                {
+                    "title": cf.metadata.title,
+                    "version": cf.metadata.version,
+                    "content": cf.content,
+                }
+                for cf in tc.variant.files
+            ]
+        if tc.variant.mcp_servers:
+            variant_config["mcp_servers"] = [
+                s.model_dump(exclude_none=True) for s in tc.variant.mcp_servers
+            ]
+        if tc.variant.skills:
+            variant_config["skills"] = tc.variant.skills
+        if tc.variant.task_parameters:
+            variant_config["task_parameters"] = tc.variant.task_parameters
+        if variant_config:
+            task_metadata["variant_config"] = variant_config
         if tc.system_message is not None:
             task_metadata["system_message"] = tc.system_message
         if tc.save_examples:
@@ -311,7 +297,7 @@ def _build_eval_set(
     eval_set_overrides = eval_args.get("eval_set_overrides") or {}
 
     # Helper to get a value from eval_args then overrides
-    def _get(key, default=None):
+    def _get(key: str, default: Any = None) -> Any:
         v = eval_args.get(key)
         if v is not None:
             return v
@@ -404,26 +390,12 @@ def _resolve_sandbox(
     dataset_root: str,
     job: Any,
     sandbox_registry: dict[str, dict[str, str]],
-    branch_channels: dict[str, str],
-    *,
-    branch: str | None = None,
 ) -> Any:
     """Resolve sandbox spec for a given config."""
     sandbox_cfg = job.sandbox or {}
     sandbox_type = sandbox_cfg.get("environment", "local")
     if not sandbox_type or sandbox_type == "local":
         return "local"
-
-    # Channel override
-    # Branch override → look up branch-specific sandbox
-    if branch and branch in branch_channels:
-        registry_key = branch_channels[branch]
-        if registry_key in sandbox_registry:
-            defn = sandbox_registry[registry_key]
-            sandbox_path = defn["path"]
-            if not os.path.isabs(sandbox_path):
-                sandbox_path = os.path.normpath(os.path.join(dataset_root, sandbox_path))
-            return {"type": defn["name"], "path": sandbox_path}
 
     # Named sandbox from registry
     if sandbox_type in sandbox_registry:
@@ -464,22 +436,21 @@ def _expand_task_configs(
             if not matches_tag_filter(task_tags, job.task_filters):
                 continue
 
-        # Determine effective variants (intersection)
-        effective_variants: dict[str, dict[str, Any]] = {}
-        for vname, vdef in job_variants.items():
-            if tc.allowed_variants is None or vname in tc.allowed_variants:
-                effective_variants[vname] = vdef
+        # Start with all job-level variants
+        effective_variants: dict[str, dict[str, Any]] = dict(job_variants)
 
-        # Filter by task-level variant_filters (tag-based)
-        if tc.variant_filters is not None:
-            effective_variants = {
-                vname: vdef
-                for vname, vdef in effective_variants.items()
-                if matches_tag_filter([vname], tc.variant_filters)
-            }
-
-        # Get job-level task overrides
+        # Apply per-task include/exclude variants from job.tasks.<task_id>
         job_task = job.tasks.get(task_id) if job.tasks else None
+        if job_task and job_task.include_variants:
+            effective_variants = {
+                k: v for k, v in effective_variants.items()
+                if k in job_task.include_variants
+            }
+        if job_task and job_task.exclude_variants:
+            effective_variants = {
+                k: v for k, v in effective_variants.items()
+                if k not in job_task.exclude_variants
+            }
 
         # Apply sample filtering
         samples = tc.samples
@@ -496,7 +467,7 @@ def _expand_task_configs(
                 if matches_tag_filter((s.metadata or {}).get("tags", []), job.sample_filters)
             ]
 
-        # Apply system_message from task (no longer overridden by job task)
+        # Apply system_message from task
         system_message = tc.system_message
 
         # Merge job-task args into metadata
@@ -518,7 +489,6 @@ def _expand_task_configs(
                     variant=variant,
                     sandbox_type=sandbox_type,
                     system_message=system_message,
-                    allowed_variants=None,
                     save_examples=job.save_examples,
                     examples_dir=examples_dir,
                     metadata=merged_metadata,
@@ -542,9 +512,9 @@ def _resolve_variant(
     if not vdef:
         return Variant(name=name)
 
-    # Load context files (with glob support)
+    # Load context files (with glob support) — YAML key is "files"
     context_files: list[ContextFile] = []
-    cf_paths: list[str] = vdef.get("context_files") or []
+    cf_paths: list[str] = vdef.get("files") or []
     for cf_path in cf_paths:
         if _is_glob(cf_path):
             full_pattern = os.path.join(dataset_root, cf_path)
@@ -561,9 +531,9 @@ def _resolve_variant(
             full_path = os.path.normpath(os.path.join(dataset_root, cf_path))
             context_files.append(ContextFile.load(full_path))
 
-    # Resolve skill paths (with glob support)
+    # Resolve skill paths (with glob support) — YAML key is "skills"
     skill_paths: list[str] = []
-    raw_skills: list[str] = vdef.get("skills") or vdef.get("skill_paths") or []
+    raw_skills: list[str] = vdef.get("skills") or []
     for skill_path_str in raw_skills:
         if _is_glob(skill_path_str):
             full_pattern = os.path.join(dataset_root, skill_path_str)
@@ -587,12 +557,21 @@ def _resolve_variant(
                 )
             skill_paths.append(skill_dir)
 
+    # Resolve MCP servers
+    mcp_servers: list[McpServerConfig] = []
+    raw_mcp: list[Any] = vdef.get("mcp_servers") or []
+    for raw in raw_mcp:
+        mcp_servers.append(McpServerConfig.from_yaml(raw))
+
+    # Task parameters
+    task_parameters: dict[str, Any] = vdef.get("task_parameters") or {}
+
     return Variant(
         name=name,
-        context_files=context_files,
-        mcp_servers=vdef.get("mcp_servers") or [],
-        skill_paths=skill_paths,
-        branch=vdef.get("branch"),
+        files=context_files,
+        mcp_servers=mcp_servers,
+        skills=skill_paths,
+        task_parameters=task_parameters,
     )
 
 

@@ -45,8 +45,11 @@ samples:
     - id: sample_2
       input: "What is Flutter?"
       target: "A UI framework."
-      difficulty: medium
-      tags: ui, framework
+      metadata:
+        difficulty: medium
+        tags:
+          - ui
+          - framework
 """
     )
 
@@ -55,13 +58,10 @@ samples:
     code_gen_dir.mkdir(parents=True)
     code_gen_yaml = code_gen_dir / "task.yaml"
     code_gen_yaml.write_text(
-        """
-id: code_gen
+        """id: code_gen
 func: flutter_code_gen
-time_limit: 600
-allowed_variants:
-  - baseline
-  - context_only
+inspect_task_args:
+  time_limit: 600
 samples:
   inline:
     - id: sample_1
@@ -75,16 +75,14 @@ samples:
     jobs_dir.mkdir()
     job_yaml = jobs_dir / "local_dev.yaml"
     job_yaml.write_text(
-        """
-logs_dir: ./logs
-sandbox_type: local
+        """logs_dir: ./logs
 max_connections: 5
 models:
   - google/gemini-2.5-flash
 variants:
   baseline: {}
   context_only:
-    context_files: []
+    files: []
 """
     )
 
@@ -162,10 +160,10 @@ class TestModels:
     def test_variant_defaults(self):
         v = Variant()
         assert v.name == "baseline"
-        assert v.context_files == []
+        assert v.files == []
         assert v.mcp_servers == []
-        assert v.skill_paths == []
-        assert v.branch is None
+        assert v.skills == []
+        assert v.task_parameters == {}
 
     def test_job_task_from_yaml_none(self):
         jt = JobTask.from_yaml("my_task", None)
@@ -216,11 +214,6 @@ class TestParser:
         assert s2.metadata["tags"] == ["ui", "framework"]
         assert s2.metadata["difficulty"] == "medium"
 
-    def test_parse_tasks_allowed_variants(self, dataset_dir):
-        tasks = parse_tasks(str(dataset_dir))
-        code_gen = next(t for t in tasks if t.id == "code_gen")
-        assert code_gen.allowed_variants == ["baseline", "context_only"]
-
     def test_parse_tasks_time_limit(self, dataset_dir):
         tasks = parse_tasks(str(dataset_dir))
         code_gen = next(t for t in tasks if t.id == "code_gen")
@@ -229,7 +222,6 @@ class TestParser:
     def test_parse_job(self, dataset_dir):
         job_path = os.path.join(str(dataset_dir), "jobs", "local_dev.yaml")
         job = parse_job(job_path, str(dataset_dir))
-        assert job.sandbox_type == "local"
         assert job.max_connections == 5
         assert job.models == ["google/gemini-2.5-flash"]
 

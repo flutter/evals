@@ -23,8 +23,6 @@ class JsonParser extends Parser {
       final taskId = data['id'] as String;
       final func = (data['func'] as String?) ?? taskId;
       final systemMessage = data['system_message'] as String?;
-      final allowedVariants = (data['allowed_variants'] as List?)
-          ?.cast<String>();
 
       // Parse samples from inline data (no file I/O) - optional
       final samplesRaw = data['samples'];
@@ -123,7 +121,6 @@ class JsonParser extends Parser {
         variant: const Variant(),
         samples: samples,
         systemMessage: systemMessage,
-        allowedVariants: allowedVariants,
         // Task-level settings
         model: model,
         config: config,

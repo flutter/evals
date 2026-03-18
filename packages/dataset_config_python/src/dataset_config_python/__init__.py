@@ -8,7 +8,6 @@ No Dart SDK or Inspect AI dependency required.
 
 from dataset_config_python.parser import ParsedTask, find_job_file, parse_job, parse_tasks
 from dataset_config_python.resolver import (
-    DEFAULT_BRANCH_CHANNELS,
     DEFAULT_SANDBOX_REGISTRY,
     SandboxConfig,
     resolve,
@@ -17,7 +16,6 @@ from dataset_config_python.resolver import (
 from dataset_config_python.writer import write_eval_sets
 
 __all__ = [
-    "DEFAULT_BRANCH_CHANNELS",
     "DEFAULT_SANDBOX_REGISTRY",
     "ParsedTask",
     "SandboxConfig",

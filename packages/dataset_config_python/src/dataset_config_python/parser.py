@@ -12,7 +12,6 @@ import yaml
 
 from dataset_config_python.models.job import Job, JobTask
 from dataset_config_python.models.sample import Sample
-from dataset_config_python.models.tag_filter import TagFilter
 from dataset_config_python.models.variant import Variant
 
 # Default log directory (relative to dataset root).
@@ -35,7 +34,6 @@ class ParsedTask:
         variant: Variant | None = None,
         sandbox_type: str = "local",
         system_message: str | None = None,
-        allowed_variants: list[str] | None = None,
         save_examples: bool = False,
         examples_dir: str | None = None,
         # Task-level settings
@@ -57,7 +55,6 @@ class ParsedTask:
         version: Any | None = None,
         metadata: dict[str, Any] | None = None,
         sandbox_parameters: dict[str, Any] | None = None,
-        variant_filters: TagFilter | None = None,
     ):
         self.id = id
         self.func = func
@@ -65,7 +62,6 @@ class ParsedTask:
         self.variant = variant or Variant()
         self.sandbox_type = sandbox_type
         self.system_message = system_message
-        self.allowed_variants = allowed_variants
         self.save_examples = save_examples
         self.examples_dir = examples_dir
         self.model = model
@@ -86,7 +82,6 @@ class ParsedTask:
         self.version = version
         self.metadata = metadata
         self.sandbox_parameters = sandbox_parameters
-        self.variant_filters = variant_filters
 
     _UNSET: Any = object()
 
@@ -99,7 +94,6 @@ class ParsedTask:
         variant: Variant | None = _UNSET,
         sandbox_type: str | None = _UNSET,
         system_message: str | None = _UNSET,
-        allowed_variants: list[str] | None = _UNSET,
         save_examples: bool | None = _UNSET,
         examples_dir: str | None = _UNSET,
         sandbox_parameters: dict[str, Any] | None = _UNSET,
@@ -120,7 +114,6 @@ class ParsedTask:
         display_name: str | None = _UNSET,
         version: Any = _UNSET,
         metadata: dict[str, Any] | None = _UNSET,
-        variant_filters: TagFilter | None = _UNSET,
     ) -> ParsedTask:
         """Create a copy with overrides."""
         _U = ParsedTask._UNSET
@@ -131,7 +124,6 @@ class ParsedTask:
             variant=self.variant if variant is _U else variant,
             sandbox_type=self.sandbox_type if sandbox_type is _U else sandbox_type,  # type: ignore[arg-type]
             system_message=self.system_message if system_message is _U else system_message,
-            allowed_variants=self.allowed_variants if allowed_variants is _U else allowed_variants,
             save_examples=self.save_examples if save_examples is _U else save_examples,  # type: ignore[arg-type]
             examples_dir=self.examples_dir if examples_dir is _U else examples_dir,
             sandbox_parameters=self.sandbox_parameters if sandbox_parameters is _U else sandbox_parameters,
@@ -152,7 +144,6 @@ class ParsedTask:
             display_name=self.display_name if display_name is _U else display_name,
             version=self.version if version is _U else version,
             metadata=self.metadata if metadata is _U else metadata,
-            variant_filters=self.variant_filters if variant_filters is _U else variant_filters,
         )
 
 
@@ -255,8 +246,6 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
     task_workspace = _pre_resolve_to_abs(task_workspace_raw, task_dir)
     task_tests = _pre_resolve_to_abs(task_tests_raw, task_dir)
 
-    allowed_variants = data.get("allowed_variants")
-
     # Parse samples section (optional)
     samples_raw = data.get("samples")
     if samples_raw is None:
@@ -269,10 +258,6 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
     else:
         samples = _load_samples_section(samples_raw, dataset_root, task_workspace, task_tests, task_dir)
 
-    # Parse variant_filters (tag-based variant restriction)
-    variant_filters_raw = data.get("variant_filters")
-    variant_filters = TagFilter(**variant_filters_raw) if isinstance(variant_filters_raw, dict) else None
-
     # Task-level Inspect AI args are nested under inspect_task_args
     task_args = data.get("inspect_task_args") or {}
 
@@ -283,7 +268,6 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
             variant=Variant(),
             samples=samples,
             system_message=system_message,
-            allowed_variants=allowed_variants,
             model=task_args.get("model"),
             config=task_args.get("config") if isinstance(task_args.get("config"), dict) else None,
             model_roles=task_args.get("model_roles") if isinstance(task_args.get("model_roles"), dict) else None,
@@ -302,7 +286,6 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
             version=data.get("version"),
             metadata=data.get("metadata") if isinstance(data.get("metadata"), dict) else None,
             sandbox_parameters=data.get("sandbox_parameters") if isinstance(data.get("sandbox_parameters"), dict) else None,
-            variant_filters=variant_filters,
         )
     ]
 
@@ -488,7 +471,7 @@ def parse_job(job_path: str, dataset_root: str) -> Job:
             for tid, tdata in inline_tasks.items():
                 tasks[tid] = JobTask.from_yaml(tid, tdata)
 
-    # Parse variants
+    # Parse variants — supports inline dict or list of file paths
     variants = None
     variants_raw = data.get("variants")
     if isinstance(variants_raw, dict):
@@ -498,6 +481,20 @@ def parse_job(job_path: str, dataset_root: str) -> Job:
                 variants[str(key)] = dict(value)
             else:
                 variants[str(key)] = {}
+    elif isinstance(variants_raw, list):
+        # List of relative paths to variant definition files
+        job_dir = os.path.dirname(job_path)
+        variants = {}
+        for rel_path in variants_raw:
+            variant_file = os.path.normpath(os.path.join(job_dir, str(rel_path)))
+            if not os.path.isfile(variant_file):
+                raise FileNotFoundError(
+                    f"Variant file not found: {variant_file} "
+                    f"(referenced from {job_path})"
+                )
+            file_data = _read_yaml_file(variant_file)
+            for vname, vdef in file_data.items():
+                variants[str(vname)] = dict(vdef) if isinstance(vdef, dict) else {}
 
     # Parse inspect_eval_arguments
     inspect_eval_arguments = data.get("inspect_eval_arguments")

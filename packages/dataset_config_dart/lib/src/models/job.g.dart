@@ -54,6 +54,12 @@ _JobTask _$JobTaskFromJson(Map<String, dynamic> json) => _JobTask(
   excludeSamples: (json['exclude_samples'] as List<dynamic>?)
       ?.map((e) => e as String)
       .toList(),
+  includeVariants: (json['include_variants'] as List<dynamic>?)
+      ?.map((e) => e as String)
+      .toList(),
+  excludeVariants: (json['exclude_variants'] as List<dynamic>?)
+      ?.map((e) => e as String)
+      .toList(),
   args: json['args'] as Map<String, dynamic>?,
 );
 
@@ -61,5 +67,7 @@ Map<String, dynamic> _$JobTaskToJson(_JobTask instance) => <String, dynamic>{
   'id': instance.id,
   'include_samples': instance.includeSamples,
   'exclude_samples': instance.excludeSamples,
+  'include_variants': instance.includeVariants,
+  'exclude_variants': instance.excludeVariants,
   'args': instance.args,
 };

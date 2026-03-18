@@ -25,7 +25,7 @@ part 'job.g.dart';
 /// variants:
 ///   baseline: {}
 ///   context_only:
-///     context_files: [./context_files/flutter.md]
+///     files: [./context_files/flutter.md]
 /// tasks:
 ///   dart_qa:
 ///     include-samples: [sample_1]
@@ -101,7 +101,7 @@ sealed class Job with _$Job {
 
 /// Per-task configuration within a job.
 ///
-/// Allows overriding which samples run for specific tasks.
+/// Allows overriding which samples and variants run for specific tasks.
 @freezed
 sealed class JobTask with _$JobTask {
   const factory JobTask({
@@ -113,6 +113,12 @@ sealed class JobTask with _$JobTask {
 
     /// Exclude these sample IDs. Mutually exclusive with [includeSamples].
     @JsonKey(name: 'exclude_samples') List<String>? excludeSamples,
+
+    /// Only run these variant names for this task.
+    @JsonKey(name: 'include_variants') List<String>? includeVariants,
+
+    /// Exclude these variant names for this task.
+    @JsonKey(name: 'exclude_variants') List<String>? excludeVariants,
 
     /// Per-task argument overrides passed to the task function.
     @JsonKey(name: 'args') Map<String, dynamic>? args,
@@ -130,6 +136,8 @@ sealed class JobTask with _$JobTask {
       id: taskId,
       includeSamples: (data['include-samples'] as List?)?.cast<String>(),
       excludeSamples: (data['exclude-samples'] as List?)?.cast<String>(),
+      includeVariants: (data['include-variants'] as List?)?.cast<String>(),
+      excludeVariants: (data['exclude-variants'] as List?)?.cast<String>(),
       args: (data['args'] as Map?)?.cast<String, dynamic>(),
     );
   }

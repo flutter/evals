@@ -24,6 +24,12 @@ class JobTask(BaseModel):
     args: dict[str, Any] | None = None
     """Per-task argument overrides passed to the task function."""
 
+    include_variants: list[str] | None = None
+    """Only run these variant names for this task."""
+
+    exclude_variants: list[str] | None = None
+    """Exclude these variant names for this task."""
+
     @staticmethod
     def from_yaml(task_id: str, data: dict[str, Any] | None) -> JobTask:
         """Create from parsed YAML data."""
@@ -34,6 +40,8 @@ class JobTask(BaseModel):
             include_samples=data.get("include-samples"),
             exclude_samples=data.get("exclude-samples"),
             args=data.get("args"),
+            include_variants=data.get("include-variants"),
+            exclude_variants=data.get("exclude-variants"),
         )
 
 

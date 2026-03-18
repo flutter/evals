@@ -36,14 +36,7 @@ const Map<String, Map<String, String>> kDefaultSandboxRegistry = {
   },
 };
 
-/// Default SDK branch → sandbox registry key mapping.
-///
-/// Consumers can pass these to [EvalSetResolver] or provide their own.
-const Map<String, String> kDefaultBranchChannels = {
-  'stable': 'podman',
-  'beta': 'podman-beta',
-  'main': 'podman-main',
-};
+
 
 /// Resolves parsed task configs and job into fully-resolved
 /// [EvalSet] objects ready for JSON serialization.
@@ -51,28 +44,21 @@ const Map<String, String> kDefaultBranchChannels = {
 /// This is the resolution engine. It:
 /// 1. Resolves models, sandboxes, and variants
 /// 2. Expands task × variant combinations into [Task] entries
-/// 3. Groups by branch (one [EvalSet] per group)
-/// 4. Propagates job-level and task-level settings to the output
+/// 3. Propagates job-level and task-level settings to the output
 class EvalSetResolver {
   /// Creates a resolver with optional sandbox configuration.
   ///
-  /// If [sandboxRegistry] or [branchChannels] are not provided, they default
-  /// to empty maps (no sandbox resolution). Pass [kDefaultSandboxRegistry]
-  /// and [kDefaultBranchChannels] for the Flutter-specific sandbox setup.
+  /// If [sandboxRegistry] is not provided, it defaults to an empty map
+  /// (no sandbox resolution). Pass [kDefaultSandboxRegistry] for the
+  /// Flutter-specific sandbox setup.
   const EvalSetResolver({
     this.sandboxRegistry = const {},
-    this.branchChannels = const {},
   });
 
   /// Named sandbox configurations (e.g. `'podman'` → compose file path).
   final Map<String, Map<String, String>> sandboxRegistry;
 
-  /// SDK branch → sandbox registry key mapping.
-  final Map<String, String> branchChannels;
-
   /// Resolve task configs and job into [EvalSet] objects.
-  ///
-  /// Groups by branch so each gets its own sandbox.
   List<EvalSet> resolve(
     List<ParsedTask> datasetTasks,
     Job job,
@@ -88,26 +74,16 @@ class EvalSetResolver {
       datasetRoot,
     );
 
-    // Group by branch
-    final groups = <String?, List<ParsedTask>>{};
-    for (final tc in expandedTasks) {
-      final key = tc.variant.branch;
-      (groups[key] ??= []).add(tc);
-    }
+    final sandbox = _resolveSandbox(datasetRoot, job);
 
     return [
-      for (final entry in groups.entries)
-        _buildEvalSet(
-          taskConfigs: entry.value,
-          logDir: job.logDir,
-          models: models,
-          sandbox: _resolveSandbox(
-            datasetRoot,
-            job,
-            branch: entry.key,
-          ),
-          job: job,
-        ),
+      _buildEvalSet(
+        taskConfigs: expandedTasks,
+        logDir: job.logDir,
+        models: models,
+        sandbox: sandbox,
+        job: job,
+      ),
     ];
   }
 
@@ -192,26 +168,27 @@ class EvalSetResolver {
       // Build task metadata (variant config, system message, etc.)
       final metadata = <String, dynamic>{
         'variant': tc.variant.name,
-        if (tc.variant.contextFiles.isNotEmpty)
+        if (tc.variant.files.isNotEmpty ||
+            tc.variant.mcpServers.isNotEmpty ||
+            tc.variant.skills.isNotEmpty ||
+            tc.variant.taskParameters.isNotEmpty)
           'variant_config': {
-            'context_files': tc.variant.contextFiles
-                .map(
-                  (cf) => {
-                    'title': cf.metadata.title,
-                    'version': cf.metadata.version,
-                    'content': cf.content,
-                  },
-                )
-                .toList(),
-            'mcp_servers': tc.variant.mcpServers,
-            'skill_paths': tc.variant.skillPaths,
-          },
-        if (tc.variant.contextFiles.isEmpty &&
-            (tc.variant.mcpServers.isNotEmpty ||
-                tc.variant.skillPaths.isNotEmpty))
-          'variant_config': {
-            'mcp_servers': tc.variant.mcpServers,
-            'skill_paths': tc.variant.skillPaths,
+            if (tc.variant.files.isNotEmpty)
+              'files': tc.variant.files
+                  .map(
+                    (cf) => {
+                      'title': cf.metadata.title,
+                      'version': cf.metadata.version,
+                      'content': cf.content,
+                    },
+                  )
+                  .toList(),
+            if (tc.variant.mcpServers.isNotEmpty)
+              'mcp_servers': tc.variant.mcpServers,
+            if (tc.variant.skills.isNotEmpty)
+              'skills': tc.variant.skills,
+            if (tc.variant.taskParameters.isNotEmpty)
+              'task_parameters': tc.variant.taskParameters,
           },
         if (tc.systemMessage != null) 'system_message': tc.systemMessage,
         if (tc.saveExamples) 'save_examples': true,
@@ -398,25 +375,11 @@ class EvalSetResolver {
   /// Returns either `"local"` or a `Map` with `type` and `path` keys.
   Object _resolveSandbox(
     String datasetRoot,
-    Job job, {
-    String? branch,
-  }) {
+    Job job,
+  ) {
     final sandboxCfg = job.sandbox ?? <String, dynamic>{};
     final sandboxType = (sandboxCfg['environment'] as String?) ?? 'local';
     if (sandboxType.isEmpty || sandboxType == 'local') return 'local';
-
-    // Branch override → look up branch-specific sandbox
-    if (branch != null && branchChannels.containsKey(branch)) {
-      final registryKey = branchChannels[branch]!;
-      if (sandboxRegistry.containsKey(registryKey)) {
-        final def = sandboxRegistry[registryKey]!;
-        var sandboxPath = def['path']!;
-        if (!p.isAbsolute(sandboxPath)) {
-          sandboxPath = p.normalize(p.join(datasetRoot, sandboxPath));
-        }
-        return {'type': def['name']!, 'path': sandboxPath};
-      }
-    }
 
     // Named sandbox from registry
     if (sandboxRegistry.containsKey(sandboxType)) {
@@ -457,26 +420,29 @@ class EvalSetResolver {
         if (!matchesTagFilter(taskTags, job.taskFilters!)) continue;
       }
 
-      // Determine effective variants (intersection)
-      final effectiveVariants = <String, Map<String, dynamic>>{};
-      for (final entry in jobVariants.entries) {
-        if (taskConfig.allowedVariants == null ||
-            taskConfig.allowedVariants!.contains(entry.key)) {
-          effectiveVariants[entry.key] = entry.value;
-        }
-      }
-
-      // Filter by task-level variant_filters (tag-based)
-      if (taskConfig.variantFilters != null) {
-        effectiveVariants.removeWhere((name, _) {
-          return !matchesTagFilter([name], taskConfig.variantFilters!);
-        });
-      }
-
       // Get job-level task overrides
       final jobTask = (job.tasks != null && job.tasks!.containsKey(taskId))
           ? job.tasks![taskId]
           : null;
+
+      // Determine effective variants using job-level include/exclude
+      final effectiveVariants = <String, Map<String, dynamic>>{};
+      for (final entry in jobVariants.entries) {
+        final vName = entry.key;
+
+        // Job-task level include_variants filter
+        if (jobTask?.includeVariants != null &&
+            !jobTask!.includeVariants!.contains(vName)) {
+          continue;
+        }
+        // Job-task level exclude_variants filter
+        if (jobTask?.excludeVariants != null &&
+            jobTask!.excludeVariants!.contains(vName)) {
+          continue;
+        }
+
+        effectiveVariants[vName] = entry.value;
+      }
 
       // Apply sample filtering
       var samples = taskConfig.samples;
@@ -526,7 +492,6 @@ class EvalSetResolver {
             variant: variant,
             sandboxType: sandboxType,
             systemMessage: systemMessage,
-            allowedVariants: null,
             saveExamples: job.saveExamples,
             examplesDir: examplesDir,
             metadata: mergedMetadata,
@@ -551,9 +516,9 @@ class EvalSetResolver {
     if (vDef.isEmpty) return Variant(name: name);
 
     // Load context files (with glob support)
-    final contextFiles = <ContextFile>[];
+    final files = <ContextFile>[];
     final cfPaths =
-        (vDef['context_files'] as List?)?.cast<String>() ?? const [];
+        (vDef['files'] as List?)?.cast<String>() ?? const [];
     for (final cfPath in cfPaths) {
       if (_isGlob(cfPath)) {
         final matched = _expandGlobFiles(datasetRoot, cfPath);
@@ -563,19 +528,18 @@ class EvalSetResolver {
           );
         }
         for (final f in matched) {
-          contextFiles.add(ContextFile.load(f));
+          files.add(ContextFile.load(f));
         }
       } else {
         final fullPath = p.normalize(p.join(datasetRoot, cfPath));
-        contextFiles.add(ContextFile.load(fullPath));
+        files.add(ContextFile.load(fullPath));
       }
     }
 
     // Resolve skill paths (with glob support)
-    final skillPaths = <String>[];
+    final skills = <String>[];
     final rawSkills =
-        ((vDef['skills'] as List?) ?? (vDef['skill_paths'] as List?) ?? [])
-            .cast<String>();
+        (vDef['skills'] as List?)?.cast<String>() ?? const [];
     for (final skillPathStr in rawSkills) {
       if (_isGlob(skillPathStr)) {
         final matched = _expandGlobDirs(datasetRoot, skillPathStr);
@@ -587,7 +551,7 @@ class EvalSetResolver {
             'No skill directories matched pattern: $skillPathStr',
           );
         }
-        skillPaths.addAll(validDirs);
+        skills.addAll(validDirs);
       } else {
         final skillDir = p.normalize(p.join(datasetRoot, skillPathStr));
         if (!Directory(skillDir).existsSync()) {
@@ -599,16 +563,31 @@ class EvalSetResolver {
             'Each skill directory must contain a SKILL.md file.',
           );
         }
-        skillPaths.add(skillDir);
+        skills.add(skillDir);
       }
     }
 
+    // Parse MCP servers as config objects
+    final mcpServers = <Map<String, dynamic>>[];
+    final rawMcpServers = vDef['mcp_servers'] as List? ?? [];
+    for (final srv in rawMcpServers) {
+      if (srv is Map) {
+        mcpServers.add(Map<String, dynamic>.from(srv));
+      } else if (srv is String) {
+        // Legacy string format: treat as name
+        mcpServers.add(<String, dynamic>{'name': srv});
+      }
+    }
+
+    // Parse task_parameters
+    final taskParameters = (vDef['task_parameters'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
+
     return Variant(
       name: name,
-      contextFiles: contextFiles,
-      mcpServers: (vDef['mcp_servers'] as List?)?.cast<String>() ?? [],
-      skillPaths: skillPaths,
-      branch: vDef['branch'] as String?,
+      files: files,
+      mcpServers: mcpServers,
+      skills: skills,
+      taskParameters: taskParameters,
     );
   }
 

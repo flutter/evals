@@ -14,7 +14,7 @@ void main() {
       expect(task.sandboxType, 'local');
       expect(task.saveExamples, false);
       expect(task.systemMessage, isNull);
-      expect(task.allowedVariants, isNull);
+      expect(task.examplesDir, isNull);
       expect(task.examplesDir, isNull);
       expect(task.model, isNull);
       expect(task.config, isNull);
@@ -32,7 +32,6 @@ void main() {
         variant: Variant(name: 'full'),
         sandboxType: 'podman',
         systemMessage: 'Be helpful',
-        allowedVariants: ['baseline', 'full'],
         saveExamples: true,
         examplesDir: '/tmp/examples',
         model: 'gemini-pro',
@@ -54,7 +53,6 @@ void main() {
       expect(task.variant.name, 'full');
       expect(task.sandboxType, 'podman');
       expect(task.systemMessage, 'Be helpful');
-      expect(task.allowedVariants, ['baseline', 'full']);
       expect(task.saveExamples, true);
       expect(task.examplesDir, '/tmp/examples');
       expect(task.model, 'gemini-pro');

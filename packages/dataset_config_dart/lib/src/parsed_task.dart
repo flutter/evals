@@ -18,12 +18,8 @@ class ParsedTask {
   final Variant variant;
   final String sandboxType;
   final String? systemMessage;
-  final List<String>? allowedVariants;
   final bool saveExamples;
   final String? examplesDir;
-
-  /// Tag filter for variant selection.
-  final TagFilter? variantFilters;
 
   /// Pass-through dict for sandbox plugin configuration.
   final Map<String, dynamic>? sandboxParameters;
@@ -90,12 +86,9 @@ class ParsedTask {
     required this.variant,
     this.sandboxType = 'local',
     this.systemMessage,
-    this.allowedVariants,
     this.saveExamples = false,
     this.examplesDir,
-    this.variantFilters,
     this.sandboxParameters,
-    // Task-level settings
     this.model,
     this.config,
     this.modelRoles,
@@ -123,10 +116,8 @@ class ParsedTask {
     Variant? variant,
     String? sandboxType,
     String? systemMessage,
-    List<String>? allowedVariants,
     bool? saveExamples,
     String? examplesDir,
-    TagFilter? variantFilters,
     Map<String, dynamic>? sandboxParameters,
     String? model,
     Map<String, dynamic>? config,
@@ -153,10 +144,8 @@ class ParsedTask {
       variant: variant ?? this.variant,
       sandboxType: sandboxType ?? this.sandboxType,
       systemMessage: systemMessage ?? this.systemMessage,
-      allowedVariants: allowedVariants ?? this.allowedVariants,
       saveExamples: saveExamples ?? this.saveExamples,
       examplesDir: examplesDir ?? this.examplesDir,
-      variantFilters: variantFilters ?? this.variantFilters,
       sandboxParameters: sandboxParameters ?? this.sandboxParameters,
       model: model ?? this.model,
       config: config ?? this.config,

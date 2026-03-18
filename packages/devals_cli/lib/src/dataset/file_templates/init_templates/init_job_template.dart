@@ -63,8 +63,12 @@ $modelsList
 # Example:
 #   variants:
 #     baseline: {}                              # no extra features
-#     context_only: { context_files: [../../context/flutter.md] }
-#     mcp_only: { mcp_servers: [dart] }
+#     context_only: { files: [../../context/flutter.md] }
+#     mcp_only: { mcp_servers: [{name: dart, command: dart, args: [mcp-server]}] }
+#
+# Variants can also be loaded from separate files:
+#   variants:
+#     - ./variants/common.yaml
 
 # =============================================================================
 # TASKS
@@ -80,11 +84,10 @@ $modelsList
 #   tasks:
 #     inline:
 #       task_id:
-#         # (use allowed_variants in task.yaml to whitelist variants)
 #         include-samples: [sample1]   # Only run specific samples (mutually exclusive with exclude)
 #         exclude-samples: [sample2]   # Skip specific samples (mutually exclusive with include)
-#         system_message: |            # Override system prompt for this task
-#           Custom instructions...
+#         include-variants: [baseline]  # Only run these variants for this task
+#         exclude-variants: [with_mcp]  # Skip these variants for this task
 #
 # Simple format (run all samples with job-level settings):
 #   tasks:

@@ -18,9 +18,8 @@ String taskTemplate({
     workspaceValue: workspaceValue,
   );
 
-  final variantsLine = variants.isNotEmpty
-      ? 'allowed_variants: [${variants.join(', ')}]\n'
-      : '';
+  final variantsLine = '';
+
 
   final systemMessageBlock = systemMessage != null && systemMessage.isNotEmpty
       ? 'system_message: |\n  ${systemMessage.replaceAll('\n', '\n  ')}\n'

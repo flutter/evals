@@ -4,6 +4,7 @@ from dataset_config_python.models.context_file import ContextFile, ContextFileMe
 from dataset_config_python.models.dataset import Dataset
 from dataset_config_python.models.eval_set import EvalSet
 from dataset_config_python.models.job import Job, JobTask
+from dataset_config_python.models.mcp_server_config import McpServerConfig
 from dataset_config_python.models.sample import Sample
 from dataset_config_python.models.tag_filter import TagFilter, matches_tag_filter
 from dataset_config_python.models.task import Task
@@ -16,6 +17,7 @@ __all__ = [
     "EvalSet",
     "Job",
     "JobTask",
+    "McpServerConfig",
     "Sample",
     "TagFilter",
     "Task",

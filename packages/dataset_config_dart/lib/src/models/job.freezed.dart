@@ -470,7 +470,9 @@ mixin _$JobTask {
 /// Task identifier matching a task directory name in `tasks/`.
  String get id;/// Only run these sample IDs. Mutually exclusive with [excludeSamples].
 @JsonKey(name: 'include_samples') List<String>? get includeSamples;/// Exclude these sample IDs. Mutually exclusive with [includeSamples].
-@JsonKey(name: 'exclude_samples') List<String>? get excludeSamples;/// Per-task argument overrides passed to the task function.
+@JsonKey(name: 'exclude_samples') List<String>? get excludeSamples;/// Only run these variant names for this task.
+@JsonKey(name: 'include_variants') List<String>? get includeVariants;/// Exclude these variant names for this task.
+@JsonKey(name: 'exclude_variants') List<String>? get excludeVariants;/// Per-task argument overrides passed to the task function.
 @JsonKey(name: 'args') Map<String, dynamic>? get args;
 /// Create a copy of JobTask
 /// with the given fields replaced by the non-null parameter values.
@@ -484,16 +486,16 @@ $JobTaskCopyWith<JobTask> get copyWith => _$JobTaskCopyWithImpl<JobTask>(this as
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is JobTask&&(identical(other.id, id) || other.id == id)&&const DeepCollectionEquality().equals(other.includeSamples, includeSamples)&&const DeepCollectionEquality().equals(other.excludeSamples, excludeSamples)&&const DeepCollectionEquality().equals(other.args, args));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is JobTask&&(identical(other.id, id) || other.id == id)&&const DeepCollectionEquality().equals(other.includeSamples, includeSamples)&&const DeepCollectionEquality().equals(other.excludeSamples, excludeSamples)&&const DeepCollectionEquality().equals(other.includeVariants, includeVariants)&&const DeepCollectionEquality().equals(other.excludeVariants, excludeVariants)&&const DeepCollectionEquality().equals(other.args, args));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,const DeepCollectionEquality().hash(includeSamples),const DeepCollectionEquality().hash(excludeSamples),const DeepCollectionEquality().hash(args));
+int get hashCode => Object.hash(runtimeType,id,const DeepCollectionEquality().hash(includeSamples),const DeepCollectionEquality().hash(excludeSamples),const DeepCollectionEquality().hash(includeVariants),const DeepCollectionEquality().hash(excludeVariants),const DeepCollectionEquality().hash(args));
 
 @override
 String toString() {
-  return 'JobTask(id: $id, includeSamples: $includeSamples, excludeSamples: $excludeSamples, args: $args)';
+  return 'JobTask(id: $id, includeSamples: $includeSamples, excludeSamples: $excludeSamples, includeVariants: $includeVariants, excludeVariants: $excludeVariants, args: $args)';
 }
 
 
@@ -504,7 +506,7 @@ abstract mixin class $JobTaskCopyWith<$Res>  {
   factory $JobTaskCopyWith(JobTask value, $Res Function(JobTask) _then) = _$JobTaskCopyWithImpl;
 @useResult
 $Res call({
- String id,@JsonKey(name: 'include_samples') List<String>? includeSamples,@JsonKey(name: 'exclude_samples') List<String>? excludeSamples,@JsonKey(name: 'args') Map<String, dynamic>? args
+ String id,@JsonKey(name: 'include_samples') List<String>? includeSamples,@JsonKey(name: 'exclude_samples') List<String>? excludeSamples,@JsonKey(name: 'include_variants') List<String>? includeVariants,@JsonKey(name: 'exclude_variants') List<String>? excludeVariants,@JsonKey(name: 'args') Map<String, dynamic>? args
 });
 
 
@@ -521,11 +523,13 @@ class _$JobTaskCopyWithImpl<$Res>
 
 /// Create a copy of JobTask
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? includeSamples = freezed,Object? excludeSamples = freezed,Object? args = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? includeSamples = freezed,Object? excludeSamples = freezed,Object? includeVariants = freezed,Object? excludeVariants = freezed,Object? args = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,includeSamples: freezed == includeSamples ? _self.includeSamples : includeSamples // ignore: cast_nullable_to_non_nullable
 as List<String>?,excludeSamples: freezed == excludeSamples ? _self.excludeSamples : excludeSamples // ignore: cast_nullable_to_non_nullable
+as List<String>?,includeVariants: freezed == includeVariants ? _self.includeVariants : includeVariants // ignore: cast_nullable_to_non_nullable
+as List<String>?,excludeVariants: freezed == excludeVariants ? _self.excludeVariants : excludeVariants // ignore: cast_nullable_to_non_nullable
 as List<String>?,args: freezed == args ? _self.args : args // ignore: cast_nullable_to_non_nullable
 as Map<String, dynamic>?,
   ));
@@ -609,10 +613,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id, @JsonKey(name: 'include_samples')  List<String>? includeSamples, @JsonKey(name: 'exclude_samples')  List<String>? excludeSamples, @JsonKey(name: 'args')  Map<String, dynamic>? args)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id, @JsonKey(name: 'include_samples')  List<String>? includeSamples, @JsonKey(name: 'exclude_samples')  List<String>? excludeSamples, @JsonKey(name: 'include_variants')  List<String>? includeVariants, @JsonKey(name: 'exclude_variants')  List<String>? excludeVariants, @JsonKey(name: 'args')  Map<String, dynamic>? args)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _JobTask() when $default != null:
-return $default(_that.id,_that.includeSamples,_that.excludeSamples,_that.args);case _:
+return $default(_that.id,_that.includeSamples,_that.excludeSamples,_that.includeVariants,_that.excludeVariants,_that.args);case _:
   return orElse();
 
 }
@@ -630,10 +634,10 @@ return $default(_that.id,_that.includeSamples,_that.excludeSamples,_that.args);c
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id, @JsonKey(name: 'include_samples')  List<String>? includeSamples, @JsonKey(name: 'exclude_samples')  List<String>? excludeSamples, @JsonKey(name: 'args')  Map<String, dynamic>? args)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id, @JsonKey(name: 'include_samples')  List<String>? includeSamples, @JsonKey(name: 'exclude_samples')  List<String>? excludeSamples, @JsonKey(name: 'include_variants')  List<String>? includeVariants, @JsonKey(name: 'exclude_variants')  List<String>? excludeVariants, @JsonKey(name: 'args')  Map<String, dynamic>? args)  $default,) {final _that = this;
 switch (_that) {
 case _JobTask():
-return $default(_that.id,_that.includeSamples,_that.excludeSamples,_that.args);}
+return $default(_that.id,_that.includeSamples,_that.excludeSamples,_that.includeVariants,_that.excludeVariants,_that.args);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -647,10 +651,10 @@ return $default(_that.id,_that.includeSamples,_that.excludeSamples,_that.args);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id, @JsonKey(name: 'include_samples')  List<String>? includeSamples, @JsonKey(name: 'exclude_samples')  List<String>? excludeSamples, @JsonKey(name: 'args')  Map<String, dynamic>? args)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id, @JsonKey(name: 'include_samples')  List<String>? includeSamples, @JsonKey(name: 'exclude_samples')  List<String>? excludeSamples, @JsonKey(name: 'include_variants')  List<String>? includeVariants, @JsonKey(name: 'exclude_variants')  List<String>? excludeVariants, @JsonKey(name: 'args')  Map<String, dynamic>? args)?  $default,) {final _that = this;
 switch (_that) {
 case _JobTask() when $default != null:
-return $default(_that.id,_that.includeSamples,_that.excludeSamples,_that.args);case _:
+return $default(_that.id,_that.includeSamples,_that.excludeSamples,_that.includeVariants,_that.excludeVariants,_that.args);case _:
   return null;
 
 }
@@ -662,7 +666,7 @@ return $default(_that.id,_that.includeSamples,_that.excludeSamples,_that.args);c
 @JsonSerializable()
 
 class _JobTask implements JobTask {
-  const _JobTask({required this.id, @JsonKey(name: 'include_samples') final  List<String>? includeSamples, @JsonKey(name: 'exclude_samples') final  List<String>? excludeSamples, @JsonKey(name: 'args') final  Map<String, dynamic>? args}): _includeSamples = includeSamples,_excludeSamples = excludeSamples,_args = args;
+  const _JobTask({required this.id, @JsonKey(name: 'include_samples') final  List<String>? includeSamples, @JsonKey(name: 'exclude_samples') final  List<String>? excludeSamples, @JsonKey(name: 'include_variants') final  List<String>? includeVariants, @JsonKey(name: 'exclude_variants') final  List<String>? excludeVariants, @JsonKey(name: 'args') final  Map<String, dynamic>? args}): _includeSamples = includeSamples,_excludeSamples = excludeSamples,_includeVariants = includeVariants,_excludeVariants = excludeVariants,_args = args;
   factory _JobTask.fromJson(Map<String, dynamic> json) => _$JobTaskFromJson(json);
 
 /// Task identifier matching a task directory name in `tasks/`.
@@ -685,6 +689,28 @@ class _JobTask implements JobTask {
   final value = _excludeSamples;
   if (value == null) return null;
   if (_excludeSamples is EqualUnmodifiableListView) return _excludeSamples;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(value);
+}
+
+/// Only run these variant names for this task.
+ final  List<String>? _includeVariants;
+/// Only run these variant names for this task.
+@override@JsonKey(name: 'include_variants') List<String>? get includeVariants {
+  final value = _includeVariants;
+  if (value == null) return null;
+  if (_includeVariants is EqualUnmodifiableListView) return _includeVariants;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(value);
+}
+
+/// Exclude these variant names for this task.
+ final  List<String>? _excludeVariants;
+/// Exclude these variant names for this task.
+@override@JsonKey(name: 'exclude_variants') List<String>? get excludeVariants {
+  final value = _excludeVariants;
+  if (value == null) return null;
+  if (_excludeVariants is EqualUnmodifiableListView) return _excludeVariants;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(value);
 }
@@ -714,16 +740,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _JobTask&&(identical(other.id, id) || other.id == id)&&const DeepCollectionEquality().equals(other._includeSamples, _includeSamples)&&const DeepCollectionEquality().equals(other._excludeSamples, _excludeSamples)&&const DeepCollectionEquality().equals(other._args, _args));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _JobTask&&(identical(other.id, id) || other.id == id)&&const DeepCollectionEquality().equals(other._includeSamples, _includeSamples)&&const DeepCollectionEquality().equals(other._excludeSamples, _excludeSamples)&&const DeepCollectionEquality().equals(other._includeVariants, _includeVariants)&&const DeepCollectionEquality().equals(other._excludeVariants, _excludeVariants)&&const DeepCollectionEquality().equals(other._args, _args));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,const DeepCollectionEquality().hash(_includeSamples),const DeepCollectionEquality().hash(_excludeSamples),const DeepCollectionEquality().hash(_args));
+int get hashCode => Object.hash(runtimeType,id,const DeepCollectionEquality().hash(_includeSamples),const DeepCollectionEquality().hash(_excludeSamples),const DeepCollectionEquality().hash(_includeVariants),const DeepCollectionEquality().hash(_excludeVariants),const DeepCollectionEquality().hash(_args));
 
 @override
 String toString() {
-  return 'JobTask(id: $id, includeSamples: $includeSamples, excludeSamples: $excludeSamples, args: $args)';
+  return 'JobTask(id: $id, includeSamples: $includeSamples, excludeSamples: $excludeSamples, includeVariants: $includeVariants, excludeVariants: $excludeVariants, args: $args)';
 }
 
 
@@ -734,7 +760,7 @@ abstract mixin class _$JobTaskCopyWith<$Res> implements $JobTaskCopyWith<$Res> {
   factory _$JobTaskCopyWith(_JobTask value, $Res Function(_JobTask) _then) = __$JobTaskCopyWithImpl;
 @override @useResult
 $Res call({
- String id,@JsonKey(name: 'include_samples') List<String>? includeSamples,@JsonKey(name: 'exclude_samples') List<String>? excludeSamples,@JsonKey(name: 'args') Map<String, dynamic>? args
+ String id,@JsonKey(name: 'include_samples') List<String>? includeSamples,@JsonKey(name: 'exclude_samples') List<String>? excludeSamples,@JsonKey(name: 'include_variants') List<String>? includeVariants,@JsonKey(name: 'exclude_variants') List<String>? excludeVariants,@JsonKey(name: 'args') Map<String, dynamic>? args
 });
 
 
@@ -751,11 +777,13 @@ class __$JobTaskCopyWithImpl<$Res>
 
 /// Create a copy of JobTask
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? includeSamples = freezed,Object? excludeSamples = freezed,Object? args = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? includeSamples = freezed,Object? excludeSamples = freezed,Object? includeVariants = freezed,Object? excludeVariants = freezed,Object? args = freezed,}) {
   return _then(_JobTask(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,includeSamples: freezed == includeSamples ? _self._includeSamples : includeSamples // ignore: cast_nullable_to_non_nullable
 as List<String>?,excludeSamples: freezed == excludeSamples ? _self._excludeSamples : excludeSamples // ignore: cast_nullable_to_non_nullable
+as List<String>?,includeVariants: freezed == includeVariants ? _self._includeVariants : includeVariants // ignore: cast_nullable_to_non_nullable
+as List<String>?,excludeVariants: freezed == excludeVariants ? _self._excludeVariants : excludeVariants // ignore: cast_nullable_to_non_nullable
 as List<String>?,args: freezed == args ? _self._args : args // ignore: cast_nullable_to_non_nullable
 as Map<String, dynamic>?,
   ));

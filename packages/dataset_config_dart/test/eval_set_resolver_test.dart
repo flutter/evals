@@ -10,12 +10,10 @@ void main() {
     String func = 'question_answer',
     List<Sample>? samples,
     Variant? variant,
-    List<String>? allowedVariants,
     String? systemMessage,
     String? model,
     int? timeLimit,
     int? messageLimit,
-    TagFilter? variantFilters,
     Map<String, dynamic>? metadata,
   }) {
     return ParsedTask(
@@ -32,12 +30,10 @@ void main() {
             ),
           ],
       variant: variant ?? const Variant(),
-      allowedVariants: allowedVariants,
       systemMessage: systemMessage,
       model: model,
       timeLimit: timeLimit,
       messageLimit: messageLimit,
-      variantFilters: variantFilters,
       metadata: metadata,
     );
   }
@@ -242,14 +238,20 @@ void main() {
       expect(results.first.sandbox, isNull);
     });
 
-    test('respects allowedVariants on tasks', () {
+    test('respects includeVariants on job tasks', () {
       final results = resolver.resolve(
         [
-          makeTask(allowedVariants: ['baseline']),
+          makeTask(),
         ],
         makeJob(
           models: ['m'],
           variants: {'baseline': {}, 'full': {}},
+          tasks: {
+            'test_task': const JobTask(
+              id: 'test_task',
+              includeVariants: ['baseline'],
+            ),
+          },
         ),
         '/tmp/dataset',
       );
@@ -373,18 +375,20 @@ void main() {
       expect(dataset.name, 'my_eval:baseline');
     });
 
-    test('variant_filters restricts effective variants', () {
+    test('excludeVariants restricts effective variants', () {
       final results = resolver.resolve(
         [
-          makeTask(
-            variantFilters: const TagFilter(
-              includeTags: ['baseline'],
-            ),
-          ),
+          makeTask(),
         ],
         makeJob(
           models: ['m'],
           variants: {'baseline': {}, 'full': {}, 'mcp_only': {}},
+          tasks: {
+            'test_task': const JobTask(
+              id: 'test_task',
+              excludeVariants: ['full', 'mcp_only'],
+            ),
+          },
         ),
         '/tmp/dataset',
       );

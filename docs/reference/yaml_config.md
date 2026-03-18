@@ -72,10 +72,10 @@ Job files define runtime settings for an evaluation run, including sandbox confi
   - Y
   - `variants`
   - `variants`
-  - Named variant definitions (keys are names, values are config maps)
+  - Named variant definitions (keys are names, values are config maps). Can also be a list of paths to external variant files.
 * - `variants`\
     &nbsp;&nbsp;`.<name>`\
-    &nbsp;&nbsp;`.context_files`
+    &nbsp;&nbsp;`.files`
   - list
   - Y
   -
@@ -88,7 +88,7 @@ Job files define runtime settings for an evaluation run, including sandbox confi
   - Y
   -
   -
-  - MCP server identifiers
+  - MCP server configurations (list of objects with `name`, `command`, `args`, `env`, `transport`; or a `ref:` string to a Python package)
 * - `variants`\
     &nbsp;&nbsp;`.<name>`\
     &nbsp;&nbsp;`.skills`
@@ -99,12 +99,12 @@ Job files define runtime settings for an evaluation run, including sandbox confi
   - Paths or glob patterns to skill directories
 * - `variants`\
     &nbsp;&nbsp;`.<name>`\
-    &nbsp;&nbsp;`.flutter_channel`
-  - string
+    &nbsp;&nbsp;`.task_parameters`
+  - object
   - Y
   -
   -
-  - Flutter SDK channel (`stable`, `beta`, `main`)
+  - Optional parameters merged into the task config dict at runtime
 * - `task_filters`
   - object
   - Y
@@ -167,6 +167,22 @@ Job files define runtime settings for an evaluation run, including sandbox confi
   - `JobTask.args`
   - `JobTask.args`
   - Per-task argument overrides passed to the task function
+* - `tasks`\\
+    &nbsp;&nbsp;`.<task_id>`\\
+    &nbsp;&nbsp;`.include-variants`
+  - list
+  - Y
+  - `JobTask.includeVariants`
+  - `JobTask.include_variants`
+  - Only run these variant names for this task
+* - `tasks`\\
+    &nbsp;&nbsp;`.<task_id>`\\
+    &nbsp;&nbsp;`.exclude-variants`
+  - list
+  - Y
+  - `JobTask.excludeVariants`
+  - `JobTask.exclude_variants`
+  - Exclude these variant names for this task
 * - `save_examples`
   - bool
   - Y
@@ -178,350 +194,7 @@ Job files define runtime settings for an evaluation run, including sandbox confi
   - Y
   - `inspectEvalArguments`
   - `inspect_eval_arguments`
-  - All Inspect AI `eval_set()` parameters. See sub-fields below.
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.retry_attempts`
-  - int
-  - Y
-  -
-  -
-  - Max retry attempts before giving up
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.max_retries`
-  - int
-  - Y
-  -
-  -
-  - Max retry attempts for failed samples
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.retry_wait`
-  - float
-  - Y
-  -
-  -
-  - Seconds between retries (exponential backoff)
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.retry_connections`
-  - float
-  - Y
-  -
-  -
-  - Reduce `max_connections` at this rate per retry
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.retry_cleanup`
-  - bool
-  - Y
-  -
-  -
-  - Cleanup failed log files after retries
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.fail_on_error`
-  - float
-  - Y
-  -
-  -
-  - Fail if error proportion exceeds threshold (`0.0–1.0`)
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.continue_on_fail`
-  - bool
-  - Y
-  -
-  -
-  - Continue running even if `fail_on_error` condition is met
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.retry_on_error`
-  - int
-  - Y
-  -
-  -
-  - Retry samples on error (per-sample)
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.debug_errors`
-  - bool
-  - Y
-  -
-  -
-  - Raise task errors for debugging
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.max_samples`
-  - int
-  - Y
-  -
-  -
-  - Max concurrent samples per task
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.max_tasks`
-  - int
-  - Y
-  -
-  -
-  - Max tasks to run in parallel
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.max_subprocesses`
-  - int
-  - Y
-  -
-  -
-  - Max subprocesses in parallel
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.max_sandboxes`
-  - int
-  - Y
-  -
-  -
-  - Max sandboxes (per-provider) in parallel
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.log_level`
-  - string
-  - Y
-  -
-  -
-  - Console log level (`debug`, `info`, `warning`, `error`)
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.log_level_transcript`
-  - string
-  - Y
-  -
-  -
-  - Log file level
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.log_format`
-  - string
-  - Y
-  -
-  -
-  - Log format (`eval` or `json`)
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.log_samples`
-  - bool
-  - Y
-  -
-  -
-  - Log detailed samples and scores
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.log_realtime`
-  - bool
-  - Y
-  -
-  -
-  - Log events in realtime
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.log_images`
-  - bool
-  - Y
-  -
-  -
-  - Log base64-encoded images
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.log_buffer`
-  - int
-  - Y
-  -
-  -
-  - Samples to buffer before log write
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.log_shared`
-  - int
-  - Y
-  -
-  -
-  - Sync sample events for realtime viewing
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.log_dir_allow_dirty`
-  - bool
-  - Y
-  -
-  -
-  - Allow log dir with unrelated logs
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.model_base_url`
-  - string
-  - Y
-  -
-  -
-  - Base URL for the model API
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.model_args`
-  - object
-  - Y
-  -
-  -
-  - Model creation arguments
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.model_roles`
-  - object
-  - Y
-  -
-  -
-  - Named roles for `get_model()`
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.task_args`
-  - object
-  - Y
-  -
-  -
-  - Task creation arguments
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.model_cost_config`
-  - object
-  - Y
-  -
-  -
-  - Model prices for cost tracking
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.limit`
-  - int/list
-  - Y
-  -
-  -
-  - Limit samples (count or `[start, end]` range)
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.sample_id`
-  - string/list
-  - Y
-  -
-  -
-  - Evaluate specific sample(s)
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.sample_shuffle`
-  - bool/int
-  - Y
-  -
-  -
-  - Shuffle samples (pass seed for deterministic order)
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.epochs`
-  - int/object
-  - Y
-  -
-  -
-  - Repeat samples and optional score reducer
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.message_limit`
-  - int
-  - Y
-  -
-  -
-  - Max messages per sample
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.token_limit`
-  - int
-  - Y
-  -
-  -
-  - Max tokens per sample
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.time_limit`
-  - int
-  - Y
-  -
-  -
-  - Max clock time (seconds) per sample
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.working_limit`
-  - int
-  - Y
-  -
-  -
-  - Max working time (seconds) per sample
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.cost_limit`
-  - float
-  - Y
-  -
-  -
-  - Max cost (dollars) per sample
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.tags`
-  - list
-  - Y
-  -
-  -
-  - Tags for this evaluation run
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.metadata`
-  - object
-  - Y
-  -
-  -
-  - Metadata for this evaluation run
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.trace`
-  - bool
-  - Y
-  -
-  -
-  - Trace model interactions to terminal
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.display`
-  - string
-  - Y
-  -
-  -
-  - Task display type (default: `full`)
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.score`
-  - bool
-  - Y
-  -
-  -
-  - Score output (default: `true`)
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.approval`
-  - string/object
-  - Y
-  -
-  -
-  - Tool use approval policies
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.solver`
-  - string/object
-  - Y
-  -
-  -
-  - Alternative solver(s)
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.sandbox_cleanup`
-  - bool
-  - Y
-  -
-  -
-  - Cleanup sandbox after task
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.bundle_dir`
-  - string
-  - Y
-  -
-  -
-  - Directory for bundled logs + viewer
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.bundle_overwrite`
-  - bool
-  - Y
-  -
-  -
-  - Overwrite files in `bundle_dir`
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.eval_set_id`
-  - string
-  - Y
-  -
-  -
-  - Custom ID for the eval set
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.eval_set_overrides`
-  - object
-  - Y
-  -
-  -
-  - Additional `eval_set()` kwargs not covered by named fields above
-* - `inspect_eval_arguments`\
-    &nbsp;&nbsp;`.task_defaults`
-  - object
-  - Y
-  -
-  -
-  - Default `Task` kwargs applied to every task in this job
+  - Pass-through dict of any valid Inspect AI `eval_set()` kwargs (e.g. `retry_attempts`, `log_level`, `max_tasks`, `tags`, `task_defaults`, `eval_set_overrides`, etc.). See [Inspect AI docs](https://inspect.ai-safety-institute.org.uk/) for the full list of supported parameters.
 ```
 
 ## Task
@@ -578,18 +251,6 @@ Task-level Inspect AI `Task` parameters (model, limits, sandbox, etc.) are neste
   -
   -
   - Glob patterns for external sample YAML files (relative to task dir)
-* - `allowed_variants`
-  - list
-  - Y
-  -
-  -
-  - Whitelist of variant names this task accepts
-* - `variant_filters`
-  - object
-  - Y
-  -
-  -
-  - Tag-based variant filter (same schema as job-level `task_filters`)
 * - `system_message`
   - string
   - Y
@@ -737,7 +398,6 @@ Task-level Inspect AI `Task` parameters (model, limits, sandbox, etc.) are neste
   - `earlyStopping`
   - `early_stopping`
   - Early stopping callbacks
-```
 ```
 
 ## Sample

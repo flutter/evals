@@ -167,7 +167,6 @@ void main() {
           'id': 'full_task',
           'func': 'my_func',
           'system_message': 'Be helpful',
-          'allowed_variants': ['baseline', 'full'],
           'inspect_task_args': {
             'model': 'gemini-pro',
             'config': {'temperature': 0.5},
@@ -187,7 +186,6 @@ void main() {
 
       final task = tasks.first;
       expect(task.systemMessage, 'Be helpful');
-      expect(task.allowedVariants, ['baseline', 'full']);
       expect(task.model, 'gemini-pro');
       expect(task.config, {'temperature': 0.5});
       expect(task.modelRoles, {'grader': 'gpt-4o'});

@@ -17,12 +17,13 @@ void main() {
       expect(result, contains('target: |'));
     });
 
-    test('includes variants when provided', () {
+    test('does not include variants (variants are job-level)', () {
       final result = taskTemplate(
         taskFunc: 'flutter_code_gen',
         variants: ['baseline', 'mcp_only'],
       );
-      expect(result, contains('variants: [baseline, mcp_only]'));
+      // Variants are now configured at the job level, not task level
+      expect(result, isNot(contains('variants:')));
     });
 
     test('omits variants line when list is empty', () {
