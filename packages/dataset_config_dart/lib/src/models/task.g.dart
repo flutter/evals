@@ -10,6 +10,9 @@ _Task _$TaskFromJson(Map<String, dynamic> json) => _Task(
   dataset: json['dataset'] == null
       ? null
       : Dataset.fromJson(json['dataset'] as Map<String, dynamic>),
+  files: (json['files'] as Map<String, dynamic>?)?.map(
+    (k, e) => MapEntry(k, e as String),
+  ),
   setup: json['setup'],
   solver: json['solver'],
   cleanup: json['cleanup'],
@@ -42,6 +45,7 @@ _Task _$TaskFromJson(Map<String, dynamic> json) => _Task(
 
 Map<String, dynamic> _$TaskToJson(_Task instance) => <String, dynamic>{
   'dataset': instance.dataset,
+  'files': instance.files,
   'setup': instance.setup,
   'solver': instance.solver,
   'cleanup': instance.cleanup,

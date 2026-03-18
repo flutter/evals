@@ -31,6 +31,9 @@ class Task(BaseModel):
     dataset: Dataset | None = None
     """Inline dataset with samples."""
 
+    files: dict[str, str] | None = None
+    """Files to copy into sandbox (inherited by all samples)."""
+
     setup: Any | None = None
     """Setup step (always run even when the main solver is replaced)."""
 

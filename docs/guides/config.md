@@ -1,6 +1,12 @@
-# Config guide
+# Configuring jobs
 
-Evals uses a layered YAML configuration system. You define **what** to evaluate (tasks and samples), **how** to run it (jobs), and **where** code executes (sandboxes). The CLI resolves these files into a single manifest and hands it to the Python runner — so most of the time you're just editing YAML.
+
+
+Evals consists of two broad pieces: the framework (InspectAI-based Python framework)
+
+define **what** to evaluate (tasks and samples), **how** to run it (jobs), and **where** code executes (sandboxes). The CLI resolves these files into a single manifest and hands it to the Python runner — so most of the time you're just editing YAML.
+
+
 
 This page walks through the main concepts and how they connect.
 

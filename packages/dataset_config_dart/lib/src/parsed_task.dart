@@ -24,6 +24,12 @@ class ParsedTask {
   /// Pass-through dict for sandbox plugin configuration.
   final Map<String, dynamic>? sandboxParameters;
 
+  /// Task-level files to copy into sandbox.
+  final Map<String, String>? taskFiles;
+
+  /// Task-level setup script.
+  final String? taskSetup;
+
   // ------------------------------------------------------------------
   // Task-level settings (from task.yaml)
   // ------------------------------------------------------------------
@@ -89,6 +95,8 @@ class ParsedTask {
     this.saveExamples = false,
     this.examplesDir,
     this.sandboxParameters,
+    this.taskFiles,
+    this.taskSetup,
     this.model,
     this.config,
     this.modelRoles,
@@ -119,6 +127,8 @@ class ParsedTask {
     bool? saveExamples,
     String? examplesDir,
     Map<String, dynamic>? sandboxParameters,
+    Map<String, String>? taskFiles,
+    String? taskSetup,
     String? model,
     Map<String, dynamic>? config,
     Map<String, String>? modelRoles,
@@ -147,6 +157,8 @@ class ParsedTask {
       saveExamples: saveExamples ?? this.saveExamples,
       examplesDir: examplesDir ?? this.examplesDir,
       sandboxParameters: sandboxParameters ?? this.sandboxParameters,
+      taskFiles: taskFiles ?? this.taskFiles,
+      taskSetup: taskSetup ?? this.taskSetup,
       model: model ?? this.model,
       config: config ?? this.config,
       modelRoles: modelRoles ?? this.modelRoles,

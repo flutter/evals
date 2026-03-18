@@ -165,7 +165,6 @@ def _build_eval_set(
     inspect_tasks: list[Task] = []
     sandbox_cfg = job.sandbox or {}
     sandbox_type_str = sandbox_cfg.get("environment", "local")
-    is_container = sandbox_type_str and sandbox_type_str != "local"
     eval_args = job.inspect_eval_arguments or {}
     task_defaults = eval_args.get("task_defaults") or {}
 
@@ -181,21 +180,13 @@ def _build_eval_set(
                     enriched["examples_dir"] = tc.examples_dir
                     enriched["task_variant"] = f"{tc.id}:{tc.variant.name}"
 
-            # Build files + setup for sandbox provisioning
-            files = dict(sample.files) if sample.files else None
-            setup = sample.setup
-            workspace = (sample.metadata or {}).get("workspace")
-            workspace_git = (sample.metadata or {}).get("workspace_git")
-            workspace_git_ref = (sample.metadata or {}).get("workspace_git_ref")
+            # Stack files: task-level + sample-level (sample wins on conflict)
+            files: dict[str, str] | None = None
+            if tc.task_files is not None or sample.files is not None:
+                files = {**(tc.task_files or {}), **(sample.files or {})}
 
-            if workspace is not None and is_container:
-                files = {**(files or {}), "/workspace": workspace}
-                setup = setup or "cd /workspace && flutter pub get"
-                enriched["workspace"] = "/workspace"
-            if workspace_git is not None:
-                enriched["workspace_git"] = workspace_git
-                if workspace_git_ref is not None:
-                    enriched["workspace_git_ref"] = workspace_git_ref
+            # Setup: sample overrides task
+            setup = sample.setup or tc.task_setup
 
             inspect_samples.append(
                 Sample(

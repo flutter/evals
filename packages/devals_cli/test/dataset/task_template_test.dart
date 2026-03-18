@@ -53,83 +53,58 @@ void main() {
       expect(result, isNot(contains('system_message:')));
     });
 
-    group('workspace section', () {
-      test('generates git workspace', () {
-        final result = taskTemplate(
-          taskFunc: 'flutter_bug_fix',
-          workspaceType: WorkspaceType.git,
-          workspaceValue: 'https://github.com/example/repo',
-        );
-        expect(result, contains('workspace:'));
-        expect(result, contains('git: https://github.com/example/repo'));
-      });
-
-      test('generates path workspace', () {
+    group('files section', () {
+      test('generates path files with workspace value', () {
         final result = taskTemplate(
           taskFunc: 'flutter_bug_fix',
           workspaceType: WorkspaceType.path,
           workspaceValue: './my_project',
         );
-        expect(result, contains('workspace:'));
-        expect(result, contains('path: ./my_project'));
+        expect(result, contains('files:'));
+        expect(result, contains('/workspace: ./my_project'));
+        expect(result, contains('setup:'));
       });
 
-      test('generates template workspace', () {
-        final result = taskTemplate(
-          taskFunc: 'flutter_code_gen',
-          workspaceType: WorkspaceType.template,
-          templatePackage: TemplatePackage.flutterApp,
-        );
-        expect(result, contains('workspace:'));
-        expect(result, contains('template: flutter_app'));
-      });
-
-      test('generates create workspace as path', () {
-        final result = taskTemplate(
-          taskFunc: 'flutter_bug_fix',
-          workspaceType: WorkspaceType.create,
-        );
-        expect(result, contains('workspace:'));
-        expect(result, contains('path: ./project'));
-      });
-
-      test('generates commented workspace section when type is null', () {
-        final result = taskTemplate(taskFunc: 'question_answer');
-        expect(result, contains('# Workspace configuration'));
-        expect(result, contains('#   template: flutter_app'));
-      });
-
-      test('generates git with default URL when workspaceValue is null', () {
-        final result = taskTemplate(
-          taskFunc: 'flutter_bug_fix',
-          workspaceType: WorkspaceType.git,
-        );
-        expect(result, contains('git: <GIT_REPOSITORY_URL>'));
-      });
-
-      test('generates path with default when workspaceValue is null', () {
+      test('generates path files with default when value is null', () {
         final result = taskTemplate(
           taskFunc: 'flutter_bug_fix',
           workspaceType: WorkspaceType.path,
         );
-        expect(result, contains('path: ./project'));
+        expect(result, contains('files:'));
+        expect(result, contains('/workspace: ./project'));
       });
 
-      test(
-        'generates template with placeholder when templatePackage is null',
-        () {
-          final result = taskTemplate(
-            taskFunc: 'flutter_code_gen',
-            workspaceType: WorkspaceType.template,
-          );
-          expect(
-            result,
-            contains(
-              'template: <flutter_app OR jaspr_app OR dart_package>',
-            ),
-          );
-        },
-      );
+      test('generates create workspace as files', () {
+        final result = taskTemplate(
+          taskFunc: 'flutter_bug_fix',
+          workspaceType: WorkspaceType.create,
+        );
+        expect(result, contains('files:'));
+        expect(result, contains('/workspace: ./project'));
+        expect(result, contains('setup:'));
+      });
+
+      test('generates commented files section when type is null', () {
+        final result = taskTemplate(taskFunc: 'question_answer');
+        expect(result, contains('# files:'));
+        expect(result, contains('#   /workspace: ./project'));
+      });
+
+      test('git type falls through to commented section', () {
+        final result = taskTemplate(
+          taskFunc: 'flutter_bug_fix',
+          workspaceType: WorkspaceType.git,
+        );
+        expect(result, contains('# files:'));
+      });
+
+      test('template type falls through to commented section', () {
+        final result = taskTemplate(
+          taskFunc: 'flutter_code_gen',
+          workspaceType: WorkspaceType.template,
+        );
+        expect(result, contains('# files:'));
+      });
     });
   });
 }

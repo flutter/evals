@@ -55,6 +55,9 @@ class ParsedTask:
         version: Any | None = None,
         metadata: dict[str, Any] | None = None,
         sandbox_parameters: dict[str, Any] | None = None,
+        # Task-level files and setup
+        task_files: dict[str, str] | None = None,
+        task_setup: str | None = None,
     ):
         self.id = id
         self.func = func
@@ -82,6 +85,8 @@ class ParsedTask:
         self.version = version
         self.metadata = metadata
         self.sandbox_parameters = sandbox_parameters
+        self.task_files = task_files
+        self.task_setup = task_setup
 
     _UNSET: Any = object()
 
@@ -97,6 +102,8 @@ class ParsedTask:
         save_examples: bool | None = _UNSET,
         examples_dir: str | None = _UNSET,
         sandbox_parameters: dict[str, Any] | None = _UNSET,
+        task_files: dict[str, str] | None = _UNSET,
+        task_setup: str | None = _UNSET,
         model: str | None = _UNSET,
         config: dict[str, Any] | None = _UNSET,
         model_roles: dict[str, str] | None = _UNSET,
@@ -127,6 +134,8 @@ class ParsedTask:
             save_examples=self.save_examples if save_examples is _U else save_examples,  # type: ignore[arg-type]
             examples_dir=self.examples_dir if examples_dir is _U else examples_dir,
             sandbox_parameters=self.sandbox_parameters if sandbox_parameters is _U else sandbox_parameters,
+            task_files=self.task_files if task_files is _U else task_files,
+            task_setup=self.task_setup if task_setup is _U else task_setup,
             model=self.model if model is _U else model,
             config=self.config if config is _U else config,
             model_roles=self.model_roles if model_roles is _U else model_roles,
@@ -180,32 +189,8 @@ def _resolve_log_dir(logs_dir: str, base_dir: str) -> str:
     return os.path.normpath(os.path.join(base_dir, logs_dir, timestamp))
 
 
-def _pre_resolve_to_abs(resource: Any, task_dir: str) -> Any:
-    """Pre-resolve a task-level resource to an absolute path."""
-    if resource is None:
-        return None
-    if isinstance(resource, str):
-        if resource.startswith("./") or resource.startswith("../") or resource.startswith("/"):
-            return {"path": os.path.normpath(os.path.join(task_dir, resource))}
-        return resource
-    if isinstance(resource, dict):
-        if "path" in resource:
-            return {**resource, "path": os.path.normpath(os.path.join(task_dir, resource["path"]))}
-        return resource
-    return resource
 
 
-def _resolve_resource_path(resource: Any, base_dir: str) -> str | None:
-    """Resolve a workspace/tests resource reference to an absolute path."""
-    if resource is None:
-        return None
-    if isinstance(resource, str):
-        if resource.startswith("./") or resource.startswith("../") or resource.startswith("/"):
-            return os.path.normpath(os.path.join(base_dir, resource))
-        return None
-    if isinstance(resource, dict) and "path" in resource:
-        return os.path.normpath(os.path.join(base_dir, resource["path"]))
-    return None
 
 
 # ---------------------------------------------------------------------------
@@ -239,12 +224,19 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
     task_id = data.get("id") or os.path.basename(task_dir)
     func_name = data.get("func") or task_id
 
-    task_workspace_raw = data.get("workspace")
-    task_tests_raw = data.get("tests")
     system_message = data.get("system_message")
 
-    task_workspace = _pre_resolve_to_abs(task_workspace_raw, task_dir)
-    task_tests = _pre_resolve_to_abs(task_tests_raw, task_dir)
+    # Parse task-level files and setup
+    task_files = data.get("files")
+    if isinstance(task_files, dict):
+        task_files = {str(k): str(v) for k, v in task_files.items()}
+    else:
+        task_files = None
+    task_setup = data.get("setup")
+    if isinstance(task_setup, str):
+        pass  # already a string
+    else:
+        task_setup = None
 
     # Parse samples section (optional)
     samples_raw = data.get("samples")
@@ -256,7 +248,7 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
             f"'paths' keys, got {type(samples_raw).__name__}"
         )
     else:
-        samples = _load_samples_section(samples_raw, dataset_root, task_workspace, task_tests, task_dir)
+        samples = _load_samples_section(samples_raw, dataset_root, task_files, task_dir)
 
     # Task-level Inspect AI args are nested under inspect_task_args
     task_args = data.get("inspect_task_args") or {}
@@ -286,6 +278,8 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
             version=data.get("version"),
             metadata=data.get("metadata") if isinstance(data.get("metadata"), dict) else None,
             sandbox_parameters=data.get("sandbox_parameters") if isinstance(data.get("sandbox_parameters"), dict) else None,
+            task_files=task_files,
+            task_setup=task_setup,
         )
     ]
 
@@ -298,8 +292,7 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
 def _load_samples_section(
     samples_map: dict[str, Any],
     dataset_root: str,
-    task_workspace: Any,
-    task_tests: Any,
+    task_files: dict[str, str] | None,
     task_dir: str,
 ) -> list[Sample]:
     """Load samples from 'paths' and 'inline' subsections."""
@@ -318,12 +311,12 @@ def _load_samples_section(
         if not matched:
             raise FileNotFoundError(f"No sample files matched pattern: {pattern}")
 
-        samples.extend(_load_samples_from_files(matched, dataset_root, task_workspace, task_tests))
+        samples.extend(_load_samples_from_files(matched, dataset_root, task_files))
 
     for defn in inline_defs:
         if not defn:
             continue
-        samples.append(_resolve_sample(defn, task_dir, dataset_root, task_workspace, task_tests))
+        samples.append(_resolve_sample(defn, task_dir, dataset_root, task_files))
 
     return samples
 
@@ -331,8 +324,7 @@ def _load_samples_section(
 def _load_samples_from_files(
     sample_files: list[str],
     dataset_root: str,
-    task_workspace: Any,
-    task_tests: Any,
+    task_files: dict[str, str] | None,
 ) -> list[Sample]:
     """Load samples from external YAML files."""
     samples: list[Sample] = []
@@ -354,7 +346,7 @@ def _load_samples_from_files(
             data = yaml.safe_load(doc)
             if isinstance(data, dict):
                 samples.append(
-                    _resolve_sample(data, sample_dir, dataset_root, task_workspace, task_tests)
+                    _resolve_sample(data, sample_dir, dataset_root, task_files)
                 )
 
     return samples
@@ -364,8 +356,7 @@ def _resolve_sample(
     doc: dict[str, Any],
     base_dir: str,
     dataset_root: str,
-    task_workspace: Any,
-    task_tests: Any,
+    task_files: dict[str, str] | None,
 ) -> Sample:
     """Resolve a single sample dict into a Sample."""
     for field in ("id", "input", "target"):
@@ -376,29 +367,6 @@ def _resolve_sample(
 
     # Read metadata fields from the metadata dict
     meta_raw: dict[str, Any] = doc.get("metadata") or {}
-
-    sample_workspace = meta_raw.get("workspace")
-    sample_tests = meta_raw.get("tests")
-
-    effective_workspace = sample_workspace if sample_workspace is not None else task_workspace
-
-    workspace = None
-    workspace_git = None
-    workspace_git_ref = None
-
-    if effective_workspace is not None:
-        if isinstance(effective_workspace, dict) and "git" in effective_workspace:
-            workspace_git = effective_workspace.get("git")
-            workspace_git_ref = effective_workspace.get("ref")
-        else:
-            resolve_dir = base_dir if sample_workspace is not None else dataset_root
-            workspace = _resolve_resource_path(effective_workspace, resolve_dir)
-
-    tests = None
-    if sample_tests is not None:
-        tests = _resolve_resource_path(sample_tests, base_dir)
-    elif task_tests is not None:
-        tests = _resolve_resource_path(task_tests, dataset_root)
 
     # Normalize tags from metadata
     raw_tags = meta_raw.get("tags")
@@ -413,14 +381,18 @@ def _resolve_sample(
     meta: dict[str, Any] = {**meta_raw}
     meta["difficulty"] = meta_raw.get("difficulty", "medium")
     meta["tags"] = tags
-    if workspace is not None:
-        meta["workspace"] = workspace
-    if tests is not None:
-        meta["tests"] = tests
-    if workspace_git is not None:
-        meta["workspace_git"] = workspace_git
-    if workspace_git_ref is not None:
-        meta["workspace_git_ref"] = workspace_git_ref
+
+    # Parse sample-level files
+    sample_files = doc.get("files")
+    if isinstance(sample_files, dict):
+        sample_files = {str(k): str(v) for k, v in sample_files.items()}
+    else:
+        sample_files = None
+
+    # Stack files: task-level + sample-level (sample wins on conflict)
+    merged_files: dict[str, str] | None = None
+    if task_files is not None or sample_files is not None:
+        merged_files = {**(task_files or {}), **(sample_files or {})}
 
     return Sample(
         id=doc["id"],
@@ -429,7 +401,7 @@ def _resolve_sample(
         metadata=meta,
         choices=doc.get("choices"),
         sandbox=doc.get("sandbox"),
-        files=doc.get("files"),
+        files=merged_files,
         setup=doc.get("setup"),
     )
 

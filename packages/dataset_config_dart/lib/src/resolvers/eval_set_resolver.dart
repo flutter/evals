@@ -105,8 +105,6 @@ class EvalSetResolver {
     final inspectTasks = <Task>[];
     final sandboxCfg = job.sandbox ?? <String, dynamic>{};
     final sandboxTypeStr = (sandboxCfg['environment'] as String?) ?? 'local';
-    final isContainer =
-        sandboxTypeStr.isNotEmpty && sandboxTypeStr != 'local';
 
     // Parse task_defaults from inspect_eval_arguments
     final evalArgs = job.inspectEvalArguments ?? <String, dynamic>{};
@@ -126,25 +124,14 @@ class EvalSetResolver {
           }
         }
 
-        // Build files + setup for sandbox provisioning
-        Map<String, String>? files = sample.files;
-        String? setup = sample.setup;
-        final workspace = sample.metadata?['workspace'] as String?;
-        final workspaceGit = sample.metadata?['workspace_git'] as String?;
-        final workspaceGitRef =
-            sample.metadata?['workspace_git_ref'] as String?;
+        // Stack files: task-level + sample-level (sample wins on conflict)
+        Map<String, String>? files;
+        if (tc.taskFiles != null || sample.files != null) {
+          files = {...?tc.taskFiles, ...?sample.files};
+        }
 
-        if (workspace != null && isContainer) {
-          files = {...?files, '/workspace': workspace};
-          setup ??= 'cd /workspace && flutter pub get';
-          enriched['workspace'] = '/workspace';
-        }
-        if (workspaceGit != null) {
-          enriched['workspace_git'] = workspaceGit;
-          if (workspaceGitRef != null) {
-            enriched['workspace_git_ref'] = workspaceGitRef;
-          }
-        }
+        // Setup: sample overrides task
+        final setup = sample.setup ?? tc.taskSetup;
 
         inspectSamples.add(
           Sample(

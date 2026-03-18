@@ -12,7 +12,7 @@ String taskTemplate({
   List<String> variants = const [],
   String? systemMessage,
 }) {
-  final workspaceSection = _buildTaskWorkspaceSection(
+  final filesSection = _buildTaskFilesSection(
     workspaceType,
     templatePackage: templatePackage,
     workspaceValue: workspaceValue,
@@ -29,7 +29,7 @@ String taskTemplate({
 # Task configuration
 # See docs/configuration_reference.md for full schema reference.
 func: $taskFunc
-$variantsLine$systemMessageBlock$workspaceSection
+$variantsLine$systemMessageBlock$filesSection
 samples:
   inline:
     - id: sample_1
@@ -41,43 +41,31 @@ samples:
 ''';
 }
 
-/// Builds the workspace section for a task-level definition.
-String _buildTaskWorkspaceSection(
+/// Builds the files/setup section for a task-level definition.
+String _buildTaskFilesSection(
   WorkspaceType? workspaceType, {
   TemplatePackage? templatePackage,
   String? workspaceValue,
 }) {
   return switch (workspaceType) {
-    WorkspaceType.git =>
-      '''
-workspace:
-  git: ${workspaceValue ?? '<GIT_REPOSITORY_URL>'}
-  # ref: <BRANCH_TAG_OR_COMMIT>  # Optional
-''',
     WorkspaceType.path =>
       '''
-workspace:
-  path: ${workspaceValue ?? './project'}
-''',
-    WorkspaceType.template =>
-      '''
-workspace:
-  template: ${templatePackage?.yamlValue ?? '<flutter_app OR jaspr_app OR dart_package>'}
+files:
+  /workspace: ${workspaceValue ?? './project'}
+setup: "cd /workspace && flutter pub get"
 ''',
     WorkspaceType.create =>
       '''
-workspace:
-  path: ./project
+files:
+  /workspace: ./project
+setup: "cd /workspace && flutter pub get"
 ''',
     _ =>
       '''
-# Workspace configuration (uncomment one):
-# workspace:
-#   template: flutter_app  # OR dart_package OR jaspr_app
-# workspace:
-#   path: ./project
-# workspace:
-#   git: <REPOSITORY_URL>
+# Files to copy into the sandbox (uncomment as needed):
+# files:
+#   /workspace: ./project
+# setup: "cd /workspace && flutter pub get"
 ''',
   };
 }

@@ -52,13 +52,11 @@ class YamlParser extends Parser {
     final taskId = (data['id'] as String?) ?? p.basename(taskDir);
     final func = (data['func'] as String?) ?? taskId;
 
-    final taskWorkspaceRaw = data['workspace'];
-    final taskTestsRaw = data['tests'];
     final systemMessage = data['system_message'] as String?;
 
-    // Pre-resolve task-level paths to absolute
-    final taskWorkspace = _preResolveToAbs(taskWorkspaceRaw, taskDir);
-    final taskTests = _preResolveToAbs(taskTestsRaw, taskDir);
+    // Parse task-level files and setup
+    final taskFiles = _asStringMap(data['files']);
+    final taskSetup = data['setup'] as String?;
 
     // Parse samples section
     final samplesRaw = data['samples'];
@@ -72,8 +70,7 @@ class YamlParser extends Parser {
     final samples = _loadSamplesSection(
       samplesMap,
       datasetRoot,
-      taskWorkspace,
-      taskTests,
+      taskFiles,
       taskDir,
     );
 
@@ -106,6 +103,8 @@ class YamlParser extends Parser {
         samples: samples,
         systemMessage: systemMessage,
         sandboxParameters: sandboxParameters,
+        taskFiles: taskFiles,
+        taskSetup: taskSetup,
         // Task-level settings
         model: model,
         config: config,
@@ -136,8 +135,7 @@ class YamlParser extends Parser {
   List<Sample> _loadSamplesSection(
     Map<String, dynamic> samplesMap,
     String datasetRoot,
-    Object? taskWorkspace,
-    Object? taskTests,
+    Map<String, String>? taskFiles,
     String taskDir,
   ) {
     final pathPatterns =
@@ -168,8 +166,7 @@ class YamlParser extends Parser {
         _loadSamplesFromFiles(
           matchedFiles,
           datasetRoot,
-          taskWorkspace,
-          taskTests,
+          taskFiles,
         ),
       );
     }
@@ -178,7 +175,7 @@ class YamlParser extends Parser {
     for (final def in inlineDefs) {
       if (def.isEmpty) continue;
       samples.add(
-        _resolveSample(def, taskDir, datasetRoot, taskWorkspace, taskTests),
+        _resolveSample(def, taskDir, datasetRoot, taskFiles),
       );
     }
 
@@ -189,8 +186,7 @@ class YamlParser extends Parser {
   List<Sample> _loadSamplesFromFiles(
     List<String> sampleFiles,
     String datasetRoot,
-    Object? taskWorkspace,
-    Object? taskTests,
+    Map<String, String>? taskFiles,
   ) {
     final samples = <Sample>[];
 
@@ -215,8 +211,7 @@ class YamlParser extends Parser {
             data,
             sampleDir,
             datasetRoot,
-            taskWorkspace,
-            taskTests,
+            taskFiles,
           ),
         );
       }
@@ -237,8 +232,7 @@ class YamlParser extends Parser {
     Map<String, dynamic> doc,
     String baseDir,
     String datasetRoot,
-    Object? taskWorkspace,
-    Object? taskTests,
+    Map<String, String>? taskFiles,
   ) {
     // --- Validate required fields ---
     for (final field in ['id', 'input', 'target']) {
@@ -251,33 +245,6 @@ class YamlParser extends Parser {
 
     // Read metadata fields from the metadata dict
     final metaRaw = Map<String, dynamic>.from(doc['metadata'] as Map? ?? {});
-
-    final sampleWorkspace = metaRaw['workspace'];
-    final sampleTests = metaRaw['tests'];
-
-    // Sample-level overrides task-level
-    final effectiveWorkspace = sampleWorkspace ?? taskWorkspace;
-
-    String? workspace;
-    String? workspaceGit;
-    String? workspaceGitRef;
-
-    if (effectiveWorkspace != null) {
-      if (effectiveWorkspace is Map && effectiveWorkspace.containsKey('git')) {
-        workspaceGit = effectiveWorkspace['git'] as String?;
-        workspaceGitRef = effectiveWorkspace['ref'] as String?;
-      } else {
-        final resolveDir = sampleWorkspace != null ? baseDir : datasetRoot;
-        workspace = _resolveResourcePath(effectiveWorkspace, resolveDir);
-      }
-    }
-
-    String? tests;
-    if (sampleTests != null) {
-      tests = _resolveResourcePath(sampleTests, baseDir);
-    } else if (taskTests != null) {
-      tests = _resolveResourcePath(taskTests, datasetRoot);
-    }
 
     // --- Normalize tags from metadata ---
     final rawTags = metaRaw['tags'];
@@ -295,17 +262,19 @@ class YamlParser extends Parser {
       ...metaRaw,
       'difficulty': metaRaw['difficulty'] as String? ?? 'medium',
       'tags': tags,
-      'workspace': ?workspace,
-      'tests': ?tests,
-      'workspace_git': ?workspaceGit,
-      'workspace_git_ref': ?workspaceGitRef,
     };
 
     // Parse sample-level fields
     final choices = (doc['choices'] as List?)?.cast<String>();
     final sampleSandbox = doc['sandbox'];
     final setup = doc['setup'] as String?;
-    final files = _asStringMap(doc['files']);
+    final sampleFiles = _asStringMap(doc['files']);
+
+    // Stack files: task-level files + sample-level files (sample wins on conflict)
+    Map<String, String>? mergedFiles;
+    if (taskFiles != null || sampleFiles != null) {
+      mergedFiles = {...?taskFiles, ...?sampleFiles};
+    }
 
     return Sample(
       id: doc['id'] as String,
@@ -314,7 +283,7 @@ class YamlParser extends Parser {
       metadata: metadata,
       choices: choices,
       sandbox: sampleSandbox,
-      files: files,
+      files: mergedFiles,
       setup: setup,
     );
   }
@@ -435,58 +404,7 @@ class YamlParser extends Parser {
   }
 
 
-  // ------------------------------------------------------------------
-  // Path resolution helpers
-  // ------------------------------------------------------------------
 
-  /// Pre-resolve a task-level resource to an absolute path.
-  Object? _preResolveToAbs(Object? resource, String taskDir) {
-    if (resource == null) return null;
-
-    if (resource is String) {
-      if (resource.startsWith('./') ||
-          resource.startsWith('../') ||
-          resource.startsWith('/')) {
-        return {'path': p.normalize(p.join(taskDir, resource))};
-      }
-      return resource;
-    }
-
-    if (resource is Map) {
-      if (resource.containsKey('path')) {
-        final pathVal = resource['path'] as String;
-        return {
-          ...resource,
-          'path': p.normalize(p.join(taskDir, pathVal)),
-        };
-      }
-      return resource;
-    }
-
-    return resource;
-  }
-
-  /// Resolve a workspace/tests resource reference to an absolute path string.
-  String? _resolveResourcePath(Object? resource, String baseDir) {
-    if (resource == null) return null;
-
-    if (resource is String) {
-      if (resource.startsWith('./') ||
-          resource.startsWith('../') ||
-          resource.startsWith('/')) {
-        return p.normalize(p.join(baseDir, resource));
-      }
-      return null;
-    }
-
-    if (resource is Map) {
-      if (resource.containsKey('path')) {
-        return p.normalize(p.join(baseDir, resource['path'] as String));
-      }
-    }
-
-    return null;
-  }
 
   // ------------------------------------------------------------------
   // Log dir helpers

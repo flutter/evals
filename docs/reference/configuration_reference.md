@@ -8,7 +8,7 @@ The evaluation framework uses the `eval/` directory as its entry point. It conta
 
 - Task definitions autodiscovered from `tasks/*/task.yaml`
 - Job files in `jobs/` that control what to run
-- Shared resources (context files, sandboxes, workspaces)
+- Shared resources (context files, sandboxes)
 
 Configuration is parsed and resolved by the Dart `dataset_config_dart` package, which produces an EvalSet JSON manifest consumed by the Python `dash_evals`.
 
@@ -24,7 +24,7 @@ eval/
 ├── tasks/                   # Task definitions (autodiscovered)
 │   ├── flutter_bug_fix/
 │   │   ├── task.yaml        # Task config with inline samples
-│   │   └── project/         # Workspace files (if applicable)
+│   │   └── project/         # Project files (if applicable)
 │   ├── dart_question_answer/
 │   │   └── task.yaml
 │   └── generate_flutter_app/
@@ -32,14 +32,10 @@ eval/
 │       └── todo_tests/      # Test files for a sample
 ├── context_files/           # Context files injected into prompts
 │   └── flutter.md
-├── sandboxes/               # Container configurations
-│   └── podman/
-│       ├── Containerfile
-│       └── compose.yaml
-└── workspaces/              # Reusable project templates
-    ├── dart_package/
-    ├── flutter_app/
-    └── jaspr_app/
+└── sandboxes/               # Container configurations
+    └── podman/
+        ├── Containerfile
+        └── compose.yaml
 ```
 
 ---
@@ -54,16 +50,10 @@ func: flutter_bug_fix
 system_message: |
   You are an expert Flutter developer. Fix the bug and explain your changes.
 
-# Task-level workspace (inherited by all samples)
-workspace:
-  path: ./project
-
-# Task-level tests (inherited by all samples)
-tests:
-  path: ./tests
-
-# Restrict which job-level variants apply to this task (optional)
-allowed_variants: [baseline, mcp_only]
+# Task-level files copied into sandbox (inherited by all samples)
+files:
+  /workspace: ./project
+setup: "cd /workspace && flutter pub get"
 
 samples:
   inline:
@@ -77,8 +67,8 @@ samples:
         tags: [bloc, state]
 
     - id: navigation_crash
-      workspace:
-        path: ./nav_project    # Override task-level workspace
+      files:
+        /workspace: ./nav_project    # Override task-level files
       input: |
         Fix the crash when navigating back from the detail screen.
       target: |
@@ -90,27 +80,22 @@ samples:
 
 For the complete list of task fields (including Inspect AI `Task` parameters), see the [Task fields table](yaml_config.md#task).
 
-### Workspace/Tests References
+### Files and Setup
 
 ```yaml
-# Reference a reusable template
-workspace:
-  template: flutter_app
+# Copy a local directory into the sandbox
+files:
+  /workspace: ./project
+setup: "cd /workspace && flutter pub get"
 
-# Reference a path relative to task directory
-workspace:
-  path: ./project
-
-# Clone from git
-workspace:
-  git: https://github.com/example/repo.git
-
-# Shorthand (equivalent to path:)
-workspace: ./project
+# Copy individual files
+files:
+  /workspace/lib/main.dart: ./fixtures/main.dart
+  /workspace/test/widget_test.dart: ./fixtures/test.dart
 ```
 
 > [!NOTE]
-> Paths in `workspace` and `tests` are resolved **relative to the task directory** (e.g., `tasks/flutter_bug_fix/`).
+> Paths in `files` values are resolved **relative to the task directory** (e.g., `tasks/flutter_bug_fix/`). Task-level `files` and `setup` are inherited by all samples. Sample-level `files` stack on top (sample wins on key conflict). Sample-level `setup` overrides task-level `setup`.
 
 ---
 
@@ -191,9 +176,9 @@ models:
 # Each key is a variant name; the value is the variant configuration.
 variants:
   baseline: {}
-  context_only: { context_files: [./context_files/flutter.md] }
-  mcp_only: { mcp_servers: [dart] }
-  full: { context_files: [./context_files/flutter.md], mcp_servers: [dart] }
+  context_only: { files: [./context_files/flutter.md] }
+  mcp_only: { mcp_servers: [{name: dart, command: dart, args: [mcp-server]}] }
+  full: { files: [./context_files/flutter.md], mcp_servers: [{name: dart, command: dart, args: [mcp-server]}] }
 
 # Inspect AI eval_set() parameters (all optional, nested under inspect_eval_arguments)
 inspect_eval_arguments:
@@ -250,9 +235,9 @@ tasks:
   # Per-task overrides (keys must match directory names in tasks/)
   inline:
     flutter_bug_fix:
-      allowed_variants: [baseline]   # Override variants for this task
-      include-samples: [sample_001]  # Only run these samples
-      exclude-samples: [slow_test]   # Exclude these samples
+      include-variants: [baseline]     # Only run these variants for this task
+      include-samples: [sample_001]    # Only run these samples
+      exclude-samples: [slow_test]     # Exclude these samples
 ```
 
 ---
@@ -264,18 +249,21 @@ Variants modify how tasks execute, controlling context injection, tool availabil
 ```yaml
 variants:
   baseline: {}
-  context_only: { context_files: [./context_files/flutter.md] }
-  mcp_only: { mcp_servers: [dart] }
-  full: { context_files: [./context_files/flutter.md], mcp_servers: [dart] }
+  context_only: { files: [./context_files/flutter.md] }
+  mcp_only: { mcp_servers: [{name: dart, command: dart, args: [mcp-server]}] }
+  full: { files: [./context_files/flutter.md], mcp_servers: [{name: dart, command: dart, args: [mcp-server]}] }
 ```
 
-Variant sub-fields (`context_files`, `mcp_servers`, `skills`, `flutter_channel`) are documented in the [Job fields table](yaml_config.md#job).
+Variant sub-fields (`files`, `mcp_servers`, `skills`, `task_parameters`) are documented in the [Job fields table](yaml_config.md#job).
 
-Tasks can optionally restrict which variants apply to them via `allowed_variants` in their `task.yaml`:
+Jobs can restrict which variants apply to specific tasks via `include-variants` and `exclude-variants` on the `tasks.<task_id>` object:
 
 ```yaml
-# task.yaml — only run baseline and mcp_only variants for this task
-allowed_variants: [baseline, mcp_only]
+# job.yaml — only run baseline and mcp_only variants for flutter_bug_fix
+tasks:
+  inline:
+    flutter_bug_fix:
+      include-variants: [baseline, mcp_only]
 ```
 
 Glob patterns (containing `*`, `?`, or `[`) are expanded automatically. For skills, only directories containing `SKILL.md` are included.
@@ -302,7 +290,7 @@ updated: "2025-12-24"
 ## Flutter Best Practices
 
 Content here is injected into the model's context when the variant
-has context_files pointing to this file.
+has files pointing to this file.
 ```
 
 | Field | Type | Required | Description |

@@ -17,6 +17,12 @@ sealed class Task with _$Task {
     /// A `Dataset`, a sequence of `Sample` objects, or `null`.
     Dataset? dataset,
 
+    /// Files to copy into sandbox (inherited by all samples).
+    ///
+    /// Keys are destination paths, values are source paths, inline text,
+    /// or inline binary (base64-encoded data URLs).
+    Map<String, String>? files,
+
     /// Setup step (always run even when the main solver is replaced).
     Object? setup,
 

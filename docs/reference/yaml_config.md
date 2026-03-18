@@ -257,18 +257,18 @@ Task-level Inspect AI `Task` parameters (model, limits, sandbox, etc.) are neste
   - `systemMessage`
   - `system_message`
   - Custom system prompt for this task
-* - `workspace`
-  - string/object
+* - `files`
+  - object
   - Y
-  -
-  -
-  - Default workspace for all samples (resolved into `Sample.files` and `Sample.setup`)
-* - `tests`
-  - string/object
+  - `files`
+  - `files`
+  - Files to copy into sandbox for all samples (`{destination: source}`). Task-level files stack with sample-level files (sample wins on key conflict).
+* - `setup`
+  - string
   - Y
-  -
-  -
-  - Default test files for all samples
+  - `setup`
+  - `setup`
+  - Setup script to run in sandbox before evaluation (overridden by sample-level `setup`)
 * - `display_name`
   - string
   - Y
@@ -402,7 +402,7 @@ Task-level Inspect AI `Task` parameters (model, limits, sandbox, etc.) are neste
 
 ## Sample
 
-Samples are individual test cases defined either inline in `task.yaml` under `samples.inline`, or in external YAML files referenced via `samples.paths`. Fields like `difficulty`, `tags`, `workspace`, and `tests` should be nested inside the sample's `metadata` dict.
+Samples are individual test cases defined either inline in `task.yaml` under `samples.inline`, or in external YAML files referenced via `samples.paths`. Fields like `difficulty` and `tags` should be nested inside the sample's `metadata` dict.
 
 ```{list-table}
 :header-rows: 1
@@ -453,18 +453,6 @@ Samples are individual test cases defined either inline in `task.yaml` under `sa
   -
   -
   - Override system prompt for this sample
-* - `workspace`
-  - string/object
-  - Y
-  -
-  -
-  - Override task-level workspace (resolved path stored in `metadata["workspace"]`)
-* - `tests`
-  - string/object
-  - Y
-  -
-  -
-  - Override task-level tests (resolved path stored in `metadata["tests"]`)
 * - `choices`
   - list
   - Y

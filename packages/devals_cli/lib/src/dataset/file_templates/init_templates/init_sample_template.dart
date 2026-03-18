@@ -1,20 +1,21 @@
 /// Template for the starter task created by `devals init`.
 ///
 /// Creates a task.yaml at tasks/get_started/task.yaml that points at
-/// the parent project as its workspace.
+/// the parent project via files.
 String initTaskTemplate() {
   return '''
 # =============================================================================
 # Starter Task
 # =============================================================================
-# This task points at your project root as its workspace and runs a simple
+# This task copies your project root into the sandbox and runs a simple
 # codebase analysis evaluation.
 
 func: analyze_codebase
 
-# Workspace: points to the project root containing pubspec.yaml
-workspace:
-  path: ../../
+# Files: copies the project root into /workspace in the sandbox
+files:
+  /workspace: ../../
+setup: "cd /workspace && flutter pub get"
 
 samples:
   inline:
