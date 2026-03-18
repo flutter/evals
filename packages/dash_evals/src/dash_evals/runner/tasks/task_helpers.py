@@ -72,8 +72,7 @@ def _resolve_mcp_ref(ref: str) -> MCPServer:
     """
     if ":" not in ref:
         raise ValueError(
-            f"Invalid MCP server ref '{ref}'. "
-            "Expected format: 'module.path:variable_name'"
+            f"Invalid MCP server ref '{ref}'. Expected format: 'module.path:variable_name'"
         )
     module_path, attr_name = ref.rsplit(":", 1)
     try:
@@ -121,7 +120,9 @@ def create_mcp_servers(
 
         command = cfg.get("command")
         if not command:
-            raise ValueError(f"MCP server config missing 'command': {cfg}")
+            raise ValueError(
+                f"MCP server config missing 'command' for server '{cfg.get('name', 'unknown')}' : {cfg}"
+            )
 
         name = cfg.get("name", command)
         args = cfg.get("args", [])
@@ -133,21 +134,25 @@ def create_mcp_servers(
             transport = "sandbox" if sandbox_type != "local" else "stdio"
 
         if transport == "stdio":
-            servers.append(mcp_server_stdio(
-                name=name,
-                command=command,
-                args=args,
-                env=env,
-                cwd=cwd,
-            ))
+            servers.append(
+                mcp_server_stdio(
+                    name=name,
+                    command=command,
+                    args=args,
+                    env=env,
+                    cwd=cwd,
+                )
+            )
         elif transport == "sandbox":
-            servers.append(mcp_server_sandbox(
-                name=name,
-                command=command,
-                args=args,
-                env=env,
-                cwd=cwd,
-            ))
+            servers.append(
+                mcp_server_sandbox(
+                    name=name,
+                    command=command,
+                    args=args,
+                    env=env,
+                    cwd=cwd,
+                )
+            )
         else:
             raise ValueError(f"Unknown MCP transport '{transport}' for server '{name}'")
 
