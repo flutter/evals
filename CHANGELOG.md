@@ -8,16 +8,19 @@
 
 - **`Job.imagePrefix` / `Job.image_prefix`.** Registry URL prefix prepended to image names during sandbox resolution. Enables switching between local images and remote registries (e.g. Artifact Registry on GKE) without duplicating job YAML files.
 
-- **Tag-based filtering.** New `TagFilter` model with `include_tags` and `exclude_tags`, used at three levels:
+- **Tag-based filtering.** New `TagFilter` model with `include_tags` and `exclude_tags`, used at two levels:
   - `Job.taskFilters` / `Job.task_filters` — select tasks by metadata tags
   - `Job.sampleFilters` / `Job.sample_filters` — select samples by metadata tags
-  - `variant_filters` on task YAML — restrict which variants apply to a task (supplements `allowed_variants`)
 
 - **`JobTask.args`.** Per-task argument overrides. Allows a job to pass task-specific arguments (e.g. `base_url`, `dataset_path`) to individual tasks.
 
-- **`Task.systemMessage` / `Task.system_message`.** System prompt override at the task level. Previously only available as a job-level override via `JobTask`.
+- **`Task.systemMessage` / `Task.system_message`.** System prompt override at the task level.
 
 - **`Task.sandboxParameters` / `Task.sandbox_parameters`.** Pass-through dictionary for sandbox plugin configuration.
+
+- **`Task.files` / `Task.setup`.** Task-level file and setup declarations. Task-level `files` stack with sample-level `files` (sample wins on key conflict). Sample-level `setup` overrides task-level `setup`.
+
+- **Variant `task_parameters`.** Variants can now declare `task_parameters`, an arbitrary dict merged into the task config at runtime.
 
 - **`module:task` syntax.** Task function references can now use `module.path:function_name` format for Python tasks.
 
@@ -27,12 +30,23 @@
 
 - **Sandbox registry is now configurable.** The hardcoded `kSandboxRegistry` and `kSdkChannels` maps are extracted from `eval_set_resolver.dart` and made data-driven, allowing non-Flutter projects to define their own sandbox configurations.
 
-- **Workspace resolution uses native Inspect fields.** The `workspace` YAML key remains as parser-level sugar but resolves into Inspect AI's native `Sample.files` and `Sample.setup` fields. The `Sample.setup` command is no longer hardcoded to `cd /workspace && flutter pub get`; it is configurable or omitted for non-Flutter tasks.
+- **Removed `workspace` and `tests` from task and sample YAML.** Replaced by `files` (a `{destination: source}` map) and `setup` (a shell command string). These are Inspect AI's native `Sample` fields. The old `workspace:` / `tests:` keys and their path/git/template sub-formats are no longer supported.
+
+- **Consolidated sandbox config.** `Job.sandboxEnvironment`, `Job.sandboxParameters`, `Job.imagePrefix` collapsed into a single `Job.sandbox` map (keys: `environment`, `parameters`, `image_prefix`).
+
+- **Consolidated Inspect AI eval arguments.** Individual top-level Job fields (`retryAttempts`, `failOnError`, `logLevel`, `maxTasks`, etc.) collapsed into a single `Job.inspectEvalArguments` / `Job.inspect_eval_arguments` pass-through dict.
+
+- **`inspect_task_args` is now a pass-through dict.** Individual sub-fields (`model`, `epochs`, `time_limit`, etc.) are no longer typed on the `Task` model. The entire `inspect_task_args` section is passed through as-is to Inspect AI's `Task()` constructor.
+
+- **Removed `JobTask.systemMessage`.** System message is now set at the task level via `Task.systemMessage`.
+
+- **Variant field renames.** `context_files` → `files`, `skill_paths` → `skills`. Variant-level task restriction uses `include-variants` / `exclude-variants` on the job's `tasks.<id>` object instead of task-level `allowed_variants`.
 
 ### Documentation
 
-- Updated `docs/reference/yaml_config.md` with all new fields and updated descriptions.
-- Updated `docs/guides/config.md` (pending — after implementation).
+- Added `docs/reference/yaml_config.md` with complete field-by-field reference tables.
+- Updated `docs/reference/configuration_reference.md` with new examples and directory structure.
+- Updated `docs/guides/config.md`.
 
 ## 11 March, 2025
 

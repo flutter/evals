@@ -43,4 +43,4 @@ jobs:
         run: pip install -e packages/dataset_config_python
 
       - name: Verify config parity
-        run: dart run tool/config_parity/bin/config_partiy.dart
+        run: dart run tool/config_parity/bin/config_parity.dart
