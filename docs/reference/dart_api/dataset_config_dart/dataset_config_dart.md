@@ -768,32 +768,27 @@ Resolves parsed task configs and job into fully-resolved
 This is the resolution engine. It:
 1. Resolves models, sandboxes, and variants
 2. Expands task × variant combinations into [Task] entries
-3. Groups by flutter_channel (one [EvalSet] per group)
-4. Propagates job-level and task-level settings to the output
+3. Propagates job-level and task-level settings to the output
 
 ### Constructors
 
 #### `EvalSetResolver`
 
 ```dart
-EvalSetResolver({Map<String, Map<String, String>> sandboxRegistry, Map<String, String> sdkChannels})
+EvalSetResolver({Map<String, Map<String, String>> sandboxRegistry})
 ```
 
 Creates a resolver with optional sandbox configuration.
 
-If [sandboxRegistry] or [sdkChannels] are not provided, they default
-to empty maps (no sandbox resolution). Pass [kDefaultSandboxRegistry]
-and [kDefaultSdkChannels] for the Flutter-specific sandbox setup.
+If [sandboxRegistry] is not provided, it defaults to an empty map
+(no sandbox resolution). Pass [kDefaultSandboxRegistry] for the
+Flutter-specific sandbox setup.
 
 ### Properties
 
 - **`sandboxRegistry`** → `Map<String, Map<String, String>>` *(final)*
 
   Named sandbox configurations (e.g. `'podman'` → compose file path).
-
-- **`sdkChannels`** → `Map<String, String>` *(final)*
-
-  SDK channel → sandbox registry key mapping.
 
 ### Methods
 
@@ -804,8 +799,6 @@ List<EvalSet> resolve(List<ParsedTask> datasetTasks, Job job, String datasetRoot
 ```
 
 Resolve task configs and job into [EvalSet] objects.
-
-Groups by flutter_channel so each gets its own sandbox.
 
 **Parameters:**
 
@@ -988,27 +981,25 @@ be specified there and will be passed through to the Python runner.
 Example YAML:
 ```yaml
 log_dir: ./logs/my_run
-sandbox: podman
+sandbox:
+  environment: podman
 max_connections: 10
 models:
   - google/gemini-2.5-flash
 variants:
   baseline: {}
   context_only:
-    context_files: [./context_files/flutter.md]
+    files: [./context_files/flutter.md]
 tasks:
   dart_qa:
     include-samples: [sample_1]
 
-# Pass-through to eval_set()
-eval_set_overrides:
+# All Inspect AI eval_set() parameters
+inspect_eval_arguments:
   retry_attempts: 20
   log_level: debug
-
-# Default Task-level overrides applied to every task
-task_defaults:
-  time_limit: 600
-  message_limit: 50
+  task_defaults:
+    time_limit: 600
 ```
 
 ### Constructors
@@ -1016,7 +1007,7 @@ task_defaults:
 #### `Job`
 
 ```dart
-Job({String? description, String? imagePrefix, required String logDir, String sandboxType, int maxConnections, List<String>? models, Map<String, Map<String, dynamic>>? variants, List<String>? taskPaths, Map<String, JobTask>? tasks, bool saveExamples, int? retryAttempts, int? maxRetries, double? retryWait, double? retryConnections, bool? retryCleanup, double? failOnError, bool? continueOnFail, int? retryOnError, bool? debugErrors, int? maxSamples, int? maxTasks, int? maxSubprocesses, int? maxSandboxes, String? logLevel, String? logLevelTranscript, String? logFormat, List<String>? tags, Map<String, dynamic>? metadata, bool? trace, String? display, bool? score, Object? limit, Object? sampleId, Object? sampleShuffle, Object? epochs, Object? approval, Object? solver, bool? sandboxCleanup, String? modelBaseUrl, Map<String, Object?>? modelArgs, Map<String, String>? modelRoles, Map<String, Object?>? taskArgs, int? messageLimit, int? tokenLimit, int? timeLimit, int? workingLimit, double? costLimit, Map<String, Object?>? modelCostConfig, bool? logSamples, bool? logRealtime, bool? logImages, int? logBuffer, int? logShared, String? bundleDir, bool? bundleOverwrite, bool? logDirAllowDirty, String? evalSetId, Map<String, dynamic>? evalSetOverrides, Map<String, dynamic>? taskDefaults, TagFilter? taskFilters, TagFilter? sampleFilters})
+Job({String? description, required String logDir, int maxConnections, List<String>? models, Map<String, Map<String, dynamic>>? variants, List<String>? taskPaths, Map<String, JobTask>? tasks, bool saveExamples, Map<String, dynamic>? sandbox, Map<String, dynamic>? inspectEvalArguments, TagFilter? taskFilters, TagFilter? sampleFilters})
 ```
 
 #### `Job.fromJson`
@@ -1033,15 +1024,14 @@ Job.fromJson(Map<String, dynamic> json)
 
 Per-task configuration within a job.
 
-Allows overriding which samples run for specific tasks and providing
-a custom system message.
+Allows overriding which samples and variants run for specific tasks.
 
 ### Constructors
 
 #### `JobTask`
 
 ```dart
-JobTask({required String id, List<String>? includeSamples, List<String>? excludeSamples, String? systemMessage, Map<String, dynamic>? args})
+JobTask({required String id, List<String>? includeSamples, List<String>? excludeSamples, List<String>? includeVariants, List<String>? excludeVariants, Map<String, dynamic>? args})
 ```
 
 #### `JobTask.fromJson`
@@ -1057,9 +1047,6 @@ JobTask.fromYaml(String taskId, Map<String, dynamic>? data)
 ```
 
 Create a [JobTask] from parsed YAML data.
-
-The [taskId] is the map key from the job YAML `tasks:` section.
-The [data] may be `null` for a simple task reference with no overrides.
 
 ---
 
@@ -1216,7 +1203,7 @@ former `TaskConfig` model-package class.
 #### `ParsedTask`
 
 ```dart
-ParsedTask({required String id, required String func, required List<Sample> samples, required Variant variant, String sandboxType, String? systemMessage, List<String>? allowedVariants, bool saveExamples, String? examplesDir, TagFilter? variantFilters, Map<String, dynamic>? sandboxParameters, String? model, Map<String, dynamic>? config, Map<String, String>? modelRoles, Object? sandbox, Object? approval, Object? epochs, Object? failOnError, bool? continueOnFail, int? messageLimit, int? tokenLimit, int? timeLimit, int? workingLimit, double? costLimit, Object? earlyStopping, String? displayName, Object? version, Map<String, dynamic>? metadata})
+ParsedTask({required String id, required String func, required List<Sample> samples, required Variant variant, String sandboxType, String? systemMessage, bool saveExamples, String? examplesDir, Map<String, dynamic>? sandboxParameters, Map<String, String>? taskFiles, String? taskSetup, String? model, Map<String, dynamic>? config, Map<String, String>? modelRoles, Object? sandbox, Object? approval, Object? epochs, Object? failOnError, bool? continueOnFail, int? messageLimit, int? tokenLimit, int? timeLimit, int? workingLimit, double? costLimit, Object? earlyStopping, String? displayName, Object? version, Map<String, dynamic>? metadata})
 ```
 
 ### Properties
@@ -1233,19 +1220,21 @@ ParsedTask({required String id, required String func, required List<Sample> samp
 
 - **`systemMessage`** → `String?` *(final)*
 
-- **`allowedVariants`** → `List<String>?` *(final)*
-
 - **`saveExamples`** → `bool` *(final)*
 
 - **`examplesDir`** → `String?` *(final)*
 
-- **`variantFilters`** → `TagFilter?` *(final)*
-
-  Tag filter for variant selection.
-
 - **`sandboxParameters`** → `Map<String, dynamic>?` *(final)*
 
   Pass-through dict for sandbox plugin configuration.
+
+- **`taskFiles`** → `Map<String, String>?` *(final)*
+
+  Task-level files to copy into sandbox.
+
+- **`taskSetup`** → `String?` *(final)*
+
+  Task-level setup script.
 
 - **`model`** → `String?` *(final)*
 
@@ -1320,7 +1309,7 @@ ParsedTask({required String id, required String func, required List<Sample> samp
 #### `copyWith`
 
 ```dart
-ParsedTask copyWith({String? id, String? func, List<Sample>? samples, Variant? variant, String? sandboxType, String? systemMessage, List<String>? allowedVariants, bool? saveExamples, String? examplesDir, TagFilter? variantFilters, Map<String, dynamic>? sandboxParameters, String? model, Map<String, dynamic>? config, Map<String, String>? modelRoles, Object? sandbox, Object? approval, Object? epochs, Object? failOnError, bool? continueOnFail, int? messageLimit, int? tokenLimit, int? timeLimit, int? workingLimit, double? costLimit, Object? earlyStopping, String? displayName, Object? version, Map<String, dynamic>? metadata})
+ParsedTask copyWith({String? id, String? func, List<Sample>? samples, Variant? variant, String? sandboxType, String? systemMessage, bool? saveExamples, String? examplesDir, Map<String, dynamic>? sandboxParameters, Map<String, String>? taskFiles, String? taskSetup, String? model, Map<String, dynamic>? config, Map<String, String>? modelRoles, Object? sandbox, Object? approval, Object? epochs, Object? failOnError, bool? continueOnFail, int? messageLimit, int? tokenLimit, int? timeLimit, int? workingLimit, double? costLimit, Object? earlyStopping, String? displayName, Object? version, Map<String, dynamic>? metadata})
 ```
 
 Create a copy with overrides.
@@ -1333,11 +1322,11 @@ Create a copy with overrides.
 - `variant` (`Variant?`)
 - `sandboxType` (`String?`)
 - `systemMessage` (`String?`)
-- `allowedVariants` (`List<String>?`)
 - `saveExamples` (`bool?`)
 - `examplesDir` (`String?`)
-- `variantFilters` (`TagFilter?`)
 - `sandboxParameters` (`Map<String, dynamic>?`)
+- `taskFiles` (`Map<String, String>?`)
+- `taskSetup` (`String?`)
 - `model` (`String?`)
 - `config` (`Map<String, dynamic>?`)
 - `modelRoles` (`Map<String, String>?`)
@@ -1523,7 +1512,7 @@ constructor.
 #### `Task`
 
 ```dart
-Task({Dataset? dataset, Object? setup, Object? solver, Object? cleanup, Object? scorer, Object? metrics, String? model, Object? config, Map<String, String>? modelRoles, Object? sandbox, Object? approval, Object? epochs, Object? failOnError, bool? continueOnFail, int? messageLimit, int? tokenLimit, int? timeLimit, int? workingLimit, double? costLimit, Object? earlyStopping, String? displayName, String? func, String? systemMessage, Map<String, dynamic>? sandboxParameters, String? name, Object version, Map<String, dynamic>? metadata})
+Task({Dataset? dataset, Map<String, String>? files, Object? setup, Object? solver, Object? cleanup, Object? scorer, Object? metrics, String? model, Object? config, Map<String, String>? modelRoles, Object? sandbox, Object? approval, Object? epochs, Object? failOnError, bool? continueOnFail, int? messageLimit, int? tokenLimit, int? timeLimit, int? workingLimit, double? costLimit, Object? earlyStopping, String? displayName, String? func, String? systemMessage, Map<String, dynamic>? sandboxParameters, String? name, Object version, Map<String, dynamic>? metadata})
 ```
 
 #### `Task.fromJson`
@@ -1644,9 +1633,10 @@ Variants define different testing configurations to compare model
 performance with and without specific tooling or context.
 
 Features are implied by field presence — no explicit feature list needed:
-- [contextFiles] populated → context injection enabled
+- [files] populated → context injection enabled
 - [mcpServers] populated → MCP tools enabled
-- [skillPaths] populated → agent skills enabled
+- [skills] populated → agent skills enabled
+- [taskParameters] populated → extra parameters passed to the task
 - all empty → baseline variant
 
 Example YAML:
@@ -1654,10 +1644,13 @@ Example YAML:
 variants:
   baseline: {}
   context_only:
-    context_files: [./context_files/flutter.md]
+    files: [./context_files/flutter.md]
   full:
-    context_files: [./context_files/flutter.md]
-    mcp_servers: [dart]
+    files: [./context_files/flutter.md]
+    mcp_servers:
+      - name: dart
+        command: dart
+        args: [mcp-server]
     skills: [./skills/flutter_docs_ui]
 ```
 
@@ -1666,7 +1659,7 @@ variants:
 #### `Variant`
 
 ```dart
-Variant({String name, List<ContextFile> contextFiles, List<String> mcpServers, List<String> skillPaths, String? flutterChannel})
+Variant({String name, List<ContextFile> files, List<Map<String, dynamic>> mcpServers, List<String> skills, Map<String, dynamic> taskParameters})
 ```
 
 #### `Variant.fromJson`

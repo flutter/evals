@@ -1,11 +1,13 @@
 # Guides
 
-Get started with evals — learn how to author and run your own evaluations.
+Learn how to install and use the evals framework.
 
 ```{toctree}
 :maxdepth: 1
 
-quick_start
-tutorial
-config
+get_started
+write_your_first_eval
+configuring_jobs
+using_the_cli
+about_the_framework
 ```
