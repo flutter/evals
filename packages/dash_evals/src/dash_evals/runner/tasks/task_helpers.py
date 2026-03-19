@@ -16,7 +16,14 @@ from typing import Any, cast
 
 from inspect_ai.agent import react
 from inspect_ai.solver import Solver, generate
-from inspect_ai.tool import MCPServer, Tool, mcp_server_sandbox, mcp_server_stdio, skill
+from inspect_ai.tool import (
+    MCPServer,
+    Tool,
+    mcp_server_http,
+    mcp_server_sandbox,
+    mcp_server_stdio,
+    skill,
+)
 
 from dash_evals.runner.solvers import context_injector
 
@@ -97,13 +104,15 @@ def create_mcp_servers(
 ) -> list[MCPServer]:
     """Create MCP server objects from variant config.
 
-    Supports two modes per entry:
-    - **Declarative**: dict with ``name``, ``command``, ``args``, etc.
+    Supports three modes per entry:
+    - **Declarative stdio/sandbox**: dict with ``command``, ``args``, etc.
+    - **Declarative HTTP**: dict with ``url``, and optionally ``authorization``/``headers``.
     - **Python ref**: dict with ``ref`` key pointing to a pre-built MCPServer.
 
-    Transport is auto-selected based on sandbox_type when not explicit:
-    - ``"local"`` → ``mcp_server_stdio``
-    - anything else (docker, podman) → ``mcp_server_sandbox``
+    Transport is auto-selected when not explicit:
+    - If ``url`` is present → ``mcp_server_http``
+    - If sandbox is non-local → ``mcp_server_sandbox``
+    - Otherwise → ``mcp_server_stdio``
 
     Args:
         mcp_configs: List of MCP server config dicts from variant_config.
@@ -114,14 +123,33 @@ def create_mcp_servers(
     """
     servers: list[MCPServer] = []
     for cfg in mcp_configs:
+        # Ref mode — import a pre-built MCPServer from Python
         if cfg.get("ref"):
             servers.append(_resolve_mcp_ref(cfg["ref"]))
             continue
 
+        # HTTP mode — url-based server
+        url = cfg.get("url")
+        if url:
+            name = cfg.get("name", url)
+            authorization = cfg.get("authorization") or cfg.get("auth")
+            headers = cfg.get("headers")
+            servers.append(
+                mcp_server_http(
+                    url=url,
+                    name=name,
+                    authorization=authorization,
+                    headers=headers,
+                )
+            )
+            continue
+
+        # Stdio / sandbox mode — command-based server
         command = cfg.get("command")
         if not command:
             raise ValueError(
-                f"MCP server config missing 'command' for server '{cfg.get('name', 'unknown')}' : {cfg}"
+                f"MCP server config missing 'command' or 'url' for server "
+                f"'{cfg.get('name', 'unknown')}': {cfg}"
             )
 
         name = cfg.get("name", command)

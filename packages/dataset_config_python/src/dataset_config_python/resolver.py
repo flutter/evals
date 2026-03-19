@@ -20,16 +20,8 @@ from dataset_config_python.parser import ParsedTask, find_job_file, parse_job, p
 
 # Default models when a job doesn't specify its own.
 DEFAULT_MODELS: list[str] = [
-    "anthropic/claude-haiku-4-5",
-    "anthropic/claude-sonnet-4-5",
-    "anthropic/claude-opus-4-6",
     "google/gemini-2.5-flash",
-    "google/gemini-3-pro-preview",
     "google/gemini-3-flash-preview",
-    "openai/gpt-5-mini",
-    "openai/gpt-5-nano",
-    "openai/gpt-5",
-    "openai/gpt-5-pro",
 ]
 
 # Default sandbox configurations for Flutter evaluations.
@@ -270,17 +262,25 @@ def _build_eval_set(
                 approval=tc.approval or task_defaults.get("approval"),
                 epochs=tc.epochs or task_defaults.get("epochs"),
                 fail_on_error=tc.fail_on_error or task_defaults.get("fail_on_error"),
-                continue_on_fail=tc.continue_on_fail if tc.continue_on_fail is not None else task_defaults.get("continue_on_fail"),
+                continue_on_fail=tc.continue_on_fail
+                if tc.continue_on_fail is not None
+                else task_defaults.get("continue_on_fail"),
                 message_limit=tc.message_limit or task_defaults.get("message_limit"),
                 token_limit=tc.token_limit or task_defaults.get("token_limit"),
                 time_limit=resolved_time_limit,
                 working_limit=tc.working_limit or task_defaults.get("working_limit"),
-                cost_limit=tc.cost_limit if tc.cost_limit is not None else (
-                    float(task_defaults["cost_limit"]) if task_defaults.get("cost_limit") is not None else None
+                cost_limit=tc.cost_limit
+                if tc.cost_limit is not None
+                else (
+                    float(task_defaults["cost_limit"])
+                    if task_defaults.get("cost_limit") is not None
+                    else None
                 ),
                 early_stopping=tc.early_stopping or task_defaults.get("early_stopping"),
                 display_name=tc.display_name or task_defaults.get("display_name"),
-                version=tc.version if tc.version is not None else (task_defaults.get("version") or 0),
+                version=tc.version
+                if tc.version is not None
+                else (task_defaults.get("version") or 0),
             )
         )
 
@@ -434,13 +434,11 @@ def _expand_task_configs(
         job_task = job.tasks.get(task_id) if job.tasks else None
         if job_task and job_task.include_variants:
             effective_variants = {
-                k: v for k, v in effective_variants.items()
-                if k in job_task.include_variants
+                k: v for k, v in effective_variants.items() if k in job_task.include_variants
             }
         if job_task and job_task.exclude_variants:
             effective_variants = {
-                k: v for k, v in effective_variants.items()
-                if k not in job_task.exclude_variants
+                k: v for k, v in effective_variants.items() if k not in job_task.exclude_variants
             }
 
         # Apply sample filtering
@@ -454,7 +452,8 @@ def _expand_task_configs(
         # Apply sample tag filtering (job-level)
         if job.sample_filters is not None:
             samples = [
-                s for s in samples
+                s
+                for s in samples
                 if matches_tag_filter((s.metadata or {}).get("tags", []), job.sample_filters)
             ]
 
@@ -512,7 +511,8 @@ def _resolve_variant(
             matched = sorted(
                 f
                 for f in globmod.glob(full_pattern, recursive=True)
-                if os.path.isfile(f) and (f.endswith(".yaml") or f.endswith(".yml") or f.endswith(".md"))
+                if os.path.isfile(f)
+                and (f.endswith(".yaml") or f.endswith(".yml") or f.endswith(".md"))
             )
             if not matched:
                 raise FileNotFoundError(f"No context files matched pattern: {cf_path}")
@@ -529,9 +529,7 @@ def _resolve_variant(
         if _is_glob(skill_path_str):
             full_pattern = os.path.join(dataset_root, skill_path_str)
             matched_dirs = sorted(
-                d
-                for d in globmod.glob(full_pattern, recursive=True)
-                if os.path.isdir(d)
+                d for d in globmod.glob(full_pattern, recursive=True) if os.path.isdir(d)
             )
             valid_dirs = [d for d in matched_dirs if os.path.isfile(os.path.join(d, "SKILL.md"))]
             if not valid_dirs:

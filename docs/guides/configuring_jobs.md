@@ -200,7 +200,7 @@ This produces 4 runs per sample (one per variant) × however many models you lis
 | Field | What it does |
 |-------|-------------|
 | `files` | Context files injected into the prompt |
-| `mcp_servers` | MCP tool servers the model can call |
+| `mcp_servers` | MCP tool servers the model can call (stdio, HTTP, or Python ref) |
 | `skills` | Skill directories copied into the sandbox |
 | `task_parameters` | Extra parameters merged into the task config at runtime |
 

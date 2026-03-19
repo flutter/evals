@@ -268,6 +268,34 @@ tasks:
 
 Glob patterns (containing `*`, `?`, or `[`) are expanded automatically. For skills, only directories containing `SKILL.md` are included.
 
+### MCP Server Modes
+
+MCP servers in variants support three modes:
+
+```yaml
+variants:
+  # 1. Declarative stdio/sandbox — command-based
+  with_dart_mcp:
+    mcp_servers:
+      - name: dart
+        command: dart
+        args: [mcp-server]
+
+  # 2. Declarative HTTP — url-based
+  with_http_mcp:
+    mcp_servers:
+      - name: my-api
+        url: https://mcp.example.com/api
+        authorization: "bearer-token-here"    # optional OAuth Bearer token
+        headers:                               # optional extra headers
+          X-Custom-Header: value
+
+  # 3. Python ref — import a pre-built MCPServer
+  with_custom_mcp:
+    mcp_servers:
+      - ref: "my_package.mcp:staging_server"
+```
+
 > [!IMPORTANT]
 > The `skills` feature requires a sandbox (docker/podman). Skill directories are copied into the sandbox filesystem by Inspect AI's built-in `skill()` tool. Each skill directory must contain a `SKILL.md` file.
 

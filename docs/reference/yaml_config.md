@@ -88,7 +88,7 @@ Job files define runtime settings for an evaluation run, including sandbox confi
   - Y
   -
   -
-  - MCP server configurations (list of objects with `name`, `command`, `args`, `env`, `transport`; or a `ref:` string to a Python package)
+  - MCP server configurations. Each entry is one of: (1) an object with `command`/`args` for stdio/sandbox, (2) an object with `url` for HTTP, or (3) a `ref:` string pointing to a Python MCPServer object. Common sub-fields: `name`, `transport`. Stdio sub-fields: `command`, `args`, `env`, `cwd`. HTTP sub-fields: `url`, `authorization`, `headers`.
 * - `variants` \
     &nbsp;&nbsp;`.<name>` \
     &nbsp;&nbsp;`.skills`

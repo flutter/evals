@@ -216,8 +216,6 @@ You've now seen the two layers of the system:
 | **`dash_evals` + Inspect AI** | The engine. Runs tasks, sends prompts, scores responses. |
 | **`devals` CLI** | The convenience layer. YAML config, scaffolding, log discovery. |
 
-Everything `devals` does eventually calls down to `dash_evals` and Inspect AI.
-Understanding this makes debugging much easier.
 
 ---
 
