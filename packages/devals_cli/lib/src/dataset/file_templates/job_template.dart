@@ -80,13 +80,14 @@ $modelsList
 # Each variant defines what tools/context the agent has access to.
 #
 # Format: variant_name: { config }
-#   baseline: {}                                     # no extra features
-#   context_only: { context_files: [./path/to.md] }  # injects context files
-#   mcp_only: { mcp_servers: [dart] }                # enables MCP servers
-#   full: { context_files: [...], mcp_servers: [...] }
+#   baseline: {}                                                       # no extra features
+#   context_only: { files: [./path/to.md] }                            # injects context files
+#   mcp_only: { mcp_servers: [{name: dart, command: dart, args: [...]}] }  # enables MCP servers
+#   full: { files: [...], mcp_servers: [...] }
 #
-# Tasks can optionally restrict which variants they support
-# via `allowed_variants:` in their task.yaml.
+# Variants can also be loaded from separate files:
+#   variants:
+#     - ./variants/common.yaml
 variants:
 ${variantsMap.toString().trimRight()}
 
@@ -105,8 +106,8 @@ ${variantsMap.toString().trimRight()}
 #       task_id:
 #         include-samples: [sample1]   # Only run specific samples (mutually exclusive with exclude)
 #         exclude-samples: [sample2]   # Skip specific samples (mutually exclusive with include)
-#         system_message: |            # Override system prompt for this task
-#           Custom instructions...
+#         include-variants: [baseline]  # Only run these variants for this task
+#         exclude-variants: [with_mcp]  # Exclude these variants for this task
 #
 # Simple format (run all samples with job-level settings):
 #   tasks:

@@ -17,7 +17,7 @@ part 'dataset.g.dart';
 @freezed
 sealed class Dataset with _$Dataset {
   const factory Dataset({
-    /// The list of sample objects.
+    /// The list of sample objects (only used when format is 'memory').
     @Default([]) List<Sample> samples,
 
     /// Dataset name.
@@ -28,6 +28,15 @@ sealed class Dataset with _$Dataset {
 
     /// Whether the dataset was shuffled after reading.
     @Default(false) bool shuffled,
+
+    /// Dataset format: 'memory' (inline samples), 'json', or 'csv'.
+    @Default('memory') String format,
+
+    /// File path or URL for json/csv datasets.
+    String? source,
+
+    /// Extra kwargs passed to json_dataset() or csv_dataset().
+    Map<String, dynamic>? args,
   }) = _Dataset;
 
   factory Dataset.fromJson(Map<String, dynamic> json) =>

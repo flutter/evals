@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 
 import inspect_ai
-from inspect_ai.dataset import MemoryDataset, Sample
+from inspect_ai.dataset import MemoryDataset, Sample, csv_dataset, json_dataset
 
 from dash_evals.utils.logging import capture_output, setup_logging
 
@@ -27,6 +27,7 @@ def _resolve_task_func(name: str):
 
     Supports:
     - Short names: "flutter_code_gen" → dash_evals.runner.tasks.flutter_code_gen
+    - Colon syntax: "my_package.tasks:my_task" → import my_package.tasks, get my_task
     - Dotted paths: "dash_evals.runner.tasks.flutter_code_gen.flutter_code_gen"
 
     For short names, first tries to import a module with the same name.
@@ -36,6 +37,21 @@ def _resolve_task_func(name: str):
 
     Returns the callable task function.
     """
+    # Colon syntax: "module.path:function_name"
+    if ":" in name:
+        module_path, func_name = name.split(":", 1)
+        try:
+            module = importlib.import_module(module_path)
+        except ModuleNotFoundError:
+            raise ValueError(
+                f"Could not find module '{module_path}' for task function '{name}'. "
+                f"Check that the module exists and is importable."
+            )
+        func = getattr(module, func_name, None)
+        if func is None:
+            raise ValueError(f"Module '{module_path}' does not have a function '{func_name}'.")
+        return func
+
     if "." not in name:
         # Short name: try module with the same name first
         module_path = f"dash_evals.runner.tasks.{name}"
@@ -78,32 +94,73 @@ def _resolve_task_func(name: str):
         return func
 
 
-def _build_dataset_from_inline(task_def: dict) -> MemoryDataset:
-    """Build an Inspect AI MemoryDataset from inline dataset in the task def.
+def _build_dataset(task_def: dict):
+    """Build an Inspect AI dataset from a task definition.
 
-    The task_def["dataset"]["samples"] contains a list of InspectSample dicts.
+    Dispatches on ``task_def["dataset"]["format"]``:
+
+    - ``"memory"`` (default): builds a ``MemoryDataset`` from inline samples.
+    - ``"json"``: delegates to ``inspect_ai.dataset.json_dataset(source, **args)``.
+    - ``"csv"``: delegates to ``inspect_ai.dataset.csv_dataset(source, **args)``.
+
+    Args:
+        task_def: A task entry from the EvalSet JSON manifest.
+
+    Returns:
+        An Inspect AI dataset object.
+
+    Raises:
+        ValueError: If the dataset format is unrecognized or required fields
+            (e.g. ``source`` for json/csv) are missing.
     """
     dataset_def = task_def.get("dataset")
+    task_name = task_def.get("name", "")
+
     if not dataset_def:
-        return MemoryDataset([], name=task_def.get("name", ""))
+        return MemoryDataset([], name=task_name)
 
-    raw_samples = dataset_def.get("samples", [])
-    samples = []
-    for raw in raw_samples:
-        sample = Sample(
-            input=raw["input"],
-            target=raw.get("target", ""),
-            id=raw.get("id"),
-            metadata=raw.get("metadata"),
-            files=raw.get("files"),
-            setup=raw.get("setup"),
-            sandbox=raw.get("sandbox"),
+    fmt = dataset_def.get("format", "memory")
+    extra_args: dict = dataset_def.get("args") or {}
+
+    if fmt == "json":
+        source = dataset_def.get("source")
+        if not source:
+            raise ValueError(
+                f"Task '{task_name}': dataset format 'json' requires a 'source' field."
+            )
+        return json_dataset(source, **extra_args)
+
+    if fmt == "csv":
+        source = dataset_def.get("source")
+        if not source:
+            raise ValueError(
+                f"Task '{task_name}': dataset format 'csv' requires a 'source' field."
+            )
+        return csv_dataset(source, **extra_args)
+
+    if fmt == "memory":
+        raw_samples = dataset_def.get("samples", [])
+        samples = []
+        for raw in raw_samples:
+            sample = Sample(
+                input=raw["input"],
+                target=raw.get("target", ""),
+                id=raw.get("id"),
+                metadata=raw.get("metadata"),
+                files=raw.get("files"),
+                setup=raw.get("setup"),
+                sandbox=raw.get("sandbox"),
+            )
+            samples.append(sample)
+
+        return MemoryDataset(
+            samples,
+            name=dataset_def.get("name", task_name),
         )
-        samples.append(sample)
 
-    return MemoryDataset(
-        samples,
-        name=dataset_def.get("name", task_def.get("name", "")),
+    raise ValueError(
+        f"Task '{task_name}': unknown dataset format '{fmt}'. "
+        f"Expected one of: 'memory', 'json', 'csv'."
     )
 
 
@@ -141,19 +198,17 @@ def _run_single_manifest(manifest: dict) -> bool:
     Path(log_dir).mkdir(parents=True, exist_ok=True)
     job_logger, log_file_path = setup_logging(Path(log_dir), name="dash_evals")
 
-    # Build Task objects from inline datasets
+    # Build Task objects from task definitions
     task_defs = manifest["tasks"]
     task_instances: list[inspect_ai.Task] = []
 
     for task_def in task_defs:
-        task_func_name = task_def.get("task_func")
+        task_func_name = task_def.get("func")
         task_name = task_def.get("name", task_func_name or "(unknown)")
 
         if not task_func_name:
             # Mode 2: hydrate directly from JSON (future)
-            job_logger.warning(
-                f"  ⚠ {task_name}: no task_func — Mode 2 hydration not yet supported"
-            )
+            job_logger.warning(f"  ⚠ {task_name}: no func — Mode 2 hydration not yet supported")
             continue
 
         try:
@@ -162,8 +217,12 @@ def _run_single_manifest(manifest: dict) -> bool:
             job_logger.warning(f"  ✗ {task_name}: {e}")
             continue
 
-        # Build inline dataset
-        dataset = _build_dataset_from_inline(task_def)
+        # Build dataset (dispatches on format: memory | json | csv)
+        try:
+            dataset = _build_dataset(task_def)
+        except ValueError as e:
+            job_logger.warning(f"  ✗ {task_name}: {e}")
+            continue
 
         # Inject task_name into the config for task functions that expect it.
         # The Dart CLI emits "name" but task functions use "task_name".

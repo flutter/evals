@@ -7,18 +7,18 @@ void main() {
   /// Helper to create a minimal [ParsedTask] for testing.
   ParsedTask makeTask({
     String id = 'test_task',
-    String taskFunc = 'question_answer',
+    String func = 'question_answer',
     List<Sample>? samples,
     Variant? variant,
-    List<String>? allowedVariants,
     String? systemMessage,
     String? model,
     int? timeLimit,
     int? messageLimit,
+    Map<String, dynamic>? metadata,
   }) {
     return ParsedTask(
       id: id,
-      taskFunc: taskFunc,
+      func: func,
       samples:
           samples ??
           [
@@ -30,32 +30,32 @@ void main() {
             ),
           ],
       variant: variant ?? const Variant(),
-      allowedVariants: allowedVariants,
       systemMessage: systemMessage,
       model: model,
       timeLimit: timeLimit,
       messageLimit: messageLimit,
+      metadata: metadata,
     );
   }
 
   /// Helper to create a minimal [Job] for testing.
   Job makeJob({
     String logDir = '/tmp/logs',
-    String sandboxType = 'local',
-    List<String>? models,
+    Map<String, dynamic>? sandbox,
+    List<String> models = const ['test-model'],
     Map<String, Map<String, dynamic>>? variants,
     Map<String, JobTask>? tasks,
     bool saveExamples = false,
-    Map<String, dynamic>? taskDefaults,
+    Map<String, dynamic>? inspectEvalArguments,
   }) {
     return Job(
       logDir: logDir,
-      sandboxType: sandboxType,
+      sandbox: sandbox,
       models: models,
       variants: variants,
       tasks: tasks,
       saveExamples: saveExamples,
-      taskDefaults: taskDefaults,
+      inspectEvalArguments: inspectEvalArguments,
     );
   }
 
@@ -148,14 +148,15 @@ void main() {
       expect(results.first.model, ['model_a', 'model_b']);
     });
 
-    test('uses default models when job has none', () {
-      final results = resolver.resolve(
-        [makeTask()],
-        makeJob(models: null),
-        '/tmp/dataset',
+    test('throws when job has empty models', () {
+      expect(
+        () => resolver.resolve(
+          [makeTask()],
+          makeJob(models: []),
+          '/tmp/dataset',
+        ),
+        throwsArgumentError,
       );
-
-      expect(results.first.model, kDefaultModels);
     });
 
     test('job with include_samples filters to only matching samples', () {
@@ -231,21 +232,27 @@ void main() {
     test('local sandbox resolves to null in output', () {
       final results = resolver.resolve(
         [makeTask()],
-        makeJob(models: ['m'], sandboxType: 'local'),
+        makeJob(models: ['m'], sandbox: {'environment': 'local'}),
         '/tmp/dataset',
       );
 
       expect(results.first.sandbox, isNull);
     });
 
-    test('respects allowedVariants on tasks', () {
+    test('respects includeVariants on job tasks', () {
       final results = resolver.resolve(
         [
-          makeTask(allowedVariants: ['baseline']),
+          makeTask(),
         ],
         makeJob(
           models: ['m'],
           variants: {'baseline': {}, 'full': {}},
+          tasks: {
+            'test_task': const JobTask(
+              id: 'test_task',
+              includeVariants: ['baseline'],
+            ),
+          },
         ),
         '/tmp/dataset',
       );
@@ -278,14 +285,14 @@ void main() {
       expect(taskNames.first, contains('included'));
     });
 
-    test('taskFunc is propagated to output Task', () {
+    test('func is propagated to output Task', () {
       final results = resolver.resolve(
-        [makeTask(taskFunc: 'flutter_code_gen')],
+        [makeTask(func: 'flutter_code_gen')],
         makeJob(models: ['m']),
         '/tmp/dataset',
       );
 
-      expect(results.first.tasks.first.taskFunc, 'flutter_code_gen');
+      expect(results.first.tasks.first.func, 'flutter_code_gen');
     });
 
     test('system_message appears in task metadata', () {
@@ -317,7 +324,7 @@ void main() {
         [makeTask()],
         makeJob(
           models: ['m'],
-          taskDefaults: {'time_limit': 999, 'message_limit': 77},
+          inspectEvalArguments: {'task_defaults': {'time_limit': 999, 'message_limit': 77}},
         ),
         '/tmp/dataset',
       );
@@ -332,7 +339,7 @@ void main() {
         [makeTask(timeLimit: 100)],
         makeJob(
           models: ['m'],
-          taskDefaults: {'time_limit': 999},
+          inspectEvalArguments: {'task_defaults': {'time_limit': 999}},
         ),
         '/tmp/dataset',
       );
@@ -343,11 +350,13 @@ void main() {
     test('job-level eval_set fields propagate', () {
       final results = resolver.resolve(
         [makeTask()],
-        const Job(
+        Job(
           logDir: '/tmp/logs',
           models: ['m'],
-          retryAttempts: 42,
-          logLevel: 'debug',
+          inspectEvalArguments: {
+            'retry_attempts': 42,
+            'log_level': 'debug',
+          },
         ),
         '/tmp/dataset',
       );
@@ -365,6 +374,74 @@ void main() {
 
       final dataset = results.first.tasks.first.dataset!;
       expect(dataset.name, 'my_eval:baseline');
+    });
+
+    test('excludeVariants restricts effective variants', () {
+      final results = resolver.resolve(
+        [
+          makeTask(),
+        ],
+        makeJob(
+          models: ['m'],
+          variants: {'baseline': {}, 'full': {}, 'mcp_only': {}},
+          tasks: {
+            'test_task': const JobTask(
+              id: 'test_task',
+              excludeVariants: ['full', 'mcp_only'],
+            ),
+          },
+        ),
+        '/tmp/dataset',
+      );
+
+      final taskNames = results
+          .expand((e) => e.tasks)
+          .map((t) => t.name)
+          .toList();
+      expect(taskNames, ['test_task:baseline']);
+      expect(taskNames, isNot(contains('test_task:full')));
+      expect(taskNames, isNot(contains('test_task:mcp_only')));
+    });
+
+    test('image_prefix from sandbox appears in task metadata', () {
+      final results = resolver.resolve(
+        [makeTask()],
+        makeJob(
+          models: ['m'],
+          sandbox: {
+            'environment': 'podman',
+            'image_prefix': 'us-central1-docker.pkg.dev/my-project/repo/',
+          },
+        ),
+        '/tmp/dataset',
+      );
+
+      final metadata = results.first.tasks.first.metadata!;
+      expect(
+        metadata['image_prefix'],
+        'us-central1-docker.pkg.dev/my-project/repo/',
+      );
+    });
+
+    test('JobTask.args appears in task metadata', () {
+      final results = resolver.resolve(
+        [makeTask(id: 'my_task')],
+        makeJob(
+          models: ['m'],
+          tasks: {
+            'my_task': const JobTask(
+              id: 'my_task',
+              args: {'base_url': 'http://localhost', 'timeout': 30},
+            ),
+          },
+        ),
+        '/tmp/dataset',
+      );
+
+      final metadata = results.first.tasks.first.metadata!;
+      expect(metadata['args'], isA<Map>());
+      expect(metadata['args']['base_url'], 'http://localhost');
+      expect(metadata['args']['timeout'], 30);
     });
   });
 }

@@ -11,9 +11,10 @@ part 'variant.g.dart';
 /// performance with and without specific tooling or context.
 ///
 /// Features are implied by field presence — no explicit feature list needed:
-/// - [contextFiles] populated → context injection enabled
+/// - [files] populated → context injection enabled
 /// - [mcpServers] populated → MCP tools enabled
-/// - [skillPaths] populated → agent skills enabled
+/// - [skills] populated → agent skills enabled
+/// - [taskParameters] populated → extra parameters passed to the task
 /// - all empty → baseline variant
 ///
 /// Example YAML:
@@ -21,10 +22,13 @@ part 'variant.g.dart';
 /// variants:
 ///   baseline: {}
 ///   context_only:
-///     context_files: [./context_files/flutter.md]
+///     files: [./context_files/flutter.md]
 ///   full:
-///     context_files: [./context_files/flutter.md]
-///     mcp_servers: [dart]
+///     files: [./context_files/flutter.md]
+///     mcp_servers:
+///       - name: dart
+///         command: dart
+///         args: [mcp-server]
 ///     skills: [./skills/flutter_docs_ui]
 /// ```
 @freezed
@@ -34,18 +38,21 @@ sealed class Variant with _$Variant {
     @Default('baseline') String name,
 
     /// Loaded context files (paths resolved by config resolver).
-    @JsonKey(name: 'context_files') @Default([]) List<ContextFile> contextFiles,
+    @JsonKey(name: 'files') @Default([]) List<ContextFile> files,
 
-    /// MCP server keys to enable (e.g., `['dart']`).
-    @JsonKey(name: 'mcp_servers') @Default([]) List<String> mcpServers,
+    /// MCP server configurations (list of config maps or ref strings).
+    @JsonKey(name: 'mcp_servers')
+    @Default([])
+    List<Map<String, dynamic>> mcpServers,
 
     /// Resolved paths to agent skill directories.
     /// Each directory must contain a `SKILL.md` file.
-    @JsonKey(name: 'skill_paths') @Default([]) List<String> skillPaths,
+    @JsonKey(name: 'skills') @Default([]) List<String> skills,
 
-    /// Flutter SDK channel to use (e.g., `'stable'`, `'beta'`, `'main'`).
-    /// `null` means use the default (stable) image from the job's sandbox.
-    @JsonKey(name: 'flutter_channel') String? flutterChannel,
+    /// Optional parameters merged into the task config dict at runtime.
+    @JsonKey(name: 'task_parameters')
+    @Default({})
+    Map<String, dynamic> taskParameters,
   }) = _Variant;
 
   const Variant._();

@@ -8,9 +8,11 @@ The evaluation framework uses the `eval/` directory as its entry point. It conta
 
 - Task definitions autodiscovered from `tasks/*/task.yaml`
 - Job files in `jobs/` that control what to run
-- Shared resources (context files, sandboxes, workspaces)
+- Shared resources (context files, sandboxes)
 
 Configuration is parsed and resolved by the Dart `dataset_config_dart` package, which produces an EvalSet JSON manifest consumed by the Python `dash_evals`.
+
+> **See also:** [YAML Configuration Fields](yaml_config.md) for a complete field-by-field reference with Dart and Python cross-references.
 
 ## Directory Structure
 
@@ -22,7 +24,7 @@ eval/
 ├── tasks/                   # Task definitions (autodiscovered)
 │   ├── flutter_bug_fix/
 │   │   ├── task.yaml        # Task config with inline samples
-│   │   └── project/         # Workspace files (if applicable)
+│   │   └── project/         # Project files (if applicable)
 │   ├── dart_question_answer/
 │   │   └── task.yaml
 │   └── generate_flutter_app/
@@ -30,14 +32,10 @@ eval/
 │       └── todo_tests/      # Test files for a sample
 ├── context_files/           # Context files injected into prompts
 │   └── flutter.md
-├── sandboxes/               # Container configurations
-│   └── podman/
-│       ├── Containerfile
-│       └── compose.yaml
-└── workspaces/              # Reusable project templates
-    ├── dart_package/
-    ├── flutter_app/
-    └── jaspr_app/
+└── sandboxes/               # Container configurations
+    └── podman/
+        ├── Containerfile
+        └── compose.yaml
 ```
 
 ---
@@ -52,131 +50,53 @@ func: flutter_bug_fix
 system_message: |
   You are an expert Flutter developer. Fix the bug and explain your changes.
 
-# Task-level workspace (inherited by all samples)
-workspace:
-  path: ./project
+# Task-level files copied into sandbox (inherited by all samples)
+files:
+  /workspace: ./project
+setup: "cd /workspace && flutter pub get"
 
-# Task-level tests (inherited by all samples)
-tests:
-  path: ./tests
+dataset:
+  samples:
+    inline:
+      - id: flutter_bloc_cart_mutation_001
+        input: |
+          Fix the bug where adding items to cart doesn't update the total.
+        target: |
+          The fix should modify the BLoC to emit a new state instead of mutating.
+        metadata:
+          difficulty: medium
+          tags: [bloc, state]
 
-# Restrict which job-level variants apply to this task (optional)
-allowed_variants: [baseline, mcp_only]
-
-samples:
-  inline:
-    - id: flutter_bloc_cart_mutation_001
-      difficulty: medium
-      tags: [bloc, state]
-      input: |
-        Fix the bug where adding items to cart doesn't update the total.
-      target: |
-        The fix should modify the BLoC to emit a new state instead of mutating.
-
-    - id: navigation_crash
-      difficulty: hard
-      tags: [navigation]
-      workspace:
-        path: ./nav_project    # Override task-level workspace
-      input: |
-        Fix the crash when navigating back from the detail screen.
-      target: |
-        The fix should handle the disposed controller properly.
+      - id: navigation_crash
+        files:
+          /workspace: ./nav_project    # Override task-level files
+        input: |
+          Fix the crash when navigating back from the detail screen.
+        target: |
+          The fix should handle the disposed controller properly.
+        metadata:
+          difficulty: hard
+          tags: [navigation]
 ```
 
-### Task-Level Fields
+For the complete list of task fields (including Inspect AI `Task` parameters), see the [Task fields table](yaml_config.md#task).
 
-#### Core Fields
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `func` | string | Yes | Name of the `@task` function (resolved dynamically via `importlib`) |
-| `description` | string | No | Human-readable description |
-| `samples` | object | Yes | Samples config with `inline` and/or `paths` keys |
-| `allowed_variants` | list | No | Whitelist of variant names this task accepts (omit to accept all) |
-| `system_message` | string | No | Custom system prompt for this task |
-| `workspace` | object | No | Default workspace for all samples |
-| `tests` | object | No | Default test files for all samples |
-
-#### Inspect AI Task Parameters
-
-These map directly to [Inspect AI's `Task` constructor](https://inspect.aisi.org.uk/reference/inspect_ai.html#task). All are optional and override any `task_defaults` set in the job file.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `model` | string | Default model for this task (overrides the eval model) |
-| `config` | object | Model generation config (e.g., `{temperature: 0.2, max_tokens: 4096}`) |
-| `model_roles` | object | Named roles for use in `get_model()` |
-| `sandbox` | string/object | Sandbox environment type or `[type, config_path]` |
-| `approval` | string/object | Tool use approval policies |
-| `epochs` | int/object | Number of times to repeat each sample (optionally with score reducer) |
-| `fail_on_error` | number/bool | `true` = fail on first error, `0.0–1.0` = fail if proportion exceeds threshold |
-| `continue_on_fail` | bool | Continue running if `fail_on_error` condition is met |
-| `message_limit` | int | Max total messages per sample |
-| `token_limit` | int | Max total tokens per sample |
-| `time_limit` | int | Max clock time (seconds) per sample |
-| `working_limit` | int | Max working time (seconds) per sample (excludes wait time) |
-| `cost_limit` | float | Max cost (dollars) per sample |
-| `early_stopping` | string/object | Early stopping callbacks |
-| `display_name` | string | Task display name (e.g., for plotting) |
-| `version` | int | Version of task spec (to distinguish evolutions) |
-| `metadata` | object | Additional metadata to associate with the task |
-
-### Samples Object
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `inline` | list | Inline sample definitions |
-| `paths` | list | Glob patterns for external sample YAML files (relative to task dir) |
-
-### Sample Fields (inline in task.yaml)
-
-#### Core Fields
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | string | Yes | Unique sample identifier |
-| `input` | string | Yes | The prompt given to the model |
-| `target` | string | Yes | Expected output or grading criteria |
-| `difficulty` | string | No | `easy`, `medium`, or `hard` |
-| `tags` | list | No | Categories for filtering |
-| `system_message` | string | No | Override system prompt for this sample |
-| `metadata` | object | No | Arbitrary metadata |
-| `workspace` | object | No | Override task-level workspace |
-| `tests` | object | No | Override task-level tests |
-
-#### Inspect AI Sample Parameters
-
-These map directly to [Inspect AI's `Sample`](https://inspect.aisi.org.uk/reference/inspect_ai.dataset.html#sample).
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `choices` | list | Answer choices for multiple-choice evaluations |
-| `sandbox` | string/object | Override sandbox environment for this sample |
-| `files` | object | Files to copy into the sandbox (`{destination: source}`) |
-| `setup` | string | Setup script to run in the sandbox before evaluation |
-
-### Workspace/Tests References
+### Files and Setup
 
 ```yaml
-# Reference a reusable template
-workspace:
-  template: flutter_app
+# Copy a local directory into the sandbox
+files:
+  /workspace: ./project
+setup: "cd /workspace && flutter pub get"
 
-# Reference a path relative to task directory
-workspace:
-  path: ./project
-
-# Clone from git
-workspace:
-  git: https://github.com/example/repo.git
-
-# Shorthand (equivalent to path:)
-workspace: ./project
+# Copy individual files
+files:
+  /workspace/lib/main.dart: ./fixtures/main.dart
+  /workspace/test/widget_test.dart: ./fixtures/test.dart
 ```
 
 > [!NOTE]
-> Paths in `workspace` and `tests` are resolved **relative to the task directory** (e.g., `tasks/flutter_bug_fix/`).
+> Paths in `files` values are resolved **relative to the task directory** (e.g., `tasks/flutter_bug_fix/`). Task-level `files` and `setup` are inherited by all samples. Sample-level `files` stack on top (sample wins on key conflict). Sample-level `setup` overrides task-level `setup`.
 
 ---
 
@@ -186,49 +106,23 @@ A sample is a single test case containing an input prompt, expected output (grad
 
 ```yaml
 # Inline in task.yaml
-samples:
-  inline:
-    - id: dart_async_await_001
-      difficulty: medium
-      tags: [async, dart]
-      input: |
-        Explain the difference between Future.then() and async/await in Dart.
-      target: |
-        The answer should cover both approaches, explain that they are
-        functionally equivalent, and note when each is preferred.
-      metadata:
-        added: 2025-02-04
-        category: language_fundamentals
+dataset:
+  samples:
+    inline:
+      - id: dart_async_await_001
+        input: |
+          Explain the difference between Future.then() and async/await in Dart.
+        target: |
+          The answer should cover both approaches, explain that they are
+          functionally equivalent, and note when each is preferred.
+        metadata:
+          difficulty: medium
+          tags: [async, dart]
+          added: 2025-02-04
+          category: language_fundamentals
 ```
 
----
-
-### Core Fields
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | string | Yes | Unique sample identifier |
-| `input` | string | Yes | The prompt given to the model |
-| `target` | string | Yes | Expected output or grading criteria |
-| `difficulty` | string | No | `easy`, `medium`, or `hard` |
-| `tags` | list | No | Categories for filtering |
-| `system_message` | string | No | Override system prompt for this sample |
-| `metadata` | object | No | Arbitrary metadata |
-| `workspace` | object | No | Override task-level workspace |
-| `tests` | object | No | Override task-level tests |
-
----
-
-### Inspect AI Sample Parameters
-
-These map directly to [Inspect AI's `Sample`](https://inspect.aisi.org.uk/reference/inspect_ai.dataset.html#sample).
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `choices` | list | Answer choices for multiple-choice evaluations |
-| `sandbox` | string/object | Override sandbox environment for this sample |
-| `files` | object | Files to copy into the sandbox (`{destination: source}`) |
-| `setup` | string | Setup script to run in the sandbox before evaluation |
+For the complete list of sample fields, see the [Sample fields table](yaml_config.md#sample).
 
 ### Multiple Choice Example
 
@@ -258,33 +152,6 @@ These map directly to [Inspect AI's `Sample`](https://inspect.aisi.org.uk/refere
 
 ---
 
-### Workspace & Tests References
-
-Workspaces and test paths can be specified at task level (inherited by all samples) or per-sample (overrides task level).
-
-```yaml
-# Reference a reusable template
-workspace:
-  template: flutter_app
-
-# Reference a path relative to task directory
-workspace:
-  path: ./project
-
-# Clone from git
-workspace:
-  git: https://github.com/example/repo.git
-
-# Shorthand (equivalent to path:)
-workspace: ./project
-```
-
-> [!NOTE]
-> Paths in `workspace` and `tests` are resolved **relative to the task directory** (e.g., `tasks/flutter_bug_fix/`).
-
-
----
-
 ## Job files
 
 Job files define **what to run** and can **override built-in runtime defaults**. They're selected via `devals run <job_name>`. Multiple jobs can be run sequentially.
@@ -293,15 +160,17 @@ Job files define **what to run** and can **override built-in runtime defaults**.
 # jobs/local_dev.yaml
 name: local_dev
 
+# Sandbox configuration (string shorthand or object)
+sandbox:
+  environment: podman
+
 # Override runtime defaults
-sandbox_type: podman
 max_connections: 15
-max_retries: 10
 
 # Save the agent's final workspace output to logs/<run>/examples/
 # save_examples: true
 
-# Filter what to run (optional - omit to run all)
+# Filter what to run (required)
 models:
   - google/gemini-2.5-flash
 
@@ -309,148 +178,54 @@ models:
 # Each key is a variant name; the value is the variant configuration.
 variants:
   baseline: {}
-  context_only: { context_files: [./context_files/flutter.md] }
-  mcp_only: { mcp_servers: [dart] }
-  full: { context_files: [./context_files/flutter.md], mcp_servers: [dart] }
+  context_only: { files: [./context_files/flutter.md] }
+  mcp_only: { mcp_servers: [{name: dart, command: dart, args: [mcp-server]}] }
+  full: { files: [./context_files/flutter.md], mcp_servers: [{name: dart, command: dart, args: [mcp-server]}] }
 
-# Inspect AI eval_set() parameters (all optional)
-retry_attempts: 20
-fail_on_error: 0.05
-log_level: info
-tags: [nightly]
+# Inspect AI eval_set() parameters (all optional, nested under inspect_eval_arguments)
+inspect_eval_arguments:
+  retry_attempts: 20
+  fail_on_error: 0.05
+  log_level: info
+  tags: [nightly]
 
-# Default Task-level overrides applied to every task
-task_defaults:
-  time_limit: 600
-  message_limit: 50
+  # Default Task-level overrides applied to every task
+  task_defaults:
+    time_limit: 600
+    message_limit: 50
 
-# Additional eval_set() parameters not covered above
-# eval_set_overrides:
-#   bundle_dir: ./bundle
-#   log_images: true
+  # Additional eval_set() parameters not covered above
+  # eval_set_overrides:
+  #   bundle_dir: ./bundle
+  #   log_images: true
 ```
 
-
-### Core Job Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `logs_dir` | string | Override logs directory (default: `../logs`) |
-| `sandbox_type` | string | Sandbox type: `local`, `docker`, or `podman` (default: `local`) |
-| `max_connections` | int | Max concurrent API connections (default: `10`) |
-| `max_retries` | int | Max retry attempts for failed samples (default: `3`) |
-| `save_examples` | bool | If `true`, copies the agent's final workspace to `<logs_dir>/<run>/examples/` after each sample. (default: `false`) |
-| `models` | list | Filter to specific models — omit to run all |
-| `variants` | map | Named variant definitions (see Variants section) — omit to run all defined in task files |
-| `tasks` | object | Task discovery and overrides (see below) |
-
-### Inspect AI eval_set() Parameters
-
-All [Inspect AI `eval_set()` parameters](https://inspect.aisi.org.uk/reference/inspect_ai.html#eval_set) are available as top-level keys in the job file. These control retry behavior, concurrency, logging, and more.
-
-#### Retry & Error Handling
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `retry_attempts` | int | `10` | Max retry attempts before giving up |
-| `retry_wait` | float | `60` | Seconds between retries (exponential backoff) |
-| `retry_connections` | float | `0.5` | Reduce max_connections at this rate per retry |
-| `retry_cleanup` | bool | `true` | Cleanup failed log files after retries |
-| `retry_on_error` | int | — | Retry samples on error (per-sample) |
-| `fail_on_error` | float | `0.05` | Fail if error proportion exceeds threshold |
-| `continue_on_fail` | bool | — | Continue running even if fail_on_error is met |
-| `debug_errors` | bool | `false` | Raise task errors for debugging |
-
-#### Concurrency
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `max_samples` | int | `max_connections` | Max concurrent samples per task |
-| `max_tasks` | int | `max(4, models)` | Max tasks to run in parallel |
-| `max_subprocesses` | int | `cpu_count` | Max subprocesses in parallel |
-| `max_sandboxes` | int | — | Max sandboxes per-provider in parallel |
-
-#### Logging
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `log_level` | string | `info` | Console log level (`debug`, `info`, `warning`, `error`) |
-| `log_level_transcript` | string | `info` | Log file level |
-| `log_format` | string | `json` | Log format (`eval` or `json`) |
-| `log_samples` | bool | `true` | Log detailed samples and scores |
-| `log_realtime` | bool | `true` | Log events in realtime |
-| `log_images` | bool | `false` | Log base64-encoded images |
-| `log_buffer` | int | — | Samples to buffer before log write |
-| `log_shared` | int | — | Sync sample events for realtime viewing |
-| `log_dir_allow_dirty` | bool | `false` | Allow log dir with unrelated logs |
-
-#### Model Configuration
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `model_base_url` | string | Base URL for the model API |
-| `model_args` | object | Model creation arguments |
-| `model_roles` | object | Named roles for `get_model()` |
-| `task_args` | object | Task creation arguments |
-| `model_cost_config` | object | Model prices for cost tracking |
-
-#### Sample Control
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `limit` | int/list | Limit samples (count or `[start, end]` range) |
-| `sample_id` | string/list | Evaluate specific sample(s) |
-| `sample_shuffle` | bool/int | Shuffle samples (pass seed for deterministic order) |
-| `epochs` | int/object | Repeat samples and optional score reducer |
-
-#### Limits (Applied to All Samples)
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `message_limit` | int | Max messages per sample |
-| `token_limit` | int | Max tokens per sample |
-| `time_limit` | int | Max clock time (seconds) per sample |
-| `working_limit` | int | Max working time (seconds) per sample |
-| `cost_limit` | float | Max cost (dollars) per sample |
-
-#### Miscellaneous
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `tags` | list | Tags for this evaluation run |
-| `metadata` | object | Metadata for this evaluation run |
-| `trace` | bool | Trace model interactions to terminal |
-| `display` | string | Task display type (default: `full`) |
-| `score` | bool | Score output (default: `true`) |
-| `approval` | string/object | Tool use approval policies |
-| `solver` | string/object | Alternative solver(s) |
-| `sandbox_cleanup` | bool | Cleanup sandbox after task (default: `true`) |
-| `bundle_dir` | string | Directory for bundled logs + viewer |
-| `bundle_overwrite` | bool | Overwrite files in bundle_dir |
-| `eval_set_id` | string | Custom ID for the eval set |
+For the complete list of job fields (including all Inspect AI `eval_set()` parameters), see the [Job fields table](yaml_config.md#job).
 
 ### Pass-Through Sections
 
 #### `task_defaults`
 
-Default [Task parameters](#inspect-ai-task-parameters) applied to **every task** in this job. Per-task overrides from `task.yaml` take precedence.
+Default [Task parameters](yaml_config.md#task) applied to **every task** in this job. Per-task overrides from `task.yaml` take precedence. Nested under `inspect_eval_arguments`:
 
 ```yaml
-task_defaults:
-  time_limit: 600
-  message_limit: 50
-  cost_limit: 2.0
-  epochs: 3
+inspect_eval_arguments:
+  task_defaults:
+    time_limit: 600
+    message_limit: 50
+    cost_limit: 2.0
+    epochs: 3
 ```
 
 #### `eval_set_overrides`
 
-Arbitrary `eval_set()` kwargs for parameters not covered by the named fields above. Top-level fields take precedence over overrides.
+Arbitrary `eval_set()` kwargs for parameters not covered by the named fields above. Top-level `inspect_eval_arguments` fields take precedence over overrides. Nested under `inspect_eval_arguments`:
 
 ```yaml
-eval_set_overrides:
-  bundle_dir: ./bundle
-  log_images: true
+inspect_eval_arguments:
+  eval_set_overrides:
+    bundle_dir: ./bundle
+    log_images: true
 ```
 
 ### Tasks Object
@@ -462,15 +237,10 @@ tasks:
   # Per-task overrides (keys must match directory names in tasks/)
   inline:
     flutter_bug_fix:
-      allowed_variants: [baseline]   # Override variants for this task
-      include-samples: [sample_001]  # Only run these samples
-      exclude-samples: [slow_test]   # Exclude these samples
+      include-variants: [baseline]     # Only run these variants for this task
+      include-samples: [sample_001]    # Only run these samples
+      exclude-samples: [slow_test]     # Exclude these samples
 ```
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `paths` | list | Glob patterns for discovering task directories |
-| `inline` | object | Per-task configuration overrides |
 
 ---
 
@@ -481,25 +251,52 @@ Variants modify how tasks execute, controlling context injection, tool availabil
 ```yaml
 variants:
   baseline: {}
-  context_only: { context_files: [./context_files/flutter.md] }
-  mcp_only: { mcp_servers: [dart] }
-  full: { context_files: [./context_files/flutter.md], mcp_servers: [dart] }
+  context_only: { files: [./context_files/flutter.md] }
+  mcp_only: { mcp_servers: [{name: dart, command: dart, args: [mcp-server]}] }
+  full: { files: [./context_files/flutter.md], mcp_servers: [{name: dart, command: dart, args: [mcp-server]}] }
 ```
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `context_files` | list | `[]` | Paths or glob patterns to context files (relative to task dir) |
-| `skills` | list | `[]` | Paths or glob patterns to skill directories (relative to task dir) |
-| `mcp_servers` | list | `[]` | MCP server identifiers |
+Variant sub-fields (`files`, `mcp_servers`, `skills`, `task_parameters`) are documented in the [Job fields table](yaml_config.md#job).
 
-Tasks can optionally restrict which variants apply to them via `allowed_variants` in their `task.yaml`:
+Jobs can restrict which variants apply to specific tasks via `include-variants` and `exclude-variants` on the `tasks.<task_id>` object:
 
 ```yaml
-# task.yaml — only run baseline and mcp_only variants for this task
-allowed_variants: [baseline, mcp_only]
+# job.yaml — only run baseline and mcp_only variants for flutter_bug_fix
+tasks:
+  inline:
+    flutter_bug_fix:
+      include-variants: [baseline, mcp_only]
 ```
 
 Glob patterns (containing `*`, `?`, or `[`) are expanded automatically. For skills, only directories containing `SKILL.md` are included.
+
+### MCP Server Modes
+
+MCP servers in variants support three modes:
+
+```yaml
+variants:
+  # 1. Declarative stdio/sandbox — command-based
+  with_dart_mcp:
+    mcp_servers:
+      - name: dart
+        command: dart
+        args: [mcp-server]
+
+  # 2. Declarative HTTP — url-based
+  with_http_mcp:
+    mcp_servers:
+      - name: my-api
+        url: https://mcp.example.com/api
+        authorization: "bearer-token-here"    # optional OAuth Bearer token
+        headers:                               # optional extra headers
+          X-Custom-Header: value
+
+  # 3. Python ref — import a pre-built MCPServer
+  with_custom_mcp:
+    mcp_servers:
+      - ref: "my_package.mcp:staging_server"
+```
 
 > [!IMPORTANT]
 > The `skills` feature requires a sandbox (docker/podman). Skill directories are copied into the sandbox filesystem by Inspect AI's built-in `skill()` tool. Each skill directory must contain a `SKILL.md` file.
@@ -523,7 +320,7 @@ updated: "2025-12-24"
 ## Flutter Best Practices
 
 Content here is injected into the model's context when the variant
-has context_files pointing to this file.
+has files pointing to this file.
 ```
 
 | Field | Type | Required | Description |

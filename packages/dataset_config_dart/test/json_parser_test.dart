@@ -14,17 +14,17 @@ void main() {
         {
           'id': 'my_task',
           'func': 'question_answer',
-          'samples': {
+          'dataset': {'samples': {
             'inline': [
               {'id': 's1', 'input': 'What is Dart?', 'target': 'A language'},
             ],
-          },
+          }},
         },
       ]);
 
       expect(tasks, hasLength(1));
       expect(tasks.first.id, 'my_task');
-      expect(tasks.first.taskFunc, 'question_answer');
+      expect(tasks.first.func, 'question_answer');
       expect(tasks.first.samples, hasLength(1));
       expect(tasks.first.samples.first.id, 's1');
       expect(tasks.first.samples.first.input, 'What is Dart?');
@@ -35,11 +35,11 @@ void main() {
       final tasks = parser.parseTasksFromMaps([
         {
           'id': 'dart_qa',
-          'samples': {'inline': <Map<String, dynamic>>[]},
+          'dataset': {'samples': {'inline': <Map<String, dynamic>>[]}},
         },
       ]);
 
-      expect(tasks.first.taskFunc, 'dart_qa');
+      expect(tasks.first.func, 'dart_qa');
     });
 
     test('throws FormatException when sample missing required field', () {
@@ -47,31 +47,33 @@ void main() {
         () => parser.parseTasksFromMaps([
           {
             'id': 'bad_task',
-            'samples': {
+            'dataset': {'samples': {
               'inline': [
                 {'id': 's1', 'input': 'hello'}, // missing 'target'
               ],
-            },
+            }},
           },
         ]),
         throwsA(isA<FormatException>()),
       );
     });
 
-    test('normalises tags from comma-separated string', () {
+    test('normalises tags from comma-separated string in metadata', () {
       final tasks = parser.parseTasksFromMaps([
         {
           'id': 'tagged_task',
-          'samples': {
+          'dataset': {'samples': {
             'inline': [
               {
                 'id': 's1',
                 'input': 'q',
                 'target': 'a',
-                'tags': 'flutter, dart, widgets',
+                'metadata': {
+                  'tags': 'flutter, dart, widgets',
+                },
               },
             ],
-          },
+          }},
         },
       ]);
 
@@ -79,20 +81,22 @@ void main() {
       expect(metadata['tags'], equals(['flutter', 'dart', 'widgets']));
     });
 
-    test('normalises tags from list', () {
+    test('normalises tags from list in metadata', () {
       final tasks = parser.parseTasksFromMaps([
         {
           'id': 'tagged_task',
-          'samples': {
+          'dataset': {'samples': {
             'inline': [
               {
                 'id': 's1',
                 'input': 'q',
                 'target': 'a',
-                'tags': ['tag1', 'tag2'],
+                'metadata': {
+                  'tags': ['tag1', 'tag2'],
+                },
               },
             ],
-          },
+          }},
         },
       ]);
 
@@ -104,11 +108,11 @@ void main() {
       final tasks = parser.parseTasksFromMaps([
         {
           'id': 'no_tags',
-          'samples': {
+          'dataset': {'samples': {
             'inline': [
               {'id': 's1', 'input': 'q', 'target': 'a'},
             ],
-          },
+          }},
         },
       ]);
 
@@ -120,11 +124,11 @@ void main() {
       final tasks = parser.parseTasksFromMaps([
         {
           'id': 'task',
-          'samples': {
+          'dataset': {'samples': {
             'inline': [
               {'id': 's1', 'input': 'q', 'target': 'a'},
             ],
-          },
+          }},
         },
       ]);
 
@@ -136,7 +140,7 @@ void main() {
       final tasks = parser.parseTasksFromMaps([
         {
           'id': 'task',
-          'samples': {
+          'dataset': {'samples': {
             'inline': [
               {
                 'id': 's1',
@@ -147,7 +151,7 @@ void main() {
                 'files': {'main.dart': 'void main() {}'},
               },
             ],
-          },
+          }},
         },
       ]);
 
@@ -157,31 +161,31 @@ void main() {
       expect(sample.files, {'main.dart': 'void main() {}'});
     });
 
-    test('parses all task-level settings', () {
+    test('parses all task-level settings from inspect_task_args', () {
       final tasks = parser.parseTasksFromMaps([
         {
           'id': 'full_task',
           'func': 'my_func',
           'system_message': 'Be helpful',
-          'allowed_variants': ['baseline', 'full'],
-          'model': 'gemini-pro',
-          'config': {'temperature': 0.5},
-          'model_roles': {'grader': 'gpt-4o'},
-          'message_limit': 50,
-          'token_limit': 4096,
-          'time_limit': 600,
-          'working_limit': 300,
-          'cost_limit': 1.5,
+          'inspect_task_args': {
+            'model': 'gemini-pro',
+            'config': {'temperature': 0.5},
+            'model_roles': {'grader': 'gpt-4o'},
+            'message_limit': 50,
+            'token_limit': 4096,
+            'time_limit': 600,
+            'working_limit': 300,
+            'cost_limit': 1.5,
+          },
           'display_name': 'Full Task',
           'version': 2,
           'metadata': {'author': 'test'},
-          'samples': {'inline': <Map<String, dynamic>>[]},
+          'dataset': {'samples': {'inline': <Map<String, dynamic>>[]}},
         },
       ]);
 
       final task = tasks.first;
       expect(task.systemMessage, 'Be helpful');
-      expect(task.allowedVariants, ['baseline', 'full']);
       expect(task.model, 'gemini-pro');
       expect(task.config, {'temperature': 0.5});
       expect(task.modelRoles, {'grader': 'gpt-4o'});
@@ -199,9 +203,9 @@ void main() {
       final tasks = parser.parseTasksFromMaps([
         {
           'id': 'task',
-          'samples': {
+          'dataset': {'samples': {
             'inline': [<String, dynamic>{}],
-          },
+          }},
         },
       ]);
 
@@ -210,66 +214,80 @@ void main() {
   });
 
   group('parseJobFromMap()', () {
-    test('parses minimal job with defaults', () {
-      final job = parser.parseJobFromMap(<String, dynamic>{});
-
-      expect(job.logDir, '');
-      expect(job.sandboxType, 'local');
-      expect(job.maxConnections, 10);
-      expect(job.models, isNull);
-      expect(job.saveExamples, false);
+    test('throws when models is missing', () {
+      expect(
+        () => parser.parseJobFromMap(<String, dynamic>{}),
+        throwsA(isA<FormatException>()),
+      );
     });
 
     test('parses all core fields', () {
       final job = parser.parseJobFromMap({
         'log_dir': './logs/run1',
-        'sandbox_type': 'podman',
+        'sandbox': {'environment': 'podman'},
         'max_connections': 5,
         'models': ['gemini-pro', 'gpt-4o'],
         'save_examples': true,
       });
 
       expect(job.logDir, './logs/run1');
-      expect(job.sandboxType, 'podman');
+      expect(job.sandbox, {'environment': 'podman'});
       expect(job.maxConnections, 5);
       expect(job.models, ['gemini-pro', 'gpt-4o']);
       expect(job.saveExamples, true);
     });
 
-    test('parses promoted eval_set fields', () {
+    test('parses sandbox string shorthand', () {
       final job = parser.parseJobFromMap({
-        'retry_attempts': 20,
-        'max_retries': 3,
-        'retry_wait': 5.0,
-        'fail_on_error': 0.5,
-        'continue_on_fail': true,
-        'max_samples': 100,
-        'max_tasks': 4,
-        'log_level': 'debug',
-        'tags': ['ci', 'nightly'],
-        'metadata': {'run_by': 'bot'},
+        'sandbox': 'podman',
+        'models': ['test-model'],
       });
 
-      expect(job.retryAttempts, 20);
-      expect(job.maxRetries, 3);
-      expect(job.retryWait, 5.0);
-      expect(job.failOnError, 0.5);
-      expect(job.continueOnFail, true);
-      expect(job.maxSamples, 100);
-      expect(job.maxTasks, 4);
-      expect(job.logLevel, 'debug');
-      expect(job.tags, ['ci', 'nightly']);
-      expect(job.metadata, {'run_by': 'bot'});
+      expect(job.sandbox, {'environment': 'podman'});
     });
 
-    test('parses pass-through overrides', () {
+    test('parses inspect_eval_arguments', () {
       final job = parser.parseJobFromMap({
-        'eval_set_overrides': {'custom_key': 'custom_value'},
-        'task_defaults': {'time_limit': 600},
+        'models': ['test-model'],
+        'inspect_eval_arguments': {
+          'retry_attempts': 20,
+          'max_retries': 3,
+          'retry_wait': 5.0,
+          'fail_on_error': 0.5,
+          'continue_on_fail': true,
+          'max_samples': 100,
+          'max_tasks': 4,
+          'log_level': 'debug',
+          'tags': ['ci', 'nightly'],
+          'metadata': {'run_by': 'bot'},
+        },
       });
 
-      expect(job.evalSetOverrides, {'custom_key': 'custom_value'});
-      expect(job.taskDefaults, {'time_limit': 600});
+      final evalArgs = job.inspectEvalArguments!;
+      expect(evalArgs['retry_attempts'], 20);
+      expect(evalArgs['max_retries'], 3);
+      expect(evalArgs['retry_wait'], 5.0);
+      expect(evalArgs['fail_on_error'], 0.5);
+      expect(evalArgs['continue_on_fail'], true);
+      expect(evalArgs['max_samples'], 100);
+      expect(evalArgs['max_tasks'], 4);
+      expect(evalArgs['log_level'], 'debug');
+      expect(evalArgs['tags'], ['ci', 'nightly']);
+      expect(evalArgs['metadata'], {'run_by': 'bot'});
+    });
+
+    test('parses nested overrides in inspect_eval_arguments', () {
+      final job = parser.parseJobFromMap({
+        'models': ['test-model'],
+        'inspect_eval_arguments': {
+          'eval_set_overrides': {'custom_key': 'custom_value'},
+          'task_defaults': {'time_limit': 600},
+        },
+      });
+
+      final evalArgs = job.inspectEvalArguments!;
+      expect(evalArgs['eval_set_overrides'], {'custom_key': 'custom_value'});
+      expect(evalArgs['task_defaults'], {'time_limit': 600});
     });
   });
 

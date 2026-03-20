@@ -21,56 +21,36 @@ void main() {
       expect(result, contains('tags: []'));
     });
 
-    test('with git workspace includes git section', () {
-      final result = sampleTemplate(
-        id: 'test',
-        difficulty: 'easy',
-        workspaceType: WorkspaceType.git,
-        workspaceValue: 'https://github.com/example/repo.git',
-      );
-      expect(result, contains('git:'));
-      expect(result, contains('https://github.com/example/repo.git'));
-    });
-
-    test('with path workspace includes path section', () {
+    test('with path workspace includes files section', () {
       final result = sampleTemplate(
         id: 'test',
         difficulty: 'easy',
         workspaceType: WorkspaceType.path,
         workspaceValue: './project',
       );
-      expect(result, contains('path:'));
-      expect(result, contains('./project'));
+      expect(result, contains('files:'));
+      expect(result, contains('/workspace: ./project'));
     });
 
-    test('with template workspace includes template section', () {
+    test('with create workspace includes files section', () {
       final result = sampleTemplate(
         id: 'test',
         difficulty: 'easy',
-        workspaceType: WorkspaceType.template,
-        templatePackage: TemplatePackage.flutterApp,
+        workspaceType: WorkspaceType.create,
       );
-      expect(result, contains('flutter_app'));
+      expect(result, contains('files:'));
+      expect(result, contains('/workspace: ./project'));
     });
 
-    test('without workspace type has no workspace section', () {
+    test('without workspace type has no files section', () {
       final result = sampleTemplate(id: 'test', difficulty: 'easy');
-      expect(result, isNot(contains('workspace:')));
+      expect(result, isNot(contains('files:')));
     });
 
     test('generates indented block for appending to task file', () {
       final result = sampleTemplate(id: 'test', difficulty: 'medium');
       // Should start with indented list marker for inline sample
       expect(result, contains('  - id: test'));
-    });
-
-    test('git type with null value uses placeholder', () {
-      final result = sampleTemplate(
-        id: 'test',
-        difficulty: 'easy',
-        workspaceType: WorkspaceType.git,
-      );
-      expect(result, contains('<GIT_REPOSITORY_URL>'));
     });
 
     test('path type with null value uses placeholder', () {
@@ -80,6 +60,25 @@ void main() {
         workspaceType: WorkspaceType.path,
       );
       expect(result, contains('<RELATIVE_PATH>'));
+    });
+
+    test('git type falls through to no files section', () {
+      final result = sampleTemplate(
+        id: 'test',
+        difficulty: 'easy',
+        workspaceType: WorkspaceType.git,
+      );
+      expect(result, isNot(contains('files:')));
+    });
+
+    test('template type falls through to no files section', () {
+      final result = sampleTemplate(
+        id: 'test',
+        difficulty: 'easy',
+        workspaceType: WorkspaceType.template,
+        templatePackage: TemplatePackage.flutterApp,
+      );
+      expect(result, isNot(contains('files:')));
     });
   });
 }

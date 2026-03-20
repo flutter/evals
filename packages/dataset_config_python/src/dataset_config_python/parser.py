@@ -29,12 +29,11 @@ class ParsedTask:
         self,
         *,
         id: str,
-        task_func: str,
+        func: str,
         samples: list[Sample],
         variant: Variant | None = None,
         sandbox_type: str = "local",
         system_message: str | None = None,
-        allowed_variants: list[str] | None = None,
         save_examples: bool = False,
         examples_dir: str | None = None,
         # Task-level settings
@@ -55,14 +54,21 @@ class ParsedTask:
         display_name: str | None = None,
         version: Any | None = None,
         metadata: dict[str, Any] | None = None,
+        sandbox_parameters: dict[str, Any] | None = None,
+        # Task-level files and setup
+        task_files: dict[str, str] | None = None,
+        task_setup: str | None = None,
+        # Dataset format metadata
+        dataset_format: str = "memory",
+        dataset_source: str | None = None,
+        dataset_args: dict[str, Any] | None = None,
     ):
         self.id = id
-        self.task_func = task_func
+        self.func = func
         self.samples = samples
         self.variant = variant or Variant()
         self.sandbox_type = sandbox_type
         self.system_message = system_message
-        self.allowed_variants = allowed_variants
         self.save_examples = save_examples
         self.examples_dir = examples_dir
         self.model = model
@@ -82,6 +88,12 @@ class ParsedTask:
         self.display_name = display_name
         self.version = version
         self.metadata = metadata
+        self.sandbox_parameters = sandbox_parameters
+        self.task_files = task_files
+        self.task_setup = task_setup
+        self.dataset_format = dataset_format
+        self.dataset_source = dataset_source
+        self.dataset_args = dataset_args
 
     _UNSET: Any = object()
 
@@ -89,14 +101,16 @@ class ParsedTask:
         self,
         *,
         id: str | None = _UNSET,
-        task_func: str | None = _UNSET,
+        func: str | None = _UNSET,
         samples: list[Sample] | None = _UNSET,
         variant: Variant | None = _UNSET,
         sandbox_type: str | None = _UNSET,
         system_message: str | None = _UNSET,
-        allowed_variants: list[str] | None = _UNSET,
         save_examples: bool | None = _UNSET,
         examples_dir: str | None = _UNSET,
+        sandbox_parameters: dict[str, Any] | None = _UNSET,
+        task_files: dict[str, str] | None = _UNSET,
+        task_setup: str | None = _UNSET,
         model: str | None = _UNSET,
         config: dict[str, Any] | None = _UNSET,
         model_roles: dict[str, str] | None = _UNSET,
@@ -119,14 +133,16 @@ class ParsedTask:
         _U = ParsedTask._UNSET
         return ParsedTask(
             id=self.id if id is _U else id,  # type: ignore[arg-type]
-            task_func=self.task_func if task_func is _U else task_func,  # type: ignore[arg-type]
+            func=self.func if func is _U else func,  # type: ignore[arg-type]
             samples=self.samples if samples is _U else samples,  # type: ignore[arg-type]
             variant=self.variant if variant is _U else variant,
             sandbox_type=self.sandbox_type if sandbox_type is _U else sandbox_type,  # type: ignore[arg-type]
             system_message=self.system_message if system_message is _U else system_message,
-            allowed_variants=self.allowed_variants if allowed_variants is _U else allowed_variants,
             save_examples=self.save_examples if save_examples is _U else save_examples,  # type: ignore[arg-type]
             examples_dir=self.examples_dir if examples_dir is _U else examples_dir,
+            sandbox_parameters=self.sandbox_parameters if sandbox_parameters is _U else sandbox_parameters,
+            task_files=self.task_files if task_files is _U else task_files,
+            task_setup=self.task_setup if task_setup is _U else task_setup,
             model=self.model if model is _U else model,
             config=self.config if config is _U else config,
             model_roles=self.model_roles if model_roles is _U else model_roles,
@@ -144,6 +160,9 @@ class ParsedTask:
             display_name=self.display_name if display_name is _U else display_name,
             version=self.version if version is _U else version,
             metadata=self.metadata if metadata is _U else metadata,
+            dataset_format=self.dataset_format,
+            dataset_source=self.dataset_source,
+            dataset_args=self.dataset_args,
         )
 
 
@@ -180,32 +199,8 @@ def _resolve_log_dir(logs_dir: str, base_dir: str) -> str:
     return os.path.normpath(os.path.join(base_dir, logs_dir, timestamp))
 
 
-def _pre_resolve_to_abs(resource: Any, task_dir: str) -> Any:
-    """Pre-resolve a task-level resource to an absolute path."""
-    if resource is None:
-        return None
-    if isinstance(resource, str):
-        if resource.startswith("./") or resource.startswith("../") or resource.startswith("/"):
-            return {"path": os.path.normpath(os.path.join(task_dir, resource))}
-        return resource
-    if isinstance(resource, dict):
-        if "path" in resource:
-            return {**resource, "path": os.path.normpath(os.path.join(task_dir, resource["path"]))}
-        return resource
-    return resource
 
 
-def _resolve_resource_path(resource: Any, base_dir: str) -> str | None:
-    """Resolve a workspace/tests resource reference to an absolute path."""
-    if resource is None:
-        return None
-    if isinstance(resource, str):
-        if resource.startswith("./") or resource.startswith("../") or resource.startswith("/"):
-            return os.path.normpath(os.path.join(base_dir, resource))
-        return None
-    if isinstance(resource, dict) and "path" in resource:
-        return os.path.normpath(os.path.join(base_dir, resource["path"]))
-    return None
 
 
 # ---------------------------------------------------------------------------
@@ -237,51 +232,101 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
     task_dir = os.path.dirname(task_path)
 
     task_id = data.get("id") or os.path.basename(task_dir)
-    task_func = data.get("func") or task_id
+    func_name = data.get("func") or task_id
 
-    task_workspace_raw = data.get("workspace")
-    task_tests_raw = data.get("tests")
     system_message = data.get("system_message")
 
-    task_workspace = _pre_resolve_to_abs(task_workspace_raw, task_dir)
-    task_tests = _pre_resolve_to_abs(task_tests_raw, task_dir)
+    # Parse task-level files and setup
+    task_files = data.get("files")
+    if isinstance(task_files, dict):
+        task_files = {str(k): str(v) for k, v in task_files.items()}
+    else:
+        task_files = None
+    task_setup = data.get("setup")
+    if isinstance(task_setup, str):
+        pass  # already a string
+    else:
+        task_setup = None
 
-    allowed_variants = data.get("allowed_variants")
+    # Parse dataset section (replaces the old top-level 'samples' key)
+    dataset_raw = data.get("dataset")
+    samples: list[Sample] = []
+    dataset_format = "memory"
+    dataset_source: str | None = None
+    dataset_args: dict[str, Any] | None = None
 
-    # Parse samples section
-    samples_raw = data.get("samples")
-    if not isinstance(samples_raw, dict):
-        raise ValueError(
-            f"Task '{task_id}': 'samples' must be a dict with 'inline' and/or "
-            f"'paths' keys, got {type(samples_raw).__name__}"
-        )
-    samples = _load_samples_section(samples_raw, dataset_root, task_workspace, task_tests, task_dir)
+    if dataset_raw is not None:
+        if not isinstance(dataset_raw, dict):
+            raise ValueError(
+                f"Task '{task_id}': 'dataset' must be a dict with one of "
+                f"'samples', 'json', or 'csv' keys, got {type(dataset_raw).__name__}"
+            )
+
+        # Check for mutually exclusive format keys
+        format_keys = {'samples', 'json', 'csv'}
+        present_keys = format_keys & set(dataset_raw.keys())
+        if len(present_keys) > 1:
+            raise ValueError(
+                f"Task '{task_id}': 'dataset' must have exactly one of "
+                f"'samples', 'json', or 'csv', found: {present_keys}"
+            )
+
+        dataset_args = dataset_raw.get("args")
+        if dataset_args is not None and not isinstance(dataset_args, dict):
+            raise ValueError(
+                f"Task '{task_id}': 'dataset.args' must be a dict, "
+                f"got {type(dataset_args).__name__}"
+            )
+
+        if "samples" in dataset_raw:
+            # Inline/path-based samples (existing MemoryDataset behavior)
+            samples_section = dataset_raw["samples"]
+            if not isinstance(samples_section, dict):
+                raise ValueError(
+                    f"Task '{task_id}': 'dataset.samples' must be a dict with "
+                    f"'inline' and/or 'paths' keys, got {type(samples_section).__name__}"
+                )
+            samples = _load_samples_section(samples_section, dataset_root, task_files, task_dir)
+        elif "json" in dataset_raw:
+            dataset_format = "json"
+            dataset_source = str(dataset_raw["json"])
+        elif "csv" in dataset_raw:
+            dataset_format = "csv"
+            dataset_source = str(dataset_raw["csv"])
+
+    # Task-level Inspect AI args are nested under inspect_task_args
+    task_args = data.get("inspect_task_args") or {}
 
     return [
         ParsedTask(
             id=task_id,
-            task_func=task_func,
+            func=func_name,
             variant=Variant(),
             samples=samples,
             system_message=system_message,
-            allowed_variants=allowed_variants,
-            model=data.get("model"),
-            config=data.get("config") if isinstance(data.get("config"), dict) else None,
-            model_roles=data.get("model_roles") if isinstance(data.get("model_roles"), dict) else None,
-            sandbox=data.get("sandbox"),
-            approval=data.get("approval"),
-            epochs=data.get("epochs"),
-            fail_on_error=data.get("fail_on_error"),
-            continue_on_fail=data.get("continue_on_fail"),
-            message_limit=data.get("message_limit"),
-            token_limit=data.get("token_limit"),
-            time_limit=data.get("time_limit"),
-            working_limit=data.get("working_limit"),
-            cost_limit=float(data["cost_limit"]) if data.get("cost_limit") is not None else None,
-            early_stopping=data.get("early_stopping"),
+            model=task_args.get("model"),
+            config=task_args.get("config") if isinstance(task_args.get("config"), dict) else None,
+            model_roles=task_args.get("model_roles") if isinstance(task_args.get("model_roles"), dict) else None,
+            sandbox=task_args.get("sandbox"),
+            approval=task_args.get("approval"),
+            epochs=task_args.get("epochs"),
+            fail_on_error=task_args.get("fail_on_error"),
+            continue_on_fail=task_args.get("continue_on_fail"),
+            message_limit=task_args.get("message_limit"),
+            token_limit=task_args.get("token_limit"),
+            time_limit=task_args.get("time_limit"),
+            working_limit=task_args.get("working_limit"),
+            cost_limit=float(task_args["cost_limit"]) if task_args.get("cost_limit") is not None else None,
+            early_stopping=task_args.get("early_stopping"),
             display_name=data.get("display_name"),
             version=data.get("version"),
             metadata=data.get("metadata") if isinstance(data.get("metadata"), dict) else None,
+            sandbox_parameters=data.get("sandbox_parameters") if isinstance(data.get("sandbox_parameters"), dict) else None,
+            task_files=task_files,
+            task_setup=task_setup,
+            dataset_format=dataset_format,
+            dataset_source=dataset_source,
+            dataset_args=dataset_args,
         )
     ]
 
@@ -294,8 +339,7 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
 def _load_samples_section(
     samples_map: dict[str, Any],
     dataset_root: str,
-    task_workspace: Any,
-    task_tests: Any,
+    task_files: dict[str, str] | None,
     task_dir: str,
 ) -> list[Sample]:
     """Load samples from 'paths' and 'inline' subsections."""
@@ -314,12 +358,12 @@ def _load_samples_section(
         if not matched:
             raise FileNotFoundError(f"No sample files matched pattern: {pattern}")
 
-        samples.extend(_load_samples_from_files(matched, dataset_root, task_workspace, task_tests))
+        samples.extend(_load_samples_from_files(matched, dataset_root, task_files))
 
     for defn in inline_defs:
         if not defn:
             continue
-        samples.append(_resolve_sample(defn, task_dir, dataset_root, task_workspace, task_tests))
+        samples.append(_resolve_sample(defn, task_dir, dataset_root, task_files))
 
     return samples
 
@@ -327,8 +371,7 @@ def _load_samples_section(
 def _load_samples_from_files(
     sample_files: list[str],
     dataset_root: str,
-    task_workspace: Any,
-    task_tests: Any,
+    task_files: dict[str, str] | None,
 ) -> list[Sample]:
     """Load samples from external YAML files."""
     samples: list[Sample] = []
@@ -350,7 +393,7 @@ def _load_samples_from_files(
             data = yaml.safe_load(doc)
             if isinstance(data, dict):
                 samples.append(
-                    _resolve_sample(data, sample_dir, dataset_root, task_workspace, task_tests)
+                    _resolve_sample(data, sample_dir, dataset_root, task_files)
                 )
 
     return samples
@@ -360,8 +403,7 @@ def _resolve_sample(
     doc: dict[str, Any],
     base_dir: str,
     dataset_root: str,
-    task_workspace: Any,
-    task_tests: Any,
+    task_files: dict[str, str] | None,
 ) -> Sample:
     """Resolve a single sample dict into a Sample."""
     for field in ("id", "input", "target"):
@@ -370,31 +412,11 @@ def _resolve_sample(
                 f"Sample '{doc.get('id', 'unknown')}' missing required field: {field}"
             )
 
-    sample_workspace = doc.get("workspace")
-    sample_tests = doc.get("tests")
+    # Read metadata fields from the metadata dict
+    meta_raw: dict[str, Any] = doc.get("metadata") or {}
 
-    effective_workspace = sample_workspace if sample_workspace is not None else task_workspace
-
-    workspace = None
-    workspace_git = None
-    workspace_git_ref = None
-
-    if effective_workspace is not None:
-        if isinstance(effective_workspace, dict) and "git" in effective_workspace:
-            workspace_git = effective_workspace.get("git")
-            workspace_git_ref = effective_workspace.get("ref")
-        else:
-            resolve_dir = base_dir if sample_workspace is not None else dataset_root
-            workspace = _resolve_resource_path(effective_workspace, resolve_dir)
-
-    tests = None
-    if sample_tests is not None:
-        tests = _resolve_resource_path(sample_tests, base_dir)
-    elif task_tests is not None:
-        tests = _resolve_resource_path(task_tests, dataset_root)
-
-    # Normalize tags
-    raw_tags = doc.get("tags")
+    # Normalize tags from metadata
+    raw_tags = meta_raw.get("tags")
     if isinstance(raw_tags, str):
         tags = [t.strip() for t in raw_tags.split(",")]
     elif isinstance(raw_tags, list):
@@ -403,17 +425,21 @@ def _resolve_sample(
         tags = []
 
     # Build metadata
-    meta: dict[str, Any] = {**(doc.get("metadata") or {})}
-    meta["difficulty"] = doc.get("difficulty", "medium")
+    meta: dict[str, Any] = {**meta_raw}
+    meta["difficulty"] = meta_raw.get("difficulty", "medium")
     meta["tags"] = tags
-    if workspace is not None:
-        meta["workspace"] = workspace
-    if tests is not None:
-        meta["tests"] = tests
-    if workspace_git is not None:
-        meta["workspace_git"] = workspace_git
-    if workspace_git_ref is not None:
-        meta["workspace_git_ref"] = workspace_git_ref
+
+    # Parse sample-level files
+    sample_files = doc.get("files")
+    if isinstance(sample_files, dict):
+        sample_files = {str(k): str(v) for k, v in sample_files.items()}
+    else:
+        sample_files = None
+
+    # Stack files: task-level + sample-level (sample wins on conflict)
+    merged_files: dict[str, str] | None = None
+    if task_files is not None or sample_files is not None:
+        merged_files = {**(task_files or {}), **(sample_files or {})}
 
     return Sample(
         id=doc["id"],
@@ -422,7 +448,7 @@ def _resolve_sample(
         metadata=meta,
         choices=doc.get("choices"),
         sandbox=doc.get("sandbox"),
-        files=doc.get("files"),
+        files=merged_files,
         setup=doc.get("setup"),
     )
 
@@ -442,7 +468,14 @@ def parse_job(job_path: str, dataset_root: str) -> Job:
     logs_dir = data.get("logs_dir") or _DEFAULT_LOGS_DIR
     log_dir = _resolve_log_dir(logs_dir, dataset_root)
 
-    sandbox_type = data.get("sandbox_type") or "local"
+    # Parse sandbox config
+    sandbox_raw = data.get("sandbox")
+    sandbox = None
+    if isinstance(sandbox_raw, dict):
+        sandbox = sandbox_raw
+    elif isinstance(sandbox_raw, str):
+        sandbox = {"environment": sandbox_raw}
+
     max_connections = data.get("max_connections") or 10
 
     # Parse task filters
@@ -457,7 +490,7 @@ def parse_job(job_path: str, dataset_root: str) -> Job:
             for tid, tdata in inline_tasks.items():
                 tasks[tid] = JobTask.from_yaml(tid, tdata)
 
-    # Parse variants
+    # Parse variants — supports inline dict or list of file paths
     variants = None
     variants_raw = data.get("variants")
     if isinstance(variants_raw, dict):
@@ -467,81 +500,51 @@ def parse_job(job_path: str, dataset_root: str) -> Job:
                 variants[str(key)] = dict(value)
             else:
                 variants[str(key)] = {}
+    elif isinstance(variants_raw, list):
+        # List of relative paths to variant definition files
+        job_dir = os.path.dirname(job_path)
+        variants = {}
+        for rel_path in variants_raw:
+            variant_file = os.path.normpath(os.path.join(job_dir, str(rel_path)))
+            if not os.path.isfile(variant_file):
+                raise FileNotFoundError(
+                    f"Variant file not found: {variant_file} "
+                    f"(referenced from {job_path})"
+                )
+            file_data = _read_yaml_file(variant_file)
+            for vname, vdef in file_data.items():
+                variants[str(vname)] = dict(vdef) if isinstance(vdef, dict) else {}
+
+    # Parse inspect_eval_arguments
+    inspect_eval_arguments = data.get("inspect_eval_arguments")
+    if isinstance(inspect_eval_arguments, dict):
+        inspect_eval_arguments = dict(inspect_eval_arguments)
+    else:
+        inspect_eval_arguments = None
+
+    # Parse models (required)
+    models_raw = data.get("models")
+    if not models_raw or not isinstance(models_raw, list) or len(models_raw) == 0:
+        raise ValueError(
+            f"Job file '{job_path}' is missing required 'models' field. "
+            "Specify at least one model, e.g.:\n"
+            "  models:\n    - google/gemini-2.5-flash"
+        )
+    models: list[str] = [str(m) for m in models_raw]
 
     return Job(
         log_dir=log_dir,
-        sandbox_type=sandbox_type,
         max_connections=max_connections,
-        models=data.get("models"),
+        models=models,
         variants=variants,
         task_paths=task_paths,
         tasks=tasks,
         save_examples=data.get("save_examples") is True,
-        retry_attempts=data.get("retry_attempts"),
-        max_retries=data.get("max_retries"),
-        retry_wait=float(data["retry_wait"]) if data.get("retry_wait") is not None else None,
-        retry_connections=(
-            float(data["retry_connections"]) if data.get("retry_connections") is not None else None
-        ),
-        retry_cleanup=data.get("retry_cleanup"),
-        fail_on_error=(
-            float(data["fail_on_error"]) if data.get("fail_on_error") is not None else None
-        ),
-        continue_on_fail=data.get("continue_on_fail"),
-        retry_on_error=data.get("retry_on_error"),
-        debug_errors=data.get("debug_errors"),
-        max_samples=data.get("max_samples"),
-        max_tasks=data.get("max_tasks"),
-        max_subprocesses=data.get("max_subprocesses"),
-        max_sandboxes=data.get("max_sandboxes"),
-        log_level=data.get("log_level"),
-        log_level_transcript=data.get("log_level_transcript"),
-        log_format=data.get("log_format"),
-        tags=data.get("tags"),
-        metadata=data.get("metadata") if isinstance(data.get("metadata"), dict) else None,
-        trace=data.get("trace"),
-        display=data.get("display"),
-        score=data.get("score"),
-        limit=data.get("limit"),
-        sample_id=data.get("sample_id"),
-        sample_shuffle=data.get("sample_shuffle"),
-        epochs=data.get("epochs"),
-        approval=data.get("approval"),
-        solver=data.get("solver"),
-        sandbox_cleanup=data.get("sandbox_cleanup"),
-        model_base_url=data.get("model_base_url"),
-        model_args=data.get("model_args") if isinstance(data.get("model_args"), dict) else None,
-        model_roles=(
-            data.get("model_roles") if isinstance(data.get("model_roles"), dict) else None
-        ),
-        task_args=data.get("task_args") if isinstance(data.get("task_args"), dict) else None,
-        message_limit=data.get("message_limit"),
-        token_limit=data.get("token_limit"),
-        time_limit=data.get("time_limit"),
-        working_limit=data.get("working_limit"),
-        cost_limit=float(data["cost_limit"]) if data.get("cost_limit") is not None else None,
-        model_cost_config=(
-            data.get("model_cost_config")
-            if isinstance(data.get("model_cost_config"), dict)
-            else None
-        ),
-        log_samples=data.get("log_samples"),
-        log_realtime=data.get("log_realtime"),
-        log_images=data.get("log_images"),
-        log_buffer=data.get("log_buffer"),
-        log_shared=data.get("log_shared"),
-        bundle_dir=data.get("bundle_dir"),
-        bundle_overwrite=data.get("bundle_overwrite"),
-        log_dir_allow_dirty=data.get("log_dir_allow_dirty"),
-        eval_set_id=data.get("eval_set_id"),
-        eval_set_overrides=(
-            data.get("eval_set_overrides")
-            if isinstance(data.get("eval_set_overrides"), dict)
-            else None
-        ),
-        task_defaults=(
-            data.get("task_defaults") if isinstance(data.get("task_defaults"), dict) else None
-        ),
+        description=data.get("description"),
+        sandbox=sandbox,
+        inspect_eval_arguments=inspect_eval_arguments,
+        task_filters=data.get("task_filters"),
+        sample_filters=data.get("sample_filters"),
     )
 
 

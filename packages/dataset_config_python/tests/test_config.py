@@ -32,21 +32,25 @@ def dataset_dir(tmp_path):
     task_dir.mkdir(parents=True)
     task_yaml = task_dir / "task.yaml"
     task_yaml.write_text(
-        """
+        """\
 id: dart_qa
 func: question_answer
 system_message: "You are an expert."
-samples:
-  inline:
-    - id: sample_1
-      input: "What is Dart?"
-      target: "A programming language."
-      difficulty: easy
-    - id: sample_2
-      input: "What is Flutter?"
-      target: "A UI framework."
-      difficulty: medium
-      tags: ui, framework
+dataset:
+  samples:
+    inline:
+      - id: sample_1
+        input: "What is Dart?"
+        target: "A programming language."
+        difficulty: easy
+      - id: sample_2
+        input: "What is Flutter?"
+        target: "A UI framework."
+        metadata:
+          difficulty: medium
+          tags:
+            - ui
+            - framework
 """
     )
 
@@ -55,18 +59,16 @@ samples:
     code_gen_dir.mkdir(parents=True)
     code_gen_yaml = code_gen_dir / "task.yaml"
     code_gen_yaml.write_text(
-        """
-id: code_gen
+        """id: code_gen
 func: flutter_code_gen
-time_limit: 600
-allowed_variants:
-  - baseline
-  - context_only
-samples:
-  inline:
-    - id: sample_1
-      input: "Create a counter app."
-      target: "A working counter app."
+inspect_task_args:
+  time_limit: 600
+dataset:
+  samples:
+    inline:
+      - id: sample_1
+        input: "Create a counter app."
+        target: "A working counter app."
 """
     )
 
@@ -75,16 +77,14 @@ samples:
     jobs_dir.mkdir()
     job_yaml = jobs_dir / "local_dev.yaml"
     job_yaml.write_text(
-        """
-logs_dir: ./logs
-sandbox_type: local
+        """logs_dir: ./logs
 max_connections: 5
 models:
   - google/gemini-2.5-flash
 variants:
   baseline: {}
   context_only:
-    context_files: []
+    files: []
 """
     )
 
@@ -118,9 +118,10 @@ target: "Isolates are Dart's concurrency model."
         """
 id: qa
 func: question_answer
-samples:
-  paths:
-    - samples/basics.yaml
+dataset:
+  samples:
+    paths:
+      - samples/basics.yaml
 """
     )
 
@@ -129,6 +130,8 @@ samples:
     (jobs_dir / "default.yaml").write_text(
         """
 logs_dir: ./logs
+models:
+  - test/model
 """
     )
 
@@ -162,10 +165,10 @@ class TestModels:
     def test_variant_defaults(self):
         v = Variant()
         assert v.name == "baseline"
-        assert v.context_files == []
+        assert v.files == []
         assert v.mcp_servers == []
-        assert v.skill_paths == []
-        assert v.flutter_channel is None
+        assert v.skills == []
+        assert v.task_parameters == {}
 
     def test_job_task_from_yaml_none(self):
         jt = JobTask.from_yaml("my_task", None)
@@ -178,7 +181,7 @@ class TestModels:
 
     def test_eval_set_serialization(self):
         es = EvalSet(
-            tasks=[Task(name="test:baseline", task_func="qa")],
+            tasks=[Task(name="test:baseline", func="qa")],
             log_dir="/tmp/logs",
             model=["google/gemini-2.5-flash"],
         )
@@ -216,11 +219,6 @@ class TestParser:
         assert s2.metadata["tags"] == ["ui", "framework"]
         assert s2.metadata["difficulty"] == "medium"
 
-    def test_parse_tasks_allowed_variants(self, dataset_dir):
-        tasks = parse_tasks(str(dataset_dir))
-        code_gen = next(t for t in tasks if t.id == "code_gen")
-        assert code_gen.allowed_variants == ["baseline", "context_only"]
-
     def test_parse_tasks_time_limit(self, dataset_dir):
         tasks = parse_tasks(str(dataset_dir))
         code_gen = next(t for t in tasks if t.id == "code_gen")
@@ -229,7 +227,6 @@ class TestParser:
     def test_parse_job(self, dataset_dir):
         job_path = os.path.join(str(dataset_dir), "jobs", "local_dev.yaml")
         job = parse_job(job_path, str(dataset_dir))
-        assert job.sandbox_type == "local"
         assert job.max_connections == 5
         assert job.models == ["google/gemini-2.5-flash"]
 
@@ -254,6 +251,80 @@ class TestParser:
     def test_parse_tasks_empty_dir(self, tmp_path):
         tasks = parse_tasks(str(tmp_path))
         assert tasks == []
+
+    def test_parse_task_json_dataset(self, tmp_path):
+        """Test parsing a task with a json dataset format."""
+        task_dir = tmp_path / "tasks" / "json_ds"
+        task_dir.mkdir(parents=True)
+        (task_dir / "task.yaml").write_text(
+            """\
+id: json_ds
+func: question_answer
+dataset:
+  json: gs://bucket/data.jsonl
+  args:
+    auto_id: true
+    shuffle: true
+"""
+        )
+        tasks = parse_tasks(str(tmp_path))
+        assert len(tasks) == 1
+        assert tasks[0].dataset_format == "json"
+        assert tasks[0].dataset_source == "gs://bucket/data.jsonl"
+        assert tasks[0].dataset_args == {"auto_id": True, "shuffle": True}
+        assert tasks[0].samples == []
+
+    def test_parse_task_csv_dataset(self, tmp_path):
+        """Test parsing a task with a csv dataset format."""
+        task_dir = tmp_path / "tasks" / "csv_ds"
+        task_dir.mkdir(parents=True)
+        (task_dir / "task.yaml").write_text(
+            """\
+id: csv_ds
+func: question_answer
+dataset:
+  csv: ./data.csv
+  args:
+    delimiter: "\\t"
+"""
+        )
+        tasks = parse_tasks(str(tmp_path))
+        assert len(tasks) == 1
+        assert tasks[0].dataset_format == "csv"
+        assert tasks[0].dataset_source == "./data.csv"
+
+    def test_parse_task_mutually_exclusive_dataset_keys(self, tmp_path):
+        """Test that specifying both json and csv in dataset raises error."""
+        task_dir = tmp_path / "tasks" / "bad_ds"
+        task_dir.mkdir(parents=True)
+        (task_dir / "task.yaml").write_text(
+            """\
+id: bad_ds
+func: question_answer
+dataset:
+  json: ./data.jsonl
+  csv: ./data.csv
+"""
+        )
+        with pytest.raises(ValueError, match="exactly one"):
+            parse_tasks(str(tmp_path))
+
+    def test_parse_job_missing_models(self, tmp_path):
+        """Test that a job without models raises a validation error."""
+        jobs_dir = tmp_path / "jobs"
+        jobs_dir.mkdir()
+        (jobs_dir / "bad.yaml").write_text(
+            """\
+logs_dir: ./logs
+"""
+        )
+        job_path = str(jobs_dir / "bad.yaml")
+        with pytest.raises(ValueError, match="models"):
+            parse_job(job_path, str(tmp_path))
+
+
+# Runner integration tests for json/csv datasets are in:
+# packages/dash_evals/tests/test_json_runner.py
 
 
 # ---------------------------------------------------------------------------
@@ -312,11 +383,11 @@ class TestWriter:
 
     def test_write_multiple(self, tmp_path):
         es1 = EvalSet(
-            tasks=[Task(name="t1:baseline", task_func="qa")],
+            tasks=[Task(name="t1:baseline", func="qa")],
             log_dir="/tmp/logs1",
         )
         es2 = EvalSet(
-            tasks=[Task(name="t2:baseline", task_func="qa")],
+            tasks=[Task(name="t2:baseline", func="qa")],
             log_dir="/tmp/logs2",
         )
         output_dir = str(tmp_path / "output")

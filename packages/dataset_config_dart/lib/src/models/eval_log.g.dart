@@ -39,17 +39,17 @@ _EvalLog _$EvalLogFromJson(Map<String, dynamic> json) => _EvalLog(
 Map<String, dynamic> _$EvalLogToJson(_EvalLog instance) => <String, dynamic>{
   'version': instance.version,
   'status': instance.status,
-  'eval': instance.eval.toJson(),
-  'plan': instance.plan?.toJson(),
-  'results': instance.results?.toJson(),
-  'stats': instance.stats?.toJson(),
-  'error': instance.error?.toJson(),
+  'eval': instance.eval,
+  'plan': instance.plan,
+  'results': instance.results,
+  'stats': instance.stats,
+  'error': instance.error,
   'invalidated': instance.invalidated,
-  'samples': instance.samples?.map((e) => e.toJson()).toList(),
-  'reductions': instance.reductions?.map((e) => e.toJson()).toList(),
+  'samples': instance.samples,
+  'reductions': instance.reductions,
   'location': instance.location,
   'etag': instance.etag,
-  'eval_set_info': instance.evalSetInfo?.toJson(),
+  'eval_set_info': instance.evalSetInfo,
 };
 
 _EvalSpec _$EvalSpecFromJson(Map<String, dynamic> json) => _EvalSpec(
@@ -125,15 +125,15 @@ Map<String, dynamic> _$EvalSpecToJson(_EvalSpec instance) => <String, dynamic>{
   'solver_args': instance.solverArgs,
   'solver_args_passed': instance.solverArgsPassed,
   'tags': instance.tags,
-  'dataset': instance.dataset?.toJson(),
+  'dataset': instance.dataset,
   'sandbox': instance.sandbox,
   'model': instance.model,
-  'model_generate_config': instance.modelGenerateConfig?.toJson(),
+  'model_generate_config': instance.modelGenerateConfig,
   'model_base_url': instance.modelBaseUrl,
   'model_args': instance.modelArgs,
   'model_roles': instance.modelRoles,
-  'config': instance.config.toJson(),
-  'revision': instance.revision?.toJson(),
+  'config': instance.config,
+  'revision': instance.revision,
   'packages': instance.packages,
   'metadata': instance.metadata,
   'scorers': instance.scorers,
@@ -249,9 +249,9 @@ _EvalPlan _$EvalPlanFromJson(Map<String, dynamic> json) => _EvalPlan(
 
 Map<String, dynamic> _$EvalPlanToJson(_EvalPlan instance) => <String, dynamic>{
   'name': instance.name,
-  'steps': instance.steps.map((e) => e.toJson()).toList(),
-  'finish': instance.finish?.toJson(),
-  'config': instance.config.toJson(),
+  'steps': instance.steps,
+  'finish': instance.finish,
+  'config': instance.config,
 };
 
 _EvalPlanStep _$EvalPlanStepFromJson(Map<String, dynamic> json) =>
@@ -291,12 +291,10 @@ Map<String, dynamic> _$EvalResultsToJson(_EvalResults instance) =>
     <String, dynamic>{
       'total_samples': instance.totalSamples,
       'completed_samples': instance.completedSamples,
-      'early_stopping': instance.earlyStopping?.toJson(),
-      'scores': instance.scores.map((e) => e.toJson()).toList(),
+      'early_stopping': instance.earlyStopping,
+      'scores': instance.scores,
       'metadata': instance.metadata,
-      'sample_reductions': instance.sampleReductions
-          ?.map((e) => e.toJson())
-          .toList(),
+      'sample_reductions': instance.sampleReductions,
     };
 
 _EarlyStoppingSummary _$EarlyStoppingSummaryFromJson(
@@ -338,7 +336,7 @@ Map<String, dynamic> _$EvalScoreToJson(_EvalScore instance) =>
       'scored_samples': instance.scoredSamples,
       'unscored_samples': instance.unscoredSamples,
       'params': instance.params,
-      'metrics': instance.metrics.map((e) => e.toJson()).toList(),
+      'metrics': instance.metrics,
       'metadata': instance.metadata,
     };
 
@@ -372,7 +370,7 @@ Map<String, dynamic> _$EvalSampleReductionsToJson(
 ) => <String, dynamic>{
   'scorer': instance.scorer,
   'reducer': instance.reducer,
-  'samples': instance.samples.map((e) => e.toJson()).toList(),
+  'samples': instance.samples,
 };
 
 _EvalStats _$EvalStatsFromJson(Map<String, dynamic> json) => _EvalStats(
@@ -389,7 +387,7 @@ Map<String, dynamic> _$EvalStatsToJson(_EvalStats instance) =>
     <String, dynamic>{
       'started_at': instance.startedAt,
       'completed_at': instance.completedAt,
-      'model_usage': instance.modelUsage.map((k, e) => MapEntry(k, e.toJson())),
+      'model_usage': instance.modelUsage,
     };
 
 _EvalError _$EvalErrorFromJson(Map<String, dynamic> json) => _EvalError(
@@ -470,22 +468,22 @@ Map<String, dynamic> _$EvalSampleToJson(_EvalSample instance) =>
       'sandbox': instance.sandbox,
       'files': instance.files,
       'setup': instance.setup,
-      'messages': instance.messages.map((e) => e.toJson()).toList(),
-      'output': instance.output.toJson(),
-      'scores': instance.scores?.map((k, e) => MapEntry(k, e.toJson())),
+      'messages': instance.messages,
+      'output': instance.output,
+      'scores': instance.scores,
       'store': instance.store,
       'events': instance.events,
-      'model_usage': instance.modelUsage.map((k, e) => MapEntry(k, e.toJson())),
+      'model_usage': instance.modelUsage,
       'started_at': instance.startedAt,
       'completed_at': instance.completedAt,
       'total_time': instance.totalTime,
       'working_time': instance.workingTime,
       'uuid': instance.uuid,
-      'invalidation': instance.invalidation?.toJson(),
-      'error': instance.error?.toJson(),
-      'error_retries': instance.errorRetries?.map((e) => e.toJson()).toList(),
+      'invalidation': instance.invalidation,
+      'error': instance.error,
+      'error_retries': instance.errorRetries,
       'attachments': instance.attachments,
-      'limit': instance.limit?.toJson(),
+      'limit': instance.limit,
     };
 
 _ModelOutput _$ModelOutputFromJson(Map<String, dynamic> json) => _ModelOutput(
@@ -511,14 +509,14 @@ _ModelOutput _$ModelOutputFromJson(Map<String, dynamic> json) => _ModelOutput(
 Map<String, dynamic> _$ModelOutputToJson(_ModelOutput instance) =>
     <String, dynamic>{
       'model': instance.model,
-      'choices': instance.choices.map((e) => e.toJson()).toList(),
-      'usage': instance.usage?.toJson(),
+      'choices': instance.choices,
+      'usage': instance.usage,
       'completion': instance.completion,
       'stop_reason': instance.stopReason,
       'time': instance.time,
       'metadata': instance.metadata,
       'error': instance.error,
-      'message': instance.message?.toJson(),
+      'message': instance.message,
     };
 
 _ChatCompletionChoice _$ChatCompletionChoiceFromJson(
@@ -536,9 +534,9 @@ _ChatCompletionChoice _$ChatCompletionChoiceFromJson(
 Map<String, dynamic> _$ChatCompletionChoiceToJson(
   _ChatCompletionChoice instance,
 ) => <String, dynamic>{
-  'message': instance.message.toJson(),
+  'message': instance.message,
   'stop_reason': instance.stopReason,
-  'logprobs': instance.logprobs?.toJson(),
+  'logprobs': instance.logprobs,
 };
 
 _ModelUsage _$ModelUsageFromJson(Map<String, dynamic> json) => _ModelUsage(
@@ -620,7 +618,7 @@ Map<String, dynamic> _$ChatMessageAssistantToJson(
   'source': instance.source,
   'metadata': instance.metadata,
   'role': instance.role,
-  'tool_calls': instance.toolCalls?.map((e) => e.toJson()).toList(),
+  'tool_calls': instance.toolCalls,
   'model': instance.model,
 };
 
@@ -647,7 +645,7 @@ Map<String, dynamic> _$ChatMessageToolToJson(ChatMessageTool instance) =>
       'role': instance.role,
       'tool_call_id': instance.toolCallId,
       'function': instance.function,
-      'error': instance.error?.toJson(),
+      'error': instance.error,
     };
 
 ContentText _$ContentTextFromJson(Map<String, dynamic> json) => ContentText(
@@ -932,7 +930,7 @@ _EvalSetInfo _$EvalSetInfoFromJson(Map<String, dynamic> json) => _EvalSetInfo(
 Map<String, dynamic> _$EvalSetInfoToJson(_EvalSetInfo instance) =>
     <String, dynamic>{
       'eval_set_id': instance.evalSetId,
-      'tasks': instance.tasks.map((e) => e.toJson()).toList(),
+      'tasks': instance.tasks,
     };
 
 _EvalSetTask _$EvalSetTaskFromJson(Map<String, dynamic> json) => _EvalSetTask(

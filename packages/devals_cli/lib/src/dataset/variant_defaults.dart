@@ -11,17 +11,17 @@ enum DefaultVariants {
   flutterRules(
     'flutter_rules',
     'Run with Flutter rules context files.',
-    'flutter_rules: { context_files: [./context_files/flutter.md] }',
+    'flutter_rules: { files: [./context_files/flutter.md] }',
   ),
   withSkills(
     'with_skills',
     'Run with skills files.',
-    'with_skills: { skill_paths: [./skills/*] }',
+    'with_skills: { skills: [./skills/*] }',
   ),
   withMCP(
     'with_mcp',
     'Run with Dart MCP server available.',
-    'with_mcp: { mcp_servers: [dart] }',
+    'with_mcp: { mcp_servers: [{name: dart, command: dart, args: [mcp-server]}] }',
   )
   ;
 

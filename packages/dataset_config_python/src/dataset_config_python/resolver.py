@@ -4,43 +4,35 @@ from __future__ import annotations
 
 import glob as globmod
 import os
+from dataclasses import dataclass, field
 from typing import Any
 
 from dataset_config_python.models.context_file import ContextFile
 from dataset_config_python.models.dataset import Dataset
 from dataset_config_python.models.eval_set import EvalSet
+from dataset_config_python.models.job import Job
+from dataset_config_python.models.mcp_server_config import McpServerConfig
 from dataset_config_python.models.sample import Sample
+from dataset_config_python.models.tag_filter import matches_tag_filter
 from dataset_config_python.models.task import Task
 from dataset_config_python.models.variant import Variant
 from dataset_config_python.parser import ParsedTask, find_job_file, parse_job, parse_tasks
 
-# Default models when a job doesn't specify its own.
-DEFAULT_MODELS: list[str] = [
-    "anthropic/claude-haiku-4-5",
-    "anthropic/claude-sonnet-4-5",
-    "anthropic/claude-opus-4-6",
-    "google/gemini-2.5-flash",
-    "google/gemini-3-pro-preview",
-    "google/gemini-3-flash-preview",
-    "openai/gpt-5-mini",
-    "openai/gpt-5-nano",
-    "openai/gpt-5",
-    "openai/gpt-5-pro",
-]
 
-# Available sandbox configurations.
-SANDBOX_REGISTRY: dict[str, dict[str, str]] = {
+# Default sandbox configurations for Flutter evaluations.
+# Consumers can pass these to resolve() or provide their own.
+DEFAULT_SANDBOX_REGISTRY: dict[str, dict[str, str]] = {
     "podman": {"name": "podman", "path": "./sandboxes/podman/compose.yaml"},
     "podman-beta": {"name": "podman", "path": "./sandboxes/podman/compose-beta.yaml"},
     "podman-main": {"name": "podman", "path": "./sandboxes/podman/compose-main.yaml"},
 }
 
-# Maps Flutter SDK channel names to sandbox registry keys.
-SDK_CHANNELS: dict[str, str] = {
-    "stable": "podman",
-    "beta": "podman-beta",
-    "main": "podman-main",
-}
+
+@dataclass
+class SandboxConfig:
+    """Sandbox registry for named sandbox definitions."""
+
+    registry: dict[str, dict[str, str]] = field(default_factory=dict)
 
 
 def _is_glob(pattern: str) -> bool:
@@ -50,14 +42,19 @@ def _is_glob(pattern: str) -> bool:
 def resolve(
     dataset_path: str,
     job_names: list[str],
+    *,
+    sandbox_config: SandboxConfig | None = None,
 ) -> list[EvalSet]:
     """Resolve dataset + job(s) into EvalSet objects.
 
-    This is the main public API of the package.
+    This is a convenience wrapper around :func:`resolve_from_parsed` that
+    handles parsing automatically.  Use ``resolve_from_parsed`` when you
+    need to inspect or mutate the parsed config before resolution.
 
     Args:
         dataset_path: Root directory containing ``tasks/`` and ``jobs/``.
         job_names: Job names (looked up in ``jobs/``) or paths.
+        sandbox_config: Sandbox registry and branch-channel mapping.
 
     Returns:
         A list of EvalSet objects ready for JSON serialization.
@@ -68,37 +65,79 @@ def resolve(
     for job_name in job_names:
         job_path = find_job_file(dataset_path, job_name)
         job = parse_job(job_path, dataset_path)
-        results.extend(_resolve_job(task_configs, job, dataset_path))
+        results.extend(
+            resolve_from_parsed(
+                task_configs=task_configs,
+                job=job,
+                dataset_path=dataset_path,
+                sandbox_config=sandbox_config,
+            )
+        )
 
     return results
+
+
+def resolve_from_parsed(
+    task_configs: list[ParsedTask],
+    job: Job,
+    dataset_path: str,
+    *,
+    sandbox_config: SandboxConfig | None = None,
+) -> list[EvalSet]:
+    """Resolve pre-parsed task configs and a job into EvalSet objects.
+
+    Use this instead of :func:`resolve` when you need to inspect or modify
+    the parsed configuration before resolution.  A typical workflow::
+
+        tasks = parse_tasks(dataset_path)
+        job = parse_job(find_job_file(dataset_path, "my_job"), dataset_path)
+
+        # Patch values before resolution
+        job.log_dir = f"{job.log_dir}/{execution_id}"
+
+        eval_sets = resolve_from_parsed(tasks, job, dataset_path)
+
+    Args:
+        task_configs: Parsed task configs (from :func:`parse_tasks`).
+        job: A parsed Job object (from :func:`parse_job`).
+        dataset_path: Root directory of the dataset (used for path resolution).
+        sandbox_config: Sandbox registry and branch-channel mapping.
+
+    Returns:
+        A list of EvalSet objects ready for JSON serialization.
+    """
+    sandbox_cfg = sandbox_config or SandboxConfig()
+    registry = sandbox_cfg.registry
+    return _resolve_job(task_configs, job, dataset_path, registry)
 
 
 def _resolve_job(
     dataset_tasks: list[ParsedTask],
     job: Any,
     dataset_root: str,
+    sandbox_registry: dict[str, dict[str, str]],
 ) -> list[EvalSet]:
     """Resolve task configs and job into EvalSet objects."""
-    models = job.models if job.models else list(DEFAULT_MODELS)
-    sandbox_type_str = job.sandbox_type
+    if not job.models:
+        raise ValueError(
+            "job.models is required and must contain at least one model. "
+            "Specify models in your job YAML, e.g.:\n"
+            "  models:\n    - google/gemini-2.5-flash"
+        )
+    models = job.models
+    sandbox_cfg = job.sandbox or {}
+    sandbox_type_str = sandbox_cfg.get("environment", "local")
 
     expanded_tasks = _expand_task_configs(dataset_tasks, job, sandbox_type_str, dataset_root)
 
-    # Group by flutter channel
-    groups: dict[str | None, list[ParsedTask]] = {}
-    for tc in expanded_tasks:
-        key = tc.variant.flutter_channel
-        groups.setdefault(key, []).append(tc)
-
     return [
         _build_eval_set(
-            task_configs=group,
+            task_configs=expanded_tasks,
             log_dir=job.log_dir,
             models=models,
-            sandbox=_resolve_sandbox(dataset_root, job, flutter_channel=channel),
+            sandbox=_resolve_sandbox(dataset_root, job, sandbox_registry),
             job=job,
         )
-        for channel, group in groups.items()
     ]
 
 
@@ -117,8 +156,10 @@ def _build_eval_set(
 ) -> EvalSet:
     """Build an EvalSet from resolved ParsedTasks."""
     inspect_tasks: list[Task] = []
-    is_container = job.sandbox_type and job.sandbox_type != "local"
-    task_defaults = job.task_defaults or {}
+    sandbox_cfg = job.sandbox or {}
+    sandbox_type_str = sandbox_cfg.get("environment", "local")
+    eval_args = job.inspect_eval_arguments or {}
+    task_defaults = eval_args.get("task_defaults") or {}
 
     for tc in task_configs:
         # Enrich each sample with task-level metadata
@@ -132,21 +173,13 @@ def _build_eval_set(
                     enriched["examples_dir"] = tc.examples_dir
                     enriched["task_variant"] = f"{tc.id}:{tc.variant.name}"
 
-            # Build files + setup for sandbox provisioning
-            files = dict(sample.files) if sample.files else None
-            setup = sample.setup
-            workspace = (sample.metadata or {}).get("workspace")
-            workspace_git = (sample.metadata or {}).get("workspace_git")
-            workspace_git_ref = (sample.metadata or {}).get("workspace_git_ref")
+            # Stack files: task-level + sample-level (sample wins on conflict)
+            files: dict[str, str] | None = None
+            if tc.task_files is not None or sample.files is not None:
+                files = {**(tc.task_files or {}), **(sample.files or {})}
 
-            if workspace is not None and is_container:
-                files = {**(files or {}), "/workspace": workspace}
-                setup = setup or "cd /workspace && flutter pub get"
-                enriched["workspace"] = "/workspace"
-            if workspace_git is not None:
-                enriched["workspace_git"] = workspace_git
-                if workspace_git_ref is not None:
-                    enriched["workspace_git_ref"] = workspace_git_ref
+            # Setup: sample overrides task
+            setup = sample.setup or tc.task_setup
 
             inspect_samples.append(
                 Sample(
@@ -164,34 +197,42 @@ def _build_eval_set(
         dataset = Dataset(
             samples=inspect_samples,
             name=f"{tc.id}:{tc.variant.name}",
+            format=tc.dataset_format,
+            source=tc.dataset_source,
+            args=tc.dataset_args,
         )
 
         # Task metadata (variant config, system message, etc.)
         task_metadata: dict[str, Any] = {"variant": tc.variant.name}
-        if tc.variant.context_files:
-            task_metadata["variant_config"] = {
-                "context_files": [
-                    {
-                        "title": cf.metadata.title,
-                        "version": cf.metadata.version,
-                        "content": cf.content,
-                    }
-                    for cf in tc.variant.context_files
-                ],
-                "mcp_servers": tc.variant.mcp_servers,
-                "skill_paths": tc.variant.skill_paths,
-            }
-        elif tc.variant.mcp_servers or tc.variant.skill_paths:
-            task_metadata["variant_config"] = {
-                "mcp_servers": tc.variant.mcp_servers,
-                "skill_paths": tc.variant.skill_paths,
-            }
+        variant_config: dict[str, Any] = {}
+        if tc.variant.files:
+            variant_config["files"] = [
+                {
+                    "title": cf.metadata.title,
+                    "version": cf.metadata.version,
+                    "content": cf.content,
+                }
+                for cf in tc.variant.files
+            ]
+        if tc.variant.mcp_servers:
+            variant_config["mcp_servers"] = [
+                s.model_dump(exclude_none=True) for s in tc.variant.mcp_servers
+            ]
+        if tc.variant.skills:
+            variant_config["skills"] = tc.variant.skills
+        if tc.variant.task_parameters:
+            variant_config["task_parameters"] = tc.variant.task_parameters
+        if variant_config:
+            task_metadata["variant_config"] = variant_config
         if tc.system_message is not None:
             task_metadata["system_message"] = tc.system_message
         if tc.save_examples:
             task_metadata["save_examples"] = True
         if tc.examples_dir is not None:
             task_metadata["examples_dir"] = tc.examples_dir
+        # Propagate image_prefix from job for container image resolution
+        if (job.sandbox or {}).get("image_prefix"):
+            task_metadata["image_prefix"] = job.sandbox["image_prefix"]
         if tc.metadata:
             task_metadata.update(tc.metadata)
 
@@ -199,7 +240,7 @@ def _build_eval_set(
         task_sandbox = None
         if tc.sandbox is not None:
             task_sandbox = tc.sandbox
-        elif tc.sandbox_type and tc.sandbox_type != "local":
+        elif sandbox_type_str != "local":
             task_sandbox = _serialize_sandbox(sandbox)
 
         # Resolve task-level settings with precedence:
@@ -207,38 +248,58 @@ def _build_eval_set(
         resolved_time_limit = (
             tc.time_limit
             or task_defaults.get("time_limit")
-            or (300 if job.sandbox_type != "local" else None)
+            or (300 if sandbox_type_str != "local" else None)
         )
 
         inspect_tasks.append(
             Task(
                 name=f"{tc.id}:{tc.variant.name}",
-                task_func=tc.task_func,
+                func=tc.func,
                 dataset=dataset,
                 sandbox=task_sandbox,
                 metadata=task_metadata,
+                system_message=tc.system_message,
+                sandbox_parameters=tc.sandbox_parameters,
                 model=tc.model or task_defaults.get("model"),
                 config=tc.config or task_defaults.get("config"),
                 model_roles=tc.model_roles or task_defaults.get("model_roles"),
                 approval=tc.approval or task_defaults.get("approval"),
                 epochs=tc.epochs or task_defaults.get("epochs"),
                 fail_on_error=tc.fail_on_error or task_defaults.get("fail_on_error"),
-                continue_on_fail=tc.continue_on_fail if tc.continue_on_fail is not None else task_defaults.get("continue_on_fail"),
+                continue_on_fail=tc.continue_on_fail
+                if tc.continue_on_fail is not None
+                else task_defaults.get("continue_on_fail"),
                 message_limit=tc.message_limit or task_defaults.get("message_limit"),
                 token_limit=tc.token_limit or task_defaults.get("token_limit"),
                 time_limit=resolved_time_limit,
                 working_limit=tc.working_limit or task_defaults.get("working_limit"),
-                cost_limit=tc.cost_limit if tc.cost_limit is not None else (
-                    float(task_defaults["cost_limit"]) if task_defaults.get("cost_limit") is not None else None
+                cost_limit=tc.cost_limit
+                if tc.cost_limit is not None
+                else (
+                    float(task_defaults["cost_limit"])
+                    if task_defaults.get("cost_limit") is not None
+                    else None
                 ),
                 early_stopping=tc.early_stopping or task_defaults.get("early_stopping"),
                 display_name=tc.display_name or task_defaults.get("display_name"),
-                version=tc.version if tc.version is not None else (task_defaults.get("version") or 0),
+                version=tc.version
+                if tc.version is not None
+                else (task_defaults.get("version") or 0),
             )
         )
 
-    # Build EvalSet with all job-level parameters
-    overrides = job.eval_set_overrides or {}
+    # Build EvalSet with all job-level parameters from inspect_eval_arguments
+    eval_set_overrides = eval_args.get("eval_set_overrides") or {}
+
+    # Helper to get a value from eval_args then overrides
+    def _get(key: str, default: Any = None) -> Any:
+        v = eval_args.get(key)
+        if v is not None:
+            return v
+        v = eval_set_overrides.get(key)
+        if v is not None:
+            return v
+        return default
 
     return EvalSet(
         tasks=inspect_tasks,
@@ -246,75 +307,64 @@ def _build_eval_set(
         model=models,
         sandbox=_serialize_sandbox(sandbox),
         # Retry
-        retry_attempts=job.retry_attempts or overrides.get("retry_attempts") or 10,
-        retry_wait=job.retry_wait or overrides.get("retry_wait") or 60.0,
-        retry_connections=job.retry_connections or overrides.get("retry_connections") or 0.5,
-        retry_cleanup=job.retry_cleanup if job.retry_cleanup is not None else overrides.get("retry_cleanup"),
-        retry_on_error=job.retry_on_error or job.max_retries or overrides.get("retry_on_error"),
+        retry_attempts=_get("retry_attempts", 10),
+        retry_wait=float(_get("retry_wait", 60.0)),
+        retry_connections=float(_get("retry_connections", 0.5)),
+        retry_cleanup=_get("retry_cleanup"),
+        retry_on_error=_get("retry_on_error") or _get("max_retries"),
         # Error handling
-        fail_on_error=job.fail_on_error if job.fail_on_error is not None else (overrides.get("fail_on_error") or 0.05),
-        continue_on_fail=job.continue_on_fail if job.continue_on_fail is not None else overrides.get("continue_on_fail"),
-        debug_errors=job.debug_errors if job.debug_errors is not None else overrides.get("debug_errors"),
+        fail_on_error=float(_get("fail_on_error", 0.05)),
+        continue_on_fail=_get("continue_on_fail"),
+        debug_errors=_get("debug_errors"),
         # Concurrency
-        max_samples=job.max_samples or overrides.get("max_samples"),
-        max_tasks=job.max_tasks or overrides.get("max_tasks"),
-        max_subprocesses=job.max_subprocesses or overrides.get("max_subprocesses"),
-        max_sandboxes=job.max_sandboxes or overrides.get("max_sandboxes"),
+        max_samples=_get("max_samples"),
+        max_tasks=_get("max_tasks"),
+        max_subprocesses=_get("max_subprocesses"),
+        max_sandboxes=_get("max_sandboxes"),
         # Logging
-        log_level=job.log_level or overrides.get("log_level") or "info",
-        log_level_transcript=job.log_level_transcript or overrides.get("log_level_transcript"),
-        log_format=job.log_format or overrides.get("log_format") or "json",
-        log_samples=job.log_samples if job.log_samples is not None else overrides.get("log_samples"),
-        log_realtime=job.log_realtime if job.log_realtime is not None else overrides.get("log_realtime"),
-        log_images=job.log_images if job.log_images is not None else overrides.get("log_images"),
-        log_buffer=job.log_buffer or overrides.get("log_buffer"),
-        log_shared=job.log_shared or overrides.get("log_shared"),
-        log_dir_allow_dirty=job.log_dir_allow_dirty if job.log_dir_allow_dirty is not None else overrides.get("log_dir_allow_dirty"),
+        log_level=_get("log_level", "info"),
+        log_level_transcript=_get("log_level_transcript"),
+        log_format=_get("log_format", "json"),
+        log_samples=_get("log_samples"),
+        log_realtime=_get("log_realtime"),
+        log_images=_get("log_images"),
+        log_buffer=_get("log_buffer"),
+        log_shared=_get("log_shared"),
+        log_dir_allow_dirty=_get("log_dir_allow_dirty"),
         # Model config
-        model_base_url=job.model_base_url or overrides.get("model_base_url"),
-        model_args=job.model_args or overrides.get("model_args") or {},
-        model_roles=job.model_roles or overrides.get("model_roles"),
-        task_args=job.task_args or overrides.get("task_args") or {},
-        model_cost_config=job.model_cost_config or overrides.get("model_cost_config"),
+        model_base_url=_get("model_base_url"),
+        model_args=_get("model_args", {}),
+        model_roles=_get("model_roles"),
+        task_args=_get("task_args", {}),
+        model_cost_config=_get("model_cost_config"),
         # Sandbox
-        sandbox_cleanup=job.sandbox_cleanup if job.sandbox_cleanup is not None else overrides.get("sandbox_cleanup"),
+        sandbox_cleanup=_get("sandbox_cleanup"),
         # Sample control
-        limit=job.limit or overrides.get("limit"),
-        sample_id=job.sample_id or overrides.get("sample_id"),
-        sample_shuffle=job.sample_shuffle or overrides.get("sample_shuffle"),
-        epochs=job.epochs or overrides.get("epochs"),
+        limit=_get("limit"),
+        sample_id=_get("sample_id"),
+        sample_shuffle=_get("sample_shuffle"),
+        epochs=_get("epochs"),
         # Misc
-        tags=job.tags or overrides.get("tags"),
-        metadata=job.metadata or overrides.get("metadata"),
-        trace=job.trace if job.trace is not None else overrides.get("trace"),
-        display=job.display or overrides.get("display"),
-        approval=job.approval or overrides.get("approval"),
-        solver=job.solver or overrides.get("solver"),
-        score=job.score if job.score is not None else (overrides.get("score") if overrides.get("score") is not None else True),
+        tags=_get("tags"),
+        metadata=_get("metadata"),
+        trace=_get("trace"),
+        display=_get("display"),
+        approval=_get("approval"),
+        solver=_get("solver"),
+        score=_get("score", True),
         # Limits
-        message_limit=job.message_limit or overrides.get("message_limit"),
-        token_limit=job.token_limit or overrides.get("token_limit"),
-        time_limit=job.time_limit or overrides.get("time_limit"),
-        working_limit=job.working_limit or overrides.get("working_limit"),
-        cost_limit=job.cost_limit if job.cost_limit is not None else (
-            float(overrides["cost_limit"]) if overrides.get("cost_limit") is not None else None
-        ),
+        message_limit=_get("message_limit"),
+        token_limit=_get("token_limit"),
+        time_limit=_get("time_limit"),
+        working_limit=_get("working_limit"),
+        cost_limit=float(_get("cost_limit")) if _get("cost_limit") is not None else None,
         # Bundling
-        bundle_dir=job.bundle_dir or overrides.get("bundle_dir"),
-        bundle_overwrite=job.bundle_overwrite if job.bundle_overwrite is not None else (overrides.get("bundle_overwrite") or False),
-        eval_set_id=job.eval_set_id or overrides.get("eval_set_id"),
+        bundle_dir=_get("bundle_dir"),
+        bundle_overwrite=_get("bundle_overwrite", False),
+        eval_set_id=_get("eval_set_id"),
     )
 
 
-# ---------------------------------------------------------------------------
-# Model resolution
-# ---------------------------------------------------------------------------
-
-
-def _resolve_models(job: Any) -> list[str]:
-    if job.models:
-        return job.models
-    return list(DEFAULT_MODELS)
 
 
 # ---------------------------------------------------------------------------
@@ -325,27 +375,17 @@ def _resolve_models(job: Any) -> list[str]:
 def _resolve_sandbox(
     dataset_root: str,
     job: Any,
-    *,
-    flutter_channel: str | None = None,
+    sandbox_registry: dict[str, dict[str, str]],
 ) -> Any:
     """Resolve sandbox spec for a given config."""
-    sandbox_type = job.sandbox_type
+    sandbox_cfg = job.sandbox or {}
+    sandbox_type = sandbox_cfg.get("environment", "local")
     if not sandbox_type or sandbox_type == "local":
         return "local"
 
-    # Channel override
-    if flutter_channel and flutter_channel in SDK_CHANNELS:
-        registry_key = SDK_CHANNELS[flutter_channel]
-        if registry_key in SANDBOX_REGISTRY:
-            defn = SANDBOX_REGISTRY[registry_key]
-            sandbox_path = defn["path"]
-            if not os.path.isabs(sandbox_path):
-                sandbox_path = os.path.normpath(os.path.join(dataset_root, sandbox_path))
-            return {"type": defn["name"], "path": sandbox_path}
-
     # Named sandbox from registry
-    if sandbox_type in SANDBOX_REGISTRY:
-        defn = SANDBOX_REGISTRY[sandbox_type]
+    if sandbox_type in sandbox_registry:
+        defn = sandbox_registry[sandbox_type]
         sandbox_path = defn["path"]
         if not os.path.isabs(sandbox_path):
             sandbox_path = os.path.normpath(os.path.join(dataset_root, sandbox_path))
@@ -372,18 +412,29 @@ def _expand_task_configs(
     for tc in dataset_tasks:
         task_id = tc.id
 
-        # Filter by job.tasks
+        # Filter by job.tasks (ID-based)
         if job.tasks is not None and task_id not in job.tasks:
             continue
 
-        # Determine effective variants (intersection)
-        effective_variants: dict[str, dict[str, Any]] = {}
-        for vname, vdef in job_variants.items():
-            if tc.allowed_variants is None or vname in tc.allowed_variants:
-                effective_variants[vname] = vdef
+        # Filter by job.task_filters (tag-based)
+        if job.task_filters is not None:
+            task_tags = (tc.metadata or {}).get("tags", [])
+            if not matches_tag_filter(task_tags, job.task_filters):
+                continue
 
-        # Get job-level task overrides
+        # Start with all job-level variants
+        effective_variants: dict[str, dict[str, Any]] = dict(job_variants)
+
+        # Apply per-task include/exclude variants from job.tasks.<task_id>
         job_task = job.tasks.get(task_id) if job.tasks else None
+        if job_task and job_task.include_variants:
+            effective_variants = {
+                k: v for k, v in effective_variants.items() if k in job_task.include_variants
+            }
+        if job_task and job_task.exclude_variants:
+            effective_variants = {
+                k: v for k, v in effective_variants.items() if k not in job_task.exclude_variants
+            }
 
         # Apply sample filtering
         samples = tc.samples
@@ -393,10 +444,21 @@ def _expand_task_configs(
             if job_task.exclude_samples:
                 samples = [s for s in samples if s.id not in job_task.exclude_samples]
 
-        # Apply system_message override
+        # Apply sample tag filtering (job-level)
+        if job.sample_filters is not None:
+            samples = [
+                s
+                for s in samples
+                if matches_tag_filter((s.metadata or {}).get("tags", []), job.sample_filters)
+            ]
+
+        # Apply system_message from task
         system_message = tc.system_message
-        if job_task and job_task.system_message is not None:
-            system_message = job_task.system_message
+
+        # Merge job-task args into metadata
+        merged_metadata = dict(tc.metadata) if tc.metadata else None
+        if job_task and job_task.args:
+            merged_metadata = {**(merged_metadata or {}), "args": job_task.args}
 
         # Create one ParsedTask per effective variant
         for vname, vdef in effective_variants.items():
@@ -412,9 +474,9 @@ def _expand_task_configs(
                     variant=variant,
                     sandbox_type=sandbox_type,
                     system_message=system_message,
-                    allowed_variants=None,
                     save_examples=job.save_examples,
                     examples_dir=examples_dir,
+                    metadata=merged_metadata,
                 )
             )
 
@@ -435,16 +497,17 @@ def _resolve_variant(
     if not vdef:
         return Variant(name=name)
 
-    # Load context files (with glob support)
+    # Load context files (with glob support) — YAML key is "files"
     context_files: list[ContextFile] = []
-    cf_paths: list[str] = vdef.get("context_files") or []
+    cf_paths: list[str] = vdef.get("files") or []
     for cf_path in cf_paths:
         if _is_glob(cf_path):
             full_pattern = os.path.join(dataset_root, cf_path)
             matched = sorted(
                 f
                 for f in globmod.glob(full_pattern, recursive=True)
-                if os.path.isfile(f) and (f.endswith(".yaml") or f.endswith(".yml") or f.endswith(".md"))
+                if os.path.isfile(f)
+                and (f.endswith(".yaml") or f.endswith(".yml") or f.endswith(".md"))
             )
             if not matched:
                 raise FileNotFoundError(f"No context files matched pattern: {cf_path}")
@@ -454,16 +517,14 @@ def _resolve_variant(
             full_path = os.path.normpath(os.path.join(dataset_root, cf_path))
             context_files.append(ContextFile.load(full_path))
 
-    # Resolve skill paths (with glob support)
+    # Resolve skill paths (with glob support) — YAML key is "skills"
     skill_paths: list[str] = []
-    raw_skills: list[str] = vdef.get("skills") or vdef.get("skill_paths") or []
+    raw_skills: list[str] = vdef.get("skills") or []
     for skill_path_str in raw_skills:
         if _is_glob(skill_path_str):
             full_pattern = os.path.join(dataset_root, skill_path_str)
             matched_dirs = sorted(
-                d
-                for d in globmod.glob(full_pattern, recursive=True)
-                if os.path.isdir(d)
+                d for d in globmod.glob(full_pattern, recursive=True) if os.path.isdir(d)
             )
             valid_dirs = [d for d in matched_dirs if os.path.isfile(os.path.join(d, "SKILL.md"))]
             if not valid_dirs:
@@ -480,12 +541,21 @@ def _resolve_variant(
                 )
             skill_paths.append(skill_dir)
 
+    # Resolve MCP servers
+    mcp_servers: list[McpServerConfig] = []
+    raw_mcp: list[Any] = vdef.get("mcp_servers") or []
+    for raw in raw_mcp:
+        mcp_servers.append(McpServerConfig.from_yaml(raw))
+
+    # Task parameters
+    task_parameters: dict[str, Any] = vdef.get("task_parameters") or {}
+
     return Variant(
         name=name,
-        context_files=context_files,
-        mcp_servers=vdef.get("mcp_servers") or [],
-        skill_paths=skill_paths,
-        flutter_channel=vdef.get("flutter_channel"),
+        files=context_files,
+        mcp_servers=mcp_servers,
+        skills=skill_paths,
+        task_parameters=task_parameters,
     )
 
 

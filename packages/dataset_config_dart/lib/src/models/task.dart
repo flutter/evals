@@ -17,6 +17,12 @@ sealed class Task with _$Task {
     /// A `Dataset`, a sequence of `Sample` objects, or `null`.
     Dataset? dataset,
 
+    /// Files to copy into sandbox (inherited by all samples).
+    ///
+    /// Keys are destination paths, values are source paths, inline text,
+    /// or inline binary (base64-encoded data URLs).
+    Map<String, String>? files,
+
     /// Setup step (always run even when the main solver is replaced).
     Object? setup,
 
@@ -95,7 +101,13 @@ sealed class Task with _$Task {
     /// `@task` function (e.g. `"flutter_code_gen"` or
     /// `"dash_evals.runner.tasks.flutter_code_gen"`).
     /// When absent, the runner hydrates directly from JSON (Mode 2 — future).
-    @JsonKey(name: 'task_func') String? taskFunc,
+    @JsonKey(name: 'func') String? func,
+
+    /// System message override for this task.
+    @JsonKey(name: 'system_message') String? systemMessage,
+
+    /// Pass-through dict for sandbox plugin configuration.
+    @JsonKey(name: 'sandbox_parameters') Map<String, dynamic>? sandboxParameters,
 
     /// Task name.
     ///
@@ -113,14 +125,14 @@ sealed class Task with _$Task {
 }
 
 class TaskMetadata {
-  final String taskFunc;
+  final String func;
   final Map<String, Object?> additional;
 
-  TaskMetadata(this.taskFunc, this.additional);
+  TaskMetadata(this.func, this.additional);
 
   Map<String, dynamic> toJson() {
     return {
-      'taskFunc': taskFunc,
+      'func': func,
     };
   }
 }

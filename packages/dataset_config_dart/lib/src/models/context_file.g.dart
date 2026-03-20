@@ -37,7 +37,7 @@ _ContextFile _$ContextFileFromJson(Map<String, dynamic> json) => _ContextFile(
 
 Map<String, dynamic> _$ContextFileToJson(_ContextFile instance) =>
     <String, dynamic>{
-      'metadata': instance.metadata.toJson(),
+      'metadata': instance.metadata,
       'content': instance.content,
       'file_path': instance.filePath,
     };

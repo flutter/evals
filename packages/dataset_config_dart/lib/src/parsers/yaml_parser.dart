@@ -50,63 +50,114 @@ class YamlParser extends Parser {
     final taskDir = p.dirname(taskPath);
 
     final taskId = (data['id'] as String?) ?? p.basename(taskDir);
-    final taskFunc = (data['func'] as String?) ?? taskId;
+    final func = (data['func'] as String?) ?? taskId;
 
-    final taskWorkspaceRaw = data['workspace'];
-    final taskTestsRaw = data['tests'];
     final systemMessage = data['system_message'] as String?;
 
-    // Pre-resolve task-level paths to absolute
-    final taskWorkspace = _preResolveToAbs(taskWorkspaceRaw, taskDir);
-    final taskTests = _preResolveToAbs(taskTestsRaw, taskDir);
+    // Parse task-level files and setup
+    final taskFiles = _asStringMap(data['files']);
+    final taskSetup = data['setup'] as String?;
 
-    // Optional whitelist of variant names
-    final allowedVariants = (data['allowed_variants'] as List?)?.cast<String>();
+    // Parse dataset section (replaces the old top-level 'samples' key)
+    final datasetRaw = data['dataset'];
+    var datasetFormat = 'memory';
+    String? datasetSource;
+    Map<String, dynamic>? datasetArgs;
+    List<Sample> samples;
 
-    // Parse samples section
-    final samplesRaw = data['samples'];
-    if (samplesRaw is! Map) {
+    if (datasetRaw == null) {
+      samples = <Sample>[];
+    } else if (datasetRaw is! Map) {
       throw FormatException(
-        "Task '$taskId': 'samples' must be a dict with 'inline' and/or "
-        "'paths' keys, got ${samplesRaw.runtimeType}",
+        "Task '$taskId': 'dataset' must be a dict with one of "
+        "'samples', 'json', or 'csv' keys, got ${datasetRaw.runtimeType}",
       );
-    }
-    final samplesMap = Map<String, dynamic>.from(samplesRaw);
-    final samples = _loadSamplesSection(
-      samplesMap,
-      datasetRoot,
-      taskWorkspace,
-      taskTests,
-      taskDir,
-    );
+    } else {
+      final datasetMap = Map<String, dynamic>.from(datasetRaw);
+      final formatKeys = {'samples', 'json', 'csv'};
+      final presentKeys =
+          formatKeys.intersection(datasetMap.keys.toSet().cast<String>());
+      if (presentKeys.length > 1) {
+        throw FormatException(
+          "Task '$taskId': 'dataset' must have exactly one of "
+          "'samples', 'json', or 'csv', found: $presentKeys",
+        );
+      }
 
-    // Parse Task-level settings
-    final model = data['model'] as String?;
-    final config = _asMap(data['config']);
-    final modelRoles = _asStringMap(data['model_roles']);
-    final sandbox = data['sandbox'];
-    final approval = data['approval'];
-    final epochs = data['epochs'];
-    final failOnError = data['fail_on_error'];
-    final continueOnFail = data['continue_on_fail'] as bool?;
-    final messageLimit = data['message_limit'] as int?;
-    final tokenLimit = data['token_limit'] as int?;
-    final timeLimit = data['time_limit'] as int?;
-    final workingLimit = data['working_limit'] as int?;
-    final costLimit = (data['cost_limit'] as num?)?.toDouble();
-    final earlyStopping = data['early_stopping'];
+      // Parse optional args
+      final argsRaw = datasetMap['args'];
+      if (argsRaw != null) {
+        if (argsRaw is! Map) {
+          throw FormatException(
+            "Task '$taskId': 'dataset.args' must be a dict, "
+            'got ${argsRaw.runtimeType}',
+          );
+        }
+        datasetArgs = Map<String, dynamic>.from(argsRaw);
+      }
+
+      if (datasetMap.containsKey('samples')) {
+        // Inline/path-based samples (existing MemoryDataset behavior)
+        final samplesSection = datasetMap['samples'];
+        if (samplesSection is! Map) {
+          throw FormatException(
+            "Task '$taskId': 'dataset.samples' must be a dict with "
+            "'inline' and/or 'paths' keys, got ${samplesSection.runtimeType}",
+          );
+        }
+        samples = _loadSamplesSection(
+          Map<String, dynamic>.from(samplesSection),
+          datasetRoot,
+          taskFiles,
+          taskDir,
+        );
+      } else if (datasetMap.containsKey('json')) {
+        datasetFormat = 'json';
+        datasetSource = datasetMap['json'].toString();
+        samples = <Sample>[];
+      } else if (datasetMap.containsKey('csv')) {
+        datasetFormat = 'csv';
+        datasetSource = datasetMap['csv'].toString();
+        samples = <Sample>[];
+      } else {
+        samples = <Sample>[];
+      }
+    }
+
+    // Task-level Inspect AI args are nested under inspect_task_args
+    final taskArgs = _asMap(data['inspect_task_args']) ?? <String, dynamic>{};
+    final model = taskArgs['model'] as String?;
+    final config = _asMap(taskArgs['config']);
+    final modelRoles = _asStringMap(taskArgs['model_roles']);
+    final sandbox = taskArgs['sandbox'];
+    final approval = taskArgs['approval'];
+    final epochs = taskArgs['epochs'];
+    final failOnError = taskArgs['fail_on_error'];
+    final continueOnFail = taskArgs['continue_on_fail'] as bool?;
+    final messageLimit = taskArgs['message_limit'] as int?;
+    final tokenLimit = taskArgs['token_limit'] as int?;
+    final timeLimit = taskArgs['time_limit'] as int?;
+    final workingLimit = taskArgs['working_limit'] as int?;
+    final costLimit = (taskArgs['cost_limit'] as num?)?.toDouble();
+    final earlyStopping = taskArgs['early_stopping'];
     final displayName = data['display_name'] as String?;
     final version = data['version'];
     final taskMetadata = _asMap(data['metadata']);
+    final sandboxParameters = _asMap(data['sandbox_parameters']);
 
     return [
       ParsedTask(
         id: taskId,
-        taskFunc: taskFunc,
+        func: func,
         variant: const Variant(), // placeholder baseline
         samples: samples,
         systemMessage: systemMessage,
-        allowedVariants: allowedVariants,
+        sandboxParameters: sandboxParameters,
+        taskFiles: taskFiles,
+        taskSetup: taskSetup,
+        datasetFormat: datasetFormat,
+        datasetSource: datasetSource,
+        datasetArgs: datasetArgs,
         // Task-level settings
         model: model,
         config: config,
@@ -137,8 +188,7 @@ class YamlParser extends Parser {
   List<Sample> _loadSamplesSection(
     Map<String, dynamic> samplesMap,
     String datasetRoot,
-    Object? taskWorkspace,
-    Object? taskTests,
+    Map<String, String>? taskFiles,
     String taskDir,
   ) {
     final pathPatterns =
@@ -169,8 +219,7 @@ class YamlParser extends Parser {
         _loadSamplesFromFiles(
           matchedFiles,
           datasetRoot,
-          taskWorkspace,
-          taskTests,
+          taskFiles,
         ),
       );
     }
@@ -179,7 +228,7 @@ class YamlParser extends Parser {
     for (final def in inlineDefs) {
       if (def.isEmpty) continue;
       samples.add(
-        _resolveSample(def, taskDir, datasetRoot, taskWorkspace, taskTests),
+        _resolveSample(def, taskDir, datasetRoot, taskFiles),
       );
     }
 
@@ -190,8 +239,7 @@ class YamlParser extends Parser {
   List<Sample> _loadSamplesFromFiles(
     List<String> sampleFiles,
     String datasetRoot,
-    Object? taskWorkspace,
-    Object? taskTests,
+    Map<String, String>? taskFiles,
   ) {
     final samples = <Sample>[];
 
@@ -216,8 +264,7 @@ class YamlParser extends Parser {
             data,
             sampleDir,
             datasetRoot,
-            taskWorkspace,
-            taskTests,
+            taskFiles,
           ),
         );
       }
@@ -238,8 +285,7 @@ class YamlParser extends Parser {
     Map<String, dynamic> doc,
     String baseDir,
     String datasetRoot,
-    Object? taskWorkspace,
-    Object? taskTests,
+    Map<String, String>? taskFiles,
   ) {
     // --- Validate required fields ---
     for (final field in ['id', 'input', 'target']) {
@@ -250,35 +296,11 @@ class YamlParser extends Parser {
       }
     }
 
-    final sampleWorkspace = doc['workspace'];
-    final sampleTests = doc['tests'];
+    // Read metadata fields from the metadata dict
+    final metaRaw = Map<String, dynamic>.from(doc['metadata'] as Map? ?? {});
 
-    // Sample-level overrides task-level
-    final effectiveWorkspace = sampleWorkspace ?? taskWorkspace;
-
-    String? workspace;
-    String? workspaceGit;
-    String? workspaceGitRef;
-
-    if (effectiveWorkspace != null) {
-      if (effectiveWorkspace is Map && effectiveWorkspace.containsKey('git')) {
-        workspaceGit = effectiveWorkspace['git'] as String?;
-        workspaceGitRef = effectiveWorkspace['ref'] as String?;
-      } else {
-        final resolveDir = sampleWorkspace != null ? baseDir : datasetRoot;
-        workspace = _resolveResourcePath(effectiveWorkspace, resolveDir);
-      }
-    }
-
-    String? tests;
-    if (sampleTests != null) {
-      tests = _resolveResourcePath(sampleTests, baseDir);
-    } else if (taskTests != null) {
-      tests = _resolveResourcePath(taskTests, datasetRoot);
-    }
-
-    // --- Normalize tags ---
-    final rawTags = doc['tags'];
+    // --- Normalize tags from metadata ---
+    final rawTags = metaRaw['tags'];
     final List<String> tags;
     if (rawTags is String) {
       tags = rawTags.split(',').map((t) => t.trim()).toList();
@@ -290,20 +312,22 @@ class YamlParser extends Parser {
 
     // Build metadata with domain-specific fields
     final metadata = <String, dynamic>{
-      ...Map<String, dynamic>.from(doc['metadata'] as Map? ?? {}),
-      'difficulty': doc['difficulty'] as String? ?? 'medium',
+      ...metaRaw,
+      'difficulty': metaRaw['difficulty'] as String? ?? 'medium',
       'tags': tags,
-      'workspace': ?workspace,
-      'tests': ?tests,
-      'workspace_git': ?workspaceGit,
-      'workspace_git_ref': ?workspaceGitRef,
     };
 
     // Parse sample-level fields
     final choices = (doc['choices'] as List?)?.cast<String>();
     final sampleSandbox = doc['sandbox'];
     final setup = doc['setup'] as String?;
-    final files = _asStringMap(doc['files']);
+    final sampleFiles = _asStringMap(doc['files']);
+
+    // Stack files: task-level files + sample-level files (sample wins on conflict)
+    Map<String, String>? mergedFiles;
+    if (taskFiles != null || sampleFiles != null) {
+      mergedFiles = {...?taskFiles, ...?sampleFiles};
+    }
 
     return Sample(
       id: doc['id'] as String,
@@ -312,7 +336,7 @@ class YamlParser extends Parser {
       metadata: metadata,
       choices: choices,
       sandbox: sampleSandbox,
-      files: files,
+      files: mergedFiles,
       setup: setup,
     );
   }
@@ -330,7 +354,6 @@ class YamlParser extends Parser {
     final data = readYamlFileAsMap(jobPath);
 
     final logsDir = (data['logs_dir'] as String?) ?? _kDefaultLogsDir;
-    final sandboxType = (data['sandbox_type'] as String?) ?? 'local';
     final maxConnections = (data['max_connections'] as int?) ?? 10;
 
     // Resolve log directory with timestamp
@@ -370,75 +393,66 @@ class YamlParser extends Parser {
       }
     }
 
+    // Parse tag filters
+    final taskFiltersRaw = data['task_filters'];
+    final sampleFiltersRaw = data['sample_filters'];
+    final TagFilter? taskFilters = taskFiltersRaw is Map
+        ? TagFilter.fromJson(Map<String, dynamic>.from(taskFiltersRaw))
+        : null;
+    final TagFilter? sampleFilters = sampleFiltersRaw is Map
+        ? TagFilter.fromJson(Map<String, dynamic>.from(sampleFiltersRaw))
+        : null;
+
+    // Parse models (required)
+    final modelsRaw = data['models'] as List?;
+    if (modelsRaw == null || modelsRaw.isEmpty) {
+      throw FormatException(
+        "Job file '$jobPath' is missing required 'models' field. "
+        "Specify at least one model, e.g.:\n"
+        '  models:\n    - google/gemini-2.5-flash',
+      );
+    }
+    final models = modelsRaw.cast<String>();
+
     return Job(
       logDir: logDir,
-      sandboxType: sandboxType,
       maxConnections: maxConnections,
-      models: (data['models'] as List?)?.cast<String>(),
+      description: data['description'] as String?,
+      models: models,
       variants: variants,
       taskPaths: taskPaths,
       tasks: tasks,
+      taskFilters: taskFilters,
+      sampleFilters: sampleFilters,
       saveExamples: data['save_examples'] == true,
-      // Promoted eval_set() fields
-      retryAttempts: data['retry_attempts'] as int?,
-      maxRetries: data['max_retries'] as int?,
-      retryWait: (data['retry_wait'] as num?)?.toDouble(),
-      retryConnections: (data['retry_connections'] as num?)?.toDouble(),
-      retryCleanup: data['retry_cleanup'] as bool?,
-      failOnError: (data['fail_on_error'] as num?)?.toDouble(),
-      continueOnFail: data['continue_on_fail'] as bool?,
-      retryOnError: data['retry_on_error'] as int?,
-      debugErrors: data['debug_errors'] as bool?,
-      maxSamples: data['max_samples'] as int?,
-      maxTasks: data['max_tasks'] as int?,
-      maxSubprocesses: data['max_subprocesses'] as int?,
-      maxSandboxes: data['max_sandboxes'] as int?,
-      logLevel: data['log_level'] as String?,
-      logLevelTranscript: data['log_level_transcript'] as String?,
-      logFormat: data['log_format'] as String?,
-      tags: (data['tags'] as List?)?.cast<String>(),
-      metadata: _asMap(data['metadata']),
-      trace: data['trace'] as bool?,
-      display: data['display'] as String?,
-      score: data['score'] as bool?,
-      limit: data['limit'],
-      sampleId: data['sample_id'],
-      sampleShuffle: data['sample_shuffle'],
-      epochs: data['epochs'],
-      approval: data['approval'],
-      solver: data['solver'],
-      sandboxCleanup: data['sandbox_cleanup'] as bool?,
-      modelBaseUrl: data['model_base_url'] as String?,
-      modelArgs: _asObjectMap(data['model_args']),
-      modelRoles: _asStringMap(data['model_roles']),
-      taskArgs: _asObjectMap(data['task_args']),
-      messageLimit: data['message_limit'] as int?,
-      tokenLimit: data['token_limit'] as int?,
-      timeLimit: data['time_limit'] as int?,
-      workingLimit: data['working_limit'] as int?,
-      costLimit: (data['cost_limit'] as num?)?.toDouble(),
-      modelCostConfig: _asObjectMap(data['model_cost_config']),
-      logSamples: data['log_samples'] as bool?,
-      logRealtime: data['log_realtime'] as bool?,
-      logImages: data['log_images'] as bool?,
-      logBuffer: data['log_buffer'] as int?,
-      logShared: data['log_shared'] as int?,
-      bundleDir: data['bundle_dir'] as String?,
-      bundleOverwrite: data['bundle_overwrite'] as bool?,
-      logDirAllowDirty: data['log_dir_allow_dirty'] as bool?,
-      evalSetId: data['eval_set_id'] as String?,
-      // Pass-through sections
-      evalSetOverrides: _asMap(data['eval_set_overrides']),
-      taskDefaults: _asMap(data['task_defaults']),
+      // Sandbox configuration
+      sandbox: _parseSandbox(data['sandbox']),
+      // All inspect eval arguments
+      inspectEvalArguments: _asMap(data['inspect_eval_arguments']),
     );
   }
 
+  /// Parse sandbox config from YAML value.
+  ///
+  /// Supports both string shorthand ('podman') and map form.
+  static Map<String, dynamic>? _parseSandbox(Object? value) {
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    } else if (value is String) {
+      return {'environment': value};
+    }
+    return null;
+  }
+
   /// Create a [Job] with default settings (when no job file is provided).
+  ///
+  /// Note: The caller must specify models, as there are no defaults.
+  /// This method creates a job with an empty models list; the resolver
+  /// will raise an error if models is empty at resolution time.
   Job createDefaultJob(String baseDir) {
     return Job(
       logDir: _resolveLogDir(_kDefaultLogsDir, baseDir),
-      sandboxType: 'local',
-      maxConnections: 10,
+      models: <String>[],
     );
   }
 
@@ -458,64 +472,8 @@ class YamlParser extends Parser {
     return null;
   }
 
-  /// Safely cast a YAML value to `Map<String, Object?>?`.
-  static Map<String, Object?>? _asObjectMap(Object? value) {
-    if (value is Map) return Map<String, Object?>.from(value);
-    return null;
-  }
 
-  // ------------------------------------------------------------------
-  // Path resolution helpers
-  // ------------------------------------------------------------------
 
-  /// Pre-resolve a task-level resource to an absolute path.
-  Object? _preResolveToAbs(Object? resource, String taskDir) {
-    if (resource == null) return null;
-
-    if (resource is String) {
-      if (resource.startsWith('./') ||
-          resource.startsWith('../') ||
-          resource.startsWith('/')) {
-        return {'path': p.normalize(p.join(taskDir, resource))};
-      }
-      return resource;
-    }
-
-    if (resource is Map) {
-      if (resource.containsKey('path')) {
-        final pathVal = resource['path'] as String;
-        return {
-          ...resource,
-          'path': p.normalize(p.join(taskDir, pathVal)),
-        };
-      }
-      return resource;
-    }
-
-    return resource;
-  }
-
-  /// Resolve a workspace/tests resource reference to an absolute path string.
-  String? _resolveResourcePath(Object? resource, String baseDir) {
-    if (resource == null) return null;
-
-    if (resource is String) {
-      if (resource.startsWith('./') ||
-          resource.startsWith('../') ||
-          resource.startsWith('/')) {
-        return p.normalize(p.join(baseDir, resource));
-      }
-      return null;
-    }
-
-    if (resource is Map) {
-      if (resource.containsKey('path')) {
-        return p.normalize(p.join(baseDir, resource['path'] as String));
-      }
-    }
-
-    return null;
-  }
 
   // ------------------------------------------------------------------
   // Log dir helpers

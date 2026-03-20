@@ -1,7 +1,7 @@
 """Shared helper functions for building task components.
 
 These helpers encapsulate common patterns used across tasks:
-- Creating the Dart MCP server
+- Creating MCP servers from variant config
 - Building task metadata
 - Appending variant-driven solvers (context injection, MCP tools, skills)
 
@@ -11,11 +11,19 @@ TaskConfig, enabling the JSONL + manifest-based execution flow.
 
 from __future__ import annotations
 
+import importlib
 from typing import Any, cast
 
 from inspect_ai.agent import react
 from inspect_ai.solver import Solver, generate
-from inspect_ai.tool import MCPServer, Tool, mcp_server_stdio, skill
+from inspect_ai.tool import (
+    MCPServer,
+    Tool,
+    mcp_server_http,
+    mcp_server_sandbox,
+    mcp_server_stdio,
+    skill,
+)
 
 from dash_evals.runner.solvers import context_injector
 
@@ -58,32 +66,137 @@ def validate_sandbox_tools(config: dict, tool_names: list[str]) -> None:
     )
 
 
-def create_mcp_server(config: dict | None = None):
-    """
-    Create an MCP server tool from config.
+def _resolve_mcp_ref(ref: str) -> MCPServer:
+    """Resolve a Python import reference to an MCPServer object.
 
-    Reads 'mcp_server_command' and 'mcp_server_args' from config.
-    Defaults to the Dart MCP server if not specified.
+    Supports ``"module.path:variable_name"`` format.
 
     Args:
-        config: Task config with optional 'mcp_server_command' and
-                'mcp_server_args' keys.
+        ref: Import reference (e.g. ``"my_package.mcp:staging_server"``).
 
     Returns:
-        MCP server stdio tool.
+        The resolved MCPServer object.
     """
-    config = config or {}
-    command = config.get("mcp_server_command", "dart")
-    args = config.get("mcp_server_args", ["mcp-server", "--force-roots-fallback"])
-    name = config.get("mcp_server_name", "Dart")
-    return mcp_server_stdio(
-        name=name,
-        command=command,
-        args=args,
-    )
+    if ":" not in ref:
+        raise ValueError(
+            f"Invalid MCP server ref '{ref}'. Expected format: 'module.path:variable_name'"
+        )
+    module_path, attr_name = ref.rsplit(":", 1)
+    try:
+        module = importlib.import_module(module_path)
+    except ImportError as e:
+        raise ImportError(
+            f"Could not import module '{module_path}' for MCP server ref '{ref}': {e}"
+        ) from e
+    try:
+        server = getattr(module, attr_name)
+    except AttributeError as e:
+        raise AttributeError(
+            f"Module '{module_path}' has no attribute '{attr_name}' "
+            f"(referenced by MCP server ref '{ref}')"
+        ) from e
+    return server
+
+
+def create_mcp_servers(
+    mcp_configs: list[dict],
+    sandbox_type: str = "local",
+) -> list[MCPServer]:
+    """Create MCP server objects from variant config.
+
+    Supports three modes per entry:
+    - **Declarative stdio/sandbox**: dict with ``command``, ``args``, etc.
+    - **Declarative HTTP**: dict with ``url``, and optionally ``authorization``/``headers``.
+    - **Python ref**: dict with ``ref`` key pointing to a pre-built MCPServer.
+
+    Transport is auto-selected when not explicit:
+    - If ``url`` is present → ``mcp_server_http``
+    - If sandbox is non-local → ``mcp_server_sandbox``
+    - Otherwise → ``mcp_server_stdio``
+
+    Args:
+        mcp_configs: List of MCP server config dicts from variant_config.
+        sandbox_type: The sandbox type for the current eval run.
+
+    Returns:
+        List of MCPServer objects.
+    """
+    servers: list[MCPServer] = []
+    for cfg in mcp_configs:
+        # Ref mode — import a pre-built MCPServer from Python
+        if cfg.get("ref"):
+            servers.append(_resolve_mcp_ref(cfg["ref"]))
+            continue
+
+        # HTTP mode — url-based server
+        url = cfg.get("url")
+        if url:
+            name = cfg.get("name", url)
+            authorization = cfg.get("authorization") or cfg.get("auth")
+            headers = cfg.get("headers")
+            servers.append(
+                mcp_server_http(
+                    url=url,
+                    name=name,
+                    authorization=authorization,
+                    headers=headers,
+                )
+            )
+            continue
+
+        # Stdio / sandbox mode — command-based server
+        command = cfg.get("command")
+        if not command:
+            raise ValueError(
+                f"MCP server config missing 'command' or 'url' for server "
+                f"'{cfg.get('name', 'unknown')}': {cfg}"
+            )
+
+        name = cfg.get("name", command)
+        args = cfg.get("args", [])
+        env = cfg.get("env")
+        cwd = cfg.get("cwd")
+
+        transport = cfg.get("transport")
+        if transport is None:
+            transport = "sandbox" if sandbox_type != "local" else "stdio"
+
+        if transport == "stdio":
+            servers.append(
+                mcp_server_stdio(
+                    name=name,
+                    command=command,
+                    args=args,
+                    env=env,
+                    cwd=cwd,
+                )
+            )
+        elif transport == "sandbox":
+            servers.append(
+                mcp_server_sandbox(
+                    name=name,
+                    command=command,
+                    args=args,
+                    env=env,
+                    cwd=cwd,
+                )
+            )
+        else:
+            raise ValueError(f"Unknown MCP transport '{transport}' for server '{name}'")
+
+    return servers
 
 
 # Backwards-compatible alias
+def create_mcp_server(config: dict | None = None):
+    """Create the default Dart MCP server (backwards-compatible alias)."""
+    return mcp_server_stdio(
+        name="Dart",
+        command="dart",
+        args=["mcp-server", "--force-roots-fallback"],
+    )
+
+
 def create_dart_mcp_server():
     """Create the standard Dart MCP server tool (backwards-compatible alias)."""
     return create_mcp_server()
@@ -119,7 +232,8 @@ def append_context_injection(solver_chain: list, config: dict) -> None:
         config: Task manifest entry with 'variant' key.
     """
     variant = config.get("variant", {})
-    context_files = variant.get("context_files", [])
+    # Support both old "context_files" and new "files" key
+    context_files = variant.get("files") or variant.get("context_files", [])
     if context_files:
         solver_chain.append(context_injector(context_files))
 
@@ -134,7 +248,8 @@ def get_skill_tool(config: dict) -> Tool | None:
         The skill Tool, or None if no skills are configured.
     """
     variant = config.get("variant", {})
-    skill_paths = variant.get("skill_paths", [])
+    # Support both old "skill_paths" and new "skills" key
+    skill_paths = variant.get("skills") or variant.get("skill_paths", [])
     if skill_paths:
         return skill(skill_paths)
     return None
@@ -155,8 +270,11 @@ def append_model_interaction(
     """
     tools: list[Tool | MCPServer] = []
     variant = config.get("variant", {})
-    if variant.get("mcp_servers"):
-        tools.append(create_mcp_server(config))
+    mcp_servers_config = variant.get("mcp_servers", [])
+
+    if mcp_servers_config:
+        sandbox_type = config.get("sandbox_type", "local")
+        tools.extend(create_mcp_servers(mcp_servers_config, sandbox_type))
 
     skill_tool = get_skill_tool(config)
     if skill_tool:

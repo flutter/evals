@@ -7,22 +7,12 @@ import 'package:path/path.dart' as p;
 
 import '../parsed_task.dart';
 
-/// Default models used when a job doesn't specify its own.
-const List<String> kDefaultModels = [
-  'anthropic/claude-haiku-4-5',
-  'anthropic/claude-sonnet-4-5',
-  'anthropic/claude-opus-4-6',
-  'google/gemini-2.5-flash',
-  'google/gemini-3-pro-preview',
-  'google/gemini-3-flash-preview',
-  'openai/gpt-5-mini',
-  'openai/gpt-5-nano',
-  'openai/gpt-5',
-  'openai/gpt-5-pro',
-];
 
-/// Available sandbox configurations.
-const Map<String, Map<String, String>> kSandboxRegistry = {
+
+/// Default sandbox configurations for Flutter evaluations.
+///
+/// Consumers can pass these to [EvalSetResolver] or provide their own.
+const Map<String, Map<String, String>> kDefaultSandboxRegistry = {
   'podman': {'name': 'podman', 'path': './sandboxes/podman/compose.yaml'},
   'podman-beta': {
     'name': 'podman',
@@ -34,12 +24,7 @@ const Map<String, Map<String, String>> kSandboxRegistry = {
   },
 };
 
-/// Maps Flutter SDK channel names to sandbox registry keys.
-const Map<String, String> kSdkChannels = {
-  'stable': 'podman',
-  'beta': 'podman-beta',
-  'main': 'podman-main',
-};
+
 
 /// Resolves parsed task configs and job into fully-resolved
 /// [EvalSet] objects ready for JSON serialization.
@@ -47,19 +32,36 @@ const Map<String, String> kSdkChannels = {
 /// This is the resolution engine. It:
 /// 1. Resolves models, sandboxes, and variants
 /// 2. Expands task × variant combinations into [Task] entries
-/// 3. Groups by flutter_channel (one [EvalSet] per group)
-/// 4. Propagates job-level and task-level settings to the output
+/// 3. Propagates job-level and task-level settings to the output
 class EvalSetResolver {
-  /// Resolve task configs and job into [EvalSet] objects.
+  /// Creates a resolver with optional sandbox configuration.
   ///
-  /// Groups by flutter_channel so each gets its own sandbox.
+  /// If [sandboxRegistry] is not provided, it defaults to an empty map
+  /// (no sandbox resolution). Pass [kDefaultSandboxRegistry] for the
+  /// Flutter-specific sandbox setup.
+  const EvalSetResolver({
+    this.sandboxRegistry = const {},
+  });
+
+  /// Named sandbox configurations (e.g. `'podman'` → compose file path).
+  final Map<String, Map<String, String>> sandboxRegistry;
+
+  /// Resolve task configs and job into [EvalSet] objects.
   List<EvalSet> resolve(
     List<ParsedTask> datasetTasks,
     Job job,
     String datasetRoot,
   ) {
-    final models = _resolveModels(job);
-    final sandboxTypeStr = job.sandboxType;
+    if (job.models.isEmpty) {
+      throw ArgumentError(
+        'job.models is required and must contain at least one model. '
+        'Specify models in your job YAML, e.g.:\n'
+        '  models:\n    - google/gemini-2.5-flash',
+      );
+    }
+    final models = job.models;
+    final sandboxCfg = job.sandbox ?? <String, dynamic>{};
+    final sandboxTypeStr = (sandboxCfg['environment'] as String?) ?? 'local';
     final expandedTasks = _expandTaskConfigs(
       datasetTasks,
       job,
@@ -67,26 +69,16 @@ class EvalSetResolver {
       datasetRoot,
     );
 
-    // Group by flutter channel
-    final groups = <String?, List<ParsedTask>>{};
-    for (final tc in expandedTasks) {
-      final key = tc.variant.flutterChannel;
-      (groups[key] ??= []).add(tc);
-    }
+    final sandbox = _resolveSandbox(datasetRoot, job);
 
     return [
-      for (final entry in groups.entries)
-        _buildEvalSet(
-          taskConfigs: entry.value,
-          logDir: job.logDir,
-          models: models,
-          sandbox: _resolveSandbox(
-            datasetRoot,
-            job,
-            flutterChannel: entry.key,
-          ),
-          job: job,
-        ),
+      _buildEvalSet(
+        taskConfigs: expandedTasks,
+        logDir: job.logDir,
+        models: models,
+        sandbox: sandbox,
+        job: job,
+      ),
     ];
   }
 
@@ -106,11 +98,12 @@ class EvalSetResolver {
     required Job job,
   }) {
     final inspectTasks = <Task>[];
-    final isContainer =
-        job.sandboxType.isNotEmpty && job.sandboxType != 'local';
+    final sandboxCfg = job.sandbox ?? <String, dynamic>{};
+    final sandboxTypeStr = (sandboxCfg['environment'] as String?) ?? 'local';
 
-    // Parse task_defaults from the job
-    final taskDefaults = job.taskDefaults ?? <String, dynamic>{};
+    // Parse task_defaults from inspect_eval_arguments
+    final evalArgs = job.inspectEvalArguments ?? <String, dynamic>{};
+    final taskDefaults = (evalArgs['task_defaults'] as Map<String, dynamic>?) ?? <String, dynamic>{};
 
     for (final tc in taskConfigs) {
       // Enrich each sample with task-level metadata
@@ -126,25 +119,14 @@ class EvalSetResolver {
           }
         }
 
-        // Build files + setup for sandbox provisioning
-        Map<String, String>? files = sample.files;
-        String? setup = sample.setup;
-        final workspace = sample.metadata?['workspace'] as String?;
-        final workspaceGit = sample.metadata?['workspace_git'] as String?;
-        final workspaceGitRef =
-            sample.metadata?['workspace_git_ref'] as String?;
+        // Stack files: task-level + sample-level (sample wins on conflict)
+        Map<String, String>? files;
+        if (tc.taskFiles != null || sample.files != null) {
+          files = {...?tc.taskFiles, ...?sample.files};
+        }
 
-        if (workspace != null && isContainer) {
-          files = {...?files, '/workspace': workspace};
-          setup = setup ?? 'cd /workspace && flutter pub get';
-          enriched['workspace'] = '/workspace';
-        }
-        if (workspaceGit != null) {
-          enriched['workspace_git'] = workspaceGit;
-          if (workspaceGitRef != null) {
-            enriched['workspace_git_ref'] = workspaceGitRef;
-          }
-        }
+        // Setup: sample overrides task
+        final setup = sample.setup ?? tc.taskSetup;
 
         inspectSamples.add(
           Sample(
@@ -163,35 +145,42 @@ class EvalSetResolver {
       final dataset = Dataset(
         samples: inspectSamples,
         name: '${tc.id}:${tc.variant.name}',
+        format: tc.datasetFormat,
+        source: tc.datasetSource,
+        args: tc.datasetArgs,
       );
 
       // Build task metadata (variant config, system message, etc.)
       final metadata = <String, dynamic>{
         'variant': tc.variant.name,
-        if (tc.variant.contextFiles.isNotEmpty)
+        if (tc.variant.files.isNotEmpty ||
+            tc.variant.mcpServers.isNotEmpty ||
+            tc.variant.skills.isNotEmpty ||
+            tc.variant.taskParameters.isNotEmpty)
           'variant_config': {
-            'context_files': tc.variant.contextFiles
-                .map(
-                  (cf) => {
-                    'title': cf.metadata.title,
-                    'version': cf.metadata.version,
-                    'content': cf.content,
-                  },
-                )
-                .toList(),
-            'mcp_servers': tc.variant.mcpServers,
-            'skill_paths': tc.variant.skillPaths,
-          },
-        if (tc.variant.contextFiles.isEmpty &&
-            (tc.variant.mcpServers.isNotEmpty ||
-                tc.variant.skillPaths.isNotEmpty))
-          'variant_config': {
-            'mcp_servers': tc.variant.mcpServers,
-            'skill_paths': tc.variant.skillPaths,
+            if (tc.variant.files.isNotEmpty)
+              'files': tc.variant.files
+                  .map(
+                    (cf) => {
+                      'title': cf.metadata.title,
+                      'version': cf.metadata.version,
+                      'content': cf.content,
+                    },
+                  )
+                  .toList(),
+            if (tc.variant.mcpServers.isNotEmpty)
+              'mcp_servers': tc.variant.mcpServers,
+            if (tc.variant.skills.isNotEmpty)
+              'skills': tc.variant.skills,
+            if (tc.variant.taskParameters.isNotEmpty)
+              'task_parameters': tc.variant.taskParameters,
           },
         if (tc.systemMessage != null) 'system_message': tc.systemMessage,
         if (tc.saveExamples) 'save_examples': true,
         if (tc.examplesDir != null) 'examples_dir': tc.examplesDir,
+        // Propagate image_prefix from sandbox for container image resolution
+        if (sandboxCfg['image_prefix'] != null)
+          'image_prefix': sandboxCfg['image_prefix'],
         // Merge any task-level metadata from YAML
         ...?tc.metadata,
       };
@@ -201,7 +190,7 @@ class EvalSetResolver {
       if (tc.sandbox != null) {
         // Task-level sandbox override
         taskSandbox = tc.sandbox;
-      } else if (tc.sandboxType.isNotEmpty && tc.sandboxType != 'local') {
+      } else if (sandboxTypeStr != 'local') {
         taskSandbox = _serializeSandbox(sandbox);
       }
 
@@ -210,7 +199,7 @@ class EvalSetResolver {
       final resolvedTimeLimit =
           tc.timeLimit ??
           taskDefaults['time_limit'] as int? ??
-          (job.sandboxType != 'local' ? 300 : null);
+          (sandboxTypeStr != 'local' ? 300 : null);
       final resolvedMessageLimit =
           tc.messageLimit ?? taskDefaults['message_limit'] as int?;
       final resolvedTokenLimit =
@@ -239,10 +228,12 @@ class EvalSetResolver {
       inspectTasks.add(
         Task(
           name: '${tc.id}:${tc.variant.name}',
-          taskFunc: tc.taskFunc,
+          func: tc.func,
           dataset: dataset,
           sandbox: taskSandbox,
           metadata: metadata,
+          systemMessage: tc.systemMessage,
+          sandboxParameters: tc.sandboxParameters,
           model: resolvedModel,
           config: resolvedConfig,
           modelRoles: resolvedModelRoles,
@@ -262,9 +253,17 @@ class EvalSetResolver {
       );
     }
 
-    // Build the EvalSet with all job-level parameters.
-    // Start with any eval_set_overrides, then apply explicit fields.
-    final overrides = job.evalSetOverrides ?? <String, dynamic>{};
+    // Build the EvalSet with all job-level parameters from inspect_eval_arguments.
+    final evalSetOverrides = (evalArgs['eval_set_overrides'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+
+    // Helper to get a value from evalArgs then overrides
+    T? getArg<T>(String key, [T? defaultVal]) {
+      final v = evalArgs[key] as T?;
+      if (v != null) return v;
+      final o = evalSetOverrides[key] as T?;
+      if (o != null) return o;
+      return defaultVal;
+    }
 
     return EvalSet(
       tasks: inspectTasks,
@@ -272,102 +271,77 @@ class EvalSetResolver {
       model: models,
       sandbox: _serializeSandbox(sandbox),
       // Retry settings
-      retryAttempts:
-          job.retryAttempts ?? overrides['retry_attempts'] as int? ?? 10,
-      retryWait:
-          job.retryWait ?? (overrides['retry_wait'] as num?)?.toDouble() ?? 60,
+      retryAttempts: getArg<int>('retry_attempts', 10),
+      retryWait: (getArg<num>('retry_wait', 60))?.toDouble() ?? 60,
       retryConnections:
-          job.retryConnections ??
-          (overrides['retry_connections'] as num?)?.toDouble() ??
-          0.5,
-      retryCleanup: job.retryCleanup ?? overrides['retry_cleanup'] as bool?,
+          (getArg<num>('retry_connections', 0.5))?.toDouble() ?? 0.5,
+      retryCleanup: getArg<bool>('retry_cleanup'),
       retryOnError:
-          job.retryOnError ??
-          job.maxRetries ??
-          overrides['retry_on_error'] as int?,
+          getArg<int>('retry_on_error') ?? getArg<int>('max_retries'),
       // Error handling
-      failOnError:
-          job.failOnError ??
-          (overrides['fail_on_error'] as num?)?.toDouble() ??
-          0.05,
-      continueOnFail:
-          job.continueOnFail ?? overrides['continue_on_fail'] as bool?,
-      debugErrors: job.debugErrors ?? overrides['debug_errors'] as bool?,
+      failOnError: (getArg<num>('fail_on_error', 0.05))?.toDouble() ?? 0.05,
+      continueOnFail: getArg<bool>('continue_on_fail'),
+      debugErrors: getArg<bool>('debug_errors'),
       // Concurrency
-      maxSamples: job.maxSamples ?? overrides['max_samples'] as int?,
-      maxTasks: job.maxTasks ?? overrides['max_tasks'] as int?,
-      maxSubprocesses:
-          job.maxSubprocesses ?? overrides['max_subprocesses'] as int?,
-      maxSandboxes: job.maxSandboxes ?? overrides['max_sandboxes'] as int?,
+      maxSamples: getArg<int>('max_samples'),
+      maxTasks: getArg<int>('max_tasks'),
+      maxSubprocesses: getArg<int>('max_subprocesses'),
+      maxSandboxes: getArg<int>('max_sandboxes'),
       // Logging
-      logLevel: job.logLevel ?? overrides['log_level'] as String? ?? 'info',
-      logLevelTranscript:
-          job.logLevelTranscript ??
-          overrides['log_level_transcript'] as String?,
-      logFormat: job.logFormat ?? overrides['log_format'] as String? ?? 'json',
-      logSamples: job.logSamples ?? overrides['log_samples'] as bool?,
-      logRealtime: job.logRealtime ?? overrides['log_realtime'] as bool?,
-      logImages: job.logImages ?? overrides['log_images'] as bool?,
-      logBuffer: job.logBuffer ?? overrides['log_buffer'] as int?,
-      logShared: job.logShared ?? overrides['log_shared'] as int?,
-      logDirAllowDirty:
-          job.logDirAllowDirty ?? overrides['log_dir_allow_dirty'] as bool?,
+      logLevel: getArg<String>('log_level', 'info'),
+      logLevelTranscript: getArg<String>('log_level_transcript'),
+      logFormat: getArg<String>('log_format', 'json'),
+      logSamples: getArg<bool>('log_samples'),
+      logRealtime: getArg<bool>('log_realtime'),
+      logImages: getArg<bool>('log_images'),
+      logBuffer: getArg<int>('log_buffer'),
+      logShared: getArg<int>('log_shared'),
+      logDirAllowDirty: getArg<bool>('log_dir_allow_dirty'),
       // Model config
-      modelBaseUrl: job.modelBaseUrl ?? overrides['model_base_url'] as String?,
+      modelBaseUrl: getArg<String>('model_base_url'),
       modelArgs:
-          job.modelArgs ??
-          (overrides['model_args'] as Map<String, Object?>?) ??
+          (evalArgs['model_args'] as Map<String, Object?>?) ??
+          (evalSetOverrides['model_args'] as Map<String, Object?>?) ??
           const {},
       modelRoles:
-          job.modelRoles ?? overrides['model_roles'] as Map<String, String>?,
+          (evalArgs['model_roles'] as Map<String, String>?) ??
+          evalSetOverrides['model_roles'] as Map<String, String>?,
       taskArgs:
-          job.taskArgs ??
-          (overrides['task_args'] as Map<String, Object?>?) ??
+          (evalArgs['task_args'] as Map<String, Object?>?) ??
+          (evalSetOverrides['task_args'] as Map<String, Object?>?) ??
           const {},
       modelCostConfig:
-          job.modelCostConfig ??
-          overrides['model_cost_config'] as Map<String, Object?>?,
+          (evalArgs['model_cost_config'] as Map<String, Object?>?) ??
+          evalSetOverrides['model_cost_config'] as Map<String, Object?>?,
       // Sandbox
-      sandboxCleanup:
-          job.sandboxCleanup ?? overrides['sandbox_cleanup'] as bool?,
+      sandboxCleanup: getArg<bool>('sandbox_cleanup'),
       // Sample control
-      limit: job.limit ?? overrides['limit'],
-      sampleId: job.sampleId ?? overrides['sample_id'],
-      sampleShuffle: job.sampleShuffle ?? overrides['sample_shuffle'],
-      epochs: job.epochs ?? overrides['epochs'],
+      limit: evalArgs['limit'] ?? evalSetOverrides['limit'],
+      sampleId: evalArgs['sample_id'] ?? evalSetOverrides['sample_id'],
+      sampleShuffle: evalArgs['sample_shuffle'] ?? evalSetOverrides['sample_shuffle'],
+      epochs: evalArgs['epochs'] ?? evalSetOverrides['epochs'],
       // Misc
-      tags: job.tags ?? (overrides['tags'] as List?)?.cast<String>(),
-      metadata: job.metadata ?? overrides['metadata'] as Map<String, dynamic>?,
-      trace: job.trace ?? overrides['trace'] as bool?,
-      display: job.display ?? overrides['display'] as String?,
-      approval: job.approval ?? overrides['approval'],
-      solver: job.solver ?? overrides['solver'],
-      score: job.score ?? overrides['score'] as bool? ?? true,
+      tags: (evalArgs['tags'] as List?)?.cast<String>() ?? (evalSetOverrides['tags'] as List?)?.cast<String>(),
+      metadata: (evalArgs['metadata'] as Map<String, dynamic>?) ?? evalSetOverrides['metadata'] as Map<String, dynamic>?,
+      trace: getArg<bool>('trace'),
+      display: getArg<String>('display'),
+      approval: evalArgs['approval'] ?? evalSetOverrides['approval'],
+      solver: evalArgs['solver'] ?? evalSetOverrides['solver'],
+      score: getArg<bool>('score', true) ?? true,
       // Limits
-      messageLimit: job.messageLimit ?? overrides['message_limit'] as int?,
-      tokenLimit: job.tokenLimit ?? overrides['token_limit'] as int?,
-      timeLimit: job.timeLimit ?? overrides['time_limit'] as int?,
-      workingLimit: job.workingLimit ?? overrides['working_limit'] as int?,
-      costLimit: job.costLimit ?? (overrides['cost_limit'] as num?)?.toDouble(),
+      messageLimit: getArg<int>('message_limit'),
+      tokenLimit: getArg<int>('token_limit'),
+      timeLimit: getArg<int>('time_limit'),
+      workingLimit: getArg<int>('working_limit'),
+      costLimit: (getArg<num>('cost_limit'))?.toDouble(),
       // Bundling
-      bundleDir: job.bundleDir ?? overrides['bundle_dir'] as String?,
-      bundleOverwrite:
-          job.bundleOverwrite ??
-          overrides['bundle_overwrite'] as bool? ??
-          false,
-      evalSetId: job.evalSetId ?? overrides['eval_set_id'] as String?,
+      bundleDir: getArg<String>('bundle_dir'),
+      bundleOverwrite: getArg<bool>('bundle_overwrite', false) ?? false,
+      evalSetId: getArg<String>('eval_set_id'),
     );
   }
 
-  // ------------------------------------------------------------------
-  // Model resolution
-  // ------------------------------------------------------------------
 
-  /// Resolve which models to run. Job overrides default.
-  List<String> _resolveModels(Job job) {
-    if (job.models != null && job.models!.isNotEmpty) return job.models!;
-    return List.of(kDefaultModels);
-  }
 
   // ------------------------------------------------------------------
   // Sandbox resolution
@@ -378,28 +352,15 @@ class EvalSetResolver {
   /// Returns either `"local"` or a `Map` with `type` and `path` keys.
   Object _resolveSandbox(
     String datasetRoot,
-    Job job, {
-    String? flutterChannel,
-  }) {
-    final sandboxType = job.sandboxType;
+    Job job,
+  ) {
+    final sandboxCfg = job.sandbox ?? <String, dynamic>{};
+    final sandboxType = (sandboxCfg['environment'] as String?) ?? 'local';
     if (sandboxType.isEmpty || sandboxType == 'local') return 'local';
 
-    // Channel override → look up channel-specific sandbox
-    if (flutterChannel != null && kSdkChannels.containsKey(flutterChannel)) {
-      final registryKey = kSdkChannels[flutterChannel]!;
-      if (kSandboxRegistry.containsKey(registryKey)) {
-        final def = kSandboxRegistry[registryKey]!;
-        var sandboxPath = def['path']!;
-        if (!p.isAbsolute(sandboxPath)) {
-          sandboxPath = p.normalize(p.join(datasetRoot, sandboxPath));
-        }
-        return {'type': def['name']!, 'path': sandboxPath};
-      }
-    }
-
     // Named sandbox from registry
-    if (kSandboxRegistry.containsKey(sandboxType)) {
-      final def = kSandboxRegistry[sandboxType]!;
+    if (sandboxRegistry.containsKey(sandboxType)) {
+      final def = sandboxRegistry[sandboxType]!;
       var sandboxPath = def['path']!;
       if (!p.isAbsolute(sandboxPath)) {
         sandboxPath = p.normalize(p.join(datasetRoot, sandboxPath));
@@ -427,22 +388,38 @@ class EvalSetResolver {
     for (final taskConfig in datasetTasks) {
       final taskId = taskConfig.id;
 
-      // Filter by job.tasks
+      // Filter by job.tasks (ID-based)
       if (job.tasks != null && !job.tasks!.containsKey(taskId)) continue;
 
-      // Determine effective variants (intersection)
-      final effectiveVariants = <String, Map<String, dynamic>>{};
-      for (final entry in jobVariants.entries) {
-        if (taskConfig.allowedVariants == null ||
-            taskConfig.allowedVariants!.contains(entry.key)) {
-          effectiveVariants[entry.key] = entry.value;
-        }
+      // Filter by job.taskFilters (tag-based)
+      if (job.taskFilters != null) {
+        final taskTags = (taskConfig.metadata?['tags'] as List?)?.cast<String>() ?? [];
+        if (!matchesTagFilter(taskTags, job.taskFilters!)) continue;
       }
 
       // Get job-level task overrides
       final jobTask = (job.tasks != null && job.tasks!.containsKey(taskId))
           ? job.tasks![taskId]
           : null;
+
+      // Determine effective variants using job-level include/exclude
+      final effectiveVariants = <String, Map<String, dynamic>>{};
+      for (final entry in jobVariants.entries) {
+        final vName = entry.key;
+
+        // Job-task level include_variants filter
+        if (jobTask?.includeVariants != null &&
+            !jobTask!.includeVariants!.contains(vName)) {
+          continue;
+        }
+        // Job-task level exclude_variants filter
+        if (jobTask?.excludeVariants != null &&
+            jobTask!.excludeVariants!.contains(vName)) {
+          continue;
+        }
+
+        effectiveVariants[vName] = entry.value;
+      }
 
       // Apply sample filtering
       var samples = taskConfig.samples;
@@ -459,10 +436,21 @@ class EvalSetResolver {
         }
       }
 
-      // Apply system_message override
+      // Apply sample tag filtering (job-level)
+      if (job.sampleFilters != null) {
+        samples = samples.where((s) {
+          final sampleTags = (s.metadata?['tags'] as List?)?.cast<String>() ?? [];
+          return matchesTagFilter(sampleTags, job.sampleFilters!);
+        }).toList();
+      }
+
+      // Apply system_message from task (no longer overridden by job task)
       var systemMessage = taskConfig.systemMessage;
-      if (jobTask?.systemMessage != null) {
-        systemMessage = jobTask!.systemMessage;
+
+      // Merge job-task args into metadata
+      Map<String, dynamic>? mergedMetadata = taskConfig.metadata;
+      if (jobTask?.args != null && jobTask!.args!.isNotEmpty) {
+        mergedMetadata = {...?mergedMetadata, 'args': jobTask.args};
       }
 
       // Create one ParsedTask per effective variant
@@ -481,9 +469,9 @@ class EvalSetResolver {
             variant: variant,
             sandboxType: sandboxType,
             systemMessage: systemMessage,
-            allowedVariants: null,
             saveExamples: job.saveExamples,
             examplesDir: examplesDir,
+            metadata: mergedMetadata,
           ),
         );
       }
@@ -505,9 +493,9 @@ class EvalSetResolver {
     if (vDef.isEmpty) return Variant(name: name);
 
     // Load context files (with glob support)
-    final contextFiles = <ContextFile>[];
+    final files = <ContextFile>[];
     final cfPaths =
-        (vDef['context_files'] as List?)?.cast<String>() ?? const [];
+        (vDef['files'] as List?)?.cast<String>() ?? const [];
     for (final cfPath in cfPaths) {
       if (_isGlob(cfPath)) {
         final matched = _expandGlobFiles(datasetRoot, cfPath);
@@ -517,19 +505,18 @@ class EvalSetResolver {
           );
         }
         for (final f in matched) {
-          contextFiles.add(ContextFile.load(f));
+          files.add(ContextFile.load(f));
         }
       } else {
         final fullPath = p.normalize(p.join(datasetRoot, cfPath));
-        contextFiles.add(ContextFile.load(fullPath));
+        files.add(ContextFile.load(fullPath));
       }
     }
 
     // Resolve skill paths (with glob support)
-    final skillPaths = <String>[];
+    final skills = <String>[];
     final rawSkills =
-        ((vDef['skills'] as List?) ?? (vDef['skill_paths'] as List?) ?? [])
-            .cast<String>();
+        (vDef['skills'] as List?)?.cast<String>() ?? const [];
     for (final skillPathStr in rawSkills) {
       if (_isGlob(skillPathStr)) {
         final matched = _expandGlobDirs(datasetRoot, skillPathStr);
@@ -541,7 +528,7 @@ class EvalSetResolver {
             'No skill directories matched pattern: $skillPathStr',
           );
         }
-        skillPaths.addAll(validDirs);
+        skills.addAll(validDirs);
       } else {
         final skillDir = p.normalize(p.join(datasetRoot, skillPathStr));
         if (!Directory(skillDir).existsSync()) {
@@ -553,16 +540,31 @@ class EvalSetResolver {
             'Each skill directory must contain a SKILL.md file.',
           );
         }
-        skillPaths.add(skillDir);
+        skills.add(skillDir);
       }
     }
 
+    // Parse MCP servers as config objects
+    final mcpServers = <Map<String, dynamic>>[];
+    final rawMcpServers = vDef['mcp_servers'] as List? ?? [];
+    for (final srv in rawMcpServers) {
+      if (srv is Map) {
+        mcpServers.add(Map<String, dynamic>.from(srv));
+      } else if (srv is String) {
+        // String shorthand: treat as a ref (Python import path)
+        mcpServers.add(<String, dynamic>{'ref': srv});
+      }
+    }
+
+    // Parse task_parameters
+    final taskParameters = (vDef['task_parameters'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
+
     return Variant(
       name: name,
-      contextFiles: contextFiles,
-      mcpServers: (vDef['mcp_servers'] as List?)?.cast<String>() ?? [],
-      skillPaths: skillPaths,
-      flutterChannel: vDef['flutter_channel'] as String?,
+      files: files,
+      mcpServers: mcpServers,
+      skills: skills,
+      taskParameters: taskParameters,
     );
   }
 

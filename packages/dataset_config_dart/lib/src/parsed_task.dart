@@ -13,14 +13,22 @@ const kDefaultSystemMessage =
 /// former `TaskConfig` model-package class.
 class ParsedTask {
   final String id;
-  final String taskFunc;
+  final String func;
   final List<Sample> samples;
   final Variant variant;
   final String sandboxType;
   final String? systemMessage;
-  final List<String>? allowedVariants;
   final bool saveExamples;
   final String? examplesDir;
+
+  /// Pass-through dict for sandbox plugin configuration.
+  final Map<String, dynamic>? sandboxParameters;
+
+  /// Task-level files to copy into sandbox.
+  final Map<String, String>? taskFiles;
+
+  /// Task-level setup script.
+  final String? taskSetup;
 
   // ------------------------------------------------------------------
   // Task-level settings (from task.yaml)
@@ -77,17 +85,27 @@ class ParsedTask {
   /// Additional metadata to associate with the task.
   final Map<String, dynamic>? metadata;
 
+  /// Dataset format: 'memory' (inline samples), 'json', or 'csv'.
+  final String datasetFormat;
+
+  /// File path or URL for json/csv datasets.
+  final String? datasetSource;
+
+  /// Extra kwargs passed to json_dataset() or csv_dataset().
+  final Map<String, dynamic>? datasetArgs;
+
   const ParsedTask({
     required this.id,
-    required this.taskFunc,
+    required this.func,
     required this.samples,
     required this.variant,
     this.sandboxType = 'local',
     this.systemMessage,
-    this.allowedVariants,
     this.saveExamples = false,
     this.examplesDir,
-    // Task-level settings
+    this.sandboxParameters,
+    this.taskFiles,
+    this.taskSetup,
     this.model,
     this.config,
     this.modelRoles,
@@ -105,19 +123,24 @@ class ParsedTask {
     this.displayName,
     this.version,
     this.metadata,
+    this.datasetFormat = 'memory',
+    this.datasetSource,
+    this.datasetArgs,
   });
 
   /// Create a copy with overrides.
   ParsedTask copyWith({
     String? id,
-    String? taskFunc,
+    String? func,
     List<Sample>? samples,
     Variant? variant,
     String? sandboxType,
     String? systemMessage,
-    List<String>? allowedVariants,
     bool? saveExamples,
     String? examplesDir,
+    Map<String, dynamic>? sandboxParameters,
+    Map<String, String>? taskFiles,
+    String? taskSetup,
     String? model,
     Map<String, dynamic>? config,
     Map<String, String>? modelRoles,
@@ -138,14 +161,16 @@ class ParsedTask {
   }) {
     return ParsedTask(
       id: id ?? this.id,
-      taskFunc: taskFunc ?? this.taskFunc,
+      func: func ?? this.func,
       samples: samples ?? this.samples,
       variant: variant ?? this.variant,
       sandboxType: sandboxType ?? this.sandboxType,
       systemMessage: systemMessage ?? this.systemMessage,
-      allowedVariants: allowedVariants ?? this.allowedVariants,
       saveExamples: saveExamples ?? this.saveExamples,
       examplesDir: examplesDir ?? this.examplesDir,
+      sandboxParameters: sandboxParameters ?? this.sandboxParameters,
+      taskFiles: taskFiles ?? this.taskFiles,
+      taskSetup: taskSetup ?? this.taskSetup,
       model: model ?? this.model,
       config: config ?? this.config,
       modelRoles: modelRoles ?? this.modelRoles,
@@ -163,6 +188,9 @@ class ParsedTask {
       displayName: displayName ?? this.displayName,
       version: version ?? this.version,
       metadata: metadata ?? this.metadata,
+      datasetFormat: datasetFormat,
+      datasetSource: datasetSource,
+      datasetArgs: datasetArgs,
     );
   }
 }

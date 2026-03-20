@@ -11,7 +11,7 @@ String sampleTemplate({
   TemplatePackage? templatePackage,
   String? workspaceValue,
 }) {
-  final workspaceSection = _buildSampleWorkspaceSection(
+  final filesSection = _buildSampleFilesSection(
     workspaceType,
     templatePackage: templatePackage,
     workspaceValue: workspaceValue,
@@ -20,7 +20,7 @@ String sampleTemplate({
   return '''
     - id: $id
       difficulty: $difficulty
-      tags: []$workspaceSection
+      tags: []$filesSection
       input: |
         # Write prompt here
       target: |
@@ -28,35 +28,25 @@ String sampleTemplate({
 ''';
 }
 
-/// Builds workspace/tests lines for an inline sample block.
+/// Builds files lines for an inline sample block.
 ///
-/// Only needed if the sample overrides the task-level workspace.
-String _buildSampleWorkspaceSection(
+/// Only needed if the sample overrides the task-level files.
+String _buildSampleFilesSection(
   WorkspaceType? workspaceType, {
   TemplatePackage? templatePackage,
   String? workspaceValue,
 }) {
   return switch (workspaceType) {
-    WorkspaceType.git =>
-      '''
-
-      workspace:
-        git: ${workspaceValue ?? '<GIT_REPOSITORY_URL>'}''',
     WorkspaceType.path =>
       '''
 
-      workspace:
-        path: ${workspaceValue ?? '<RELATIVE_PATH>'}''',
-    WorkspaceType.template =>
-      '''
-
-      workspace:
-        template: ${templatePackage?.yamlValue ?? '<flutter_app OR jaspr_app OR dart_package>'}''',
+      files:
+        /workspace: ${workspaceValue ?? '<RELATIVE_PATH>'}''',
     WorkspaceType.create =>
       '''
 
-      workspace:
-        path: ./project''',
+      files:
+        /workspace: ./project''',
     _ => '',
   };
 }

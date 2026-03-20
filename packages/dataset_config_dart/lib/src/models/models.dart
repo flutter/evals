@@ -1,6 +1,7 @@
 // Config models (eval runner input configuration)
 export 'context_file.dart';
 export 'job.dart';
+export 'tag_filter.dart';
 export 'variant.dart';
 
 // Inspect AI models (mirrors the Python Inspect AI API types)

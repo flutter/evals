@@ -10,6 +10,9 @@ _Task _$TaskFromJson(Map<String, dynamic> json) => _Task(
   dataset: json['dataset'] == null
       ? null
       : Dataset.fromJson(json['dataset'] as Map<String, dynamic>),
+  files: (json['files'] as Map<String, dynamic>?)?.map(
+    (k, e) => MapEntry(k, e as String),
+  ),
   setup: json['setup'],
   solver: json['solver'],
   cleanup: json['cleanup'],
@@ -32,14 +35,17 @@ _Task _$TaskFromJson(Map<String, dynamic> json) => _Task(
   costLimit: (json['cost_limit'] as num?)?.toDouble(),
   earlyStopping: json['early_stopping'],
   displayName: json['display_name'] as String?,
-  taskFunc: json['task_func'] as String?,
+  func: json['func'] as String?,
+  systemMessage: json['system_message'] as String?,
+  sandboxParameters: json['sandbox_parameters'] as Map<String, dynamic>?,
   name: json['name'] as String?,
   version: json['version'] as Object? ?? 0,
   metadata: json['metadata'] as Map<String, dynamic>?,
 );
 
 Map<String, dynamic> _$TaskToJson(_Task instance) => <String, dynamic>{
-  'dataset': instance.dataset?.toJson(),
+  'dataset': instance.dataset,
+  'files': instance.files,
   'setup': instance.setup,
   'solver': instance.solver,
   'cleanup': instance.cleanup,
@@ -60,7 +66,9 @@ Map<String, dynamic> _$TaskToJson(_Task instance) => <String, dynamic>{
   'cost_limit': instance.costLimit,
   'early_stopping': instance.earlyStopping,
   'display_name': instance.displayName,
-  'task_func': instance.taskFunc,
+  'func': instance.func,
+  'system_message': instance.systemMessage,
+  'sandbox_parameters': instance.sandboxParameters,
   'name': instance.name,
   'version': instance.version,
   'metadata': instance.metadata,
