@@ -188,9 +188,9 @@ class ParsedTask {
       displayName: displayName ?? this.displayName,
       version: version ?? this.version,
       metadata: metadata ?? this.metadata,
-      datasetFormat: this.datasetFormat,
-      datasetSource: this.datasetSource,
-      datasetArgs: this.datasetArgs,
+      datasetFormat: datasetFormat,
+      datasetSource: datasetSource,
+      datasetArgs: datasetArgs,
     );
   }
 }
