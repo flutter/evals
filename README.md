@@ -1,19 +1,21 @@
 # evals
 
-Evaluation framework for testing AI agents' ability to write Dart and Flutter code. Built on [Inspect AI](https://inspect.aisi.org.uk/).
+> [!Warning]
+> This repo is _highly unstable_ and the APIs _will_ change. 
 
-> [!TIP]
-> Full documentation at [evals-docs.web.app/](https://evals-docs.web.app/)
+Evaluation framework for testing AI agents' ability to write Dart and Flutter code. Built on [Inspect AI](https://inspect.aisi.org.uk/).
 
 ## Overview
 
-evals provides:
+This repo includes
 
-- **Evaluation Runner** — Python package for running LLM evaluations with configurable tasks, variants, and models
-- **Evaluation Configuration** — Dart and Python packages that resolve dataset YAML into EvalSet JSON for the runner
+- **eval runner** — Python package for running LLM evaluations with configurable tasks, variants, and models
+- **config packages** — Dart and Python packages that resolve dataset YAML into EvalSet JSON for the runner
 - **devals CLI** — Dart CLI for creating and managing dataset samples, tasks, and jobs
 - **Evaluation Explorer** — Dart/Flutter app for browsing and analyzing results
-- **Dataset** — Curated samples for Dart/Flutter Q&A, code generation, and debugging tasks
+
+> [!CAUTION]
+> Full documentation at [evals-docs.web.app/](https://evals-docs.web.app/)
 
 ## Packages
 
