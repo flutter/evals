@@ -1,6 +1,6 @@
 # evals
 
-> [!Warning]
+> [!CAUTION]
 > This repo is _highly unstable_ and the APIs _will_ change. 
 
 Evaluation framework for testing AI agents' ability to write Dart and Flutter code. Built on [Inspect AI](https://inspect.aisi.org.uk/).
@@ -14,7 +14,7 @@ This repo includes
 - **devals CLI** — Dart CLI for creating and managing dataset samples, tasks, and jobs
 - **Evaluation Explorer** — Dart/Flutter app for browsing and analyzing results
 
-> [!CAUTION]
+> [!TIP]
 > Full documentation at [evals-docs.web.app/](https://evals-docs.web.app/)
 
 ## Packages
