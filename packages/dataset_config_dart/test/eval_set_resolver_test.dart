@@ -42,7 +42,7 @@ void main() {
   Job makeJob({
     String logDir = '/tmp/logs',
     Map<String, dynamic>? sandbox,
-    List<String>? models,
+    List<String> models = const ['test-model'],
     Map<String, Map<String, dynamic>>? variants,
     Map<String, JobTask>? tasks,
     bool saveExamples = false,
@@ -148,14 +148,15 @@ void main() {
       expect(results.first.model, ['model_a', 'model_b']);
     });
 
-    test('uses default models when job has none', () {
-      final results = resolver.resolve(
-        [makeTask()],
-        makeJob(models: null),
-        '/tmp/dataset',
+    test('throws when job has empty models', () {
+      expect(
+        () => resolver.resolve(
+          [makeTask()],
+          makeJob(models: []),
+          '/tmp/dataset',
+        ),
+        throwsArgumentError,
       );
-
-      expect(results.first.model, kDefaultModels);
     });
 
     test('job with include_samples filters to only matching samples', () {

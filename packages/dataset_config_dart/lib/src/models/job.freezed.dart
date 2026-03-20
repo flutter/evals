@@ -21,8 +21,8 @@ mixin _$Job {
 /// Human-readable description of this job.
  String? get description;/// Directory to write evaluation logs to.
 @JsonKey(name: 'log_dir') String get logDir;/// Maximum concurrent API connections.
-@JsonKey(name: 'max_connections') int get maxConnections;/// Models to run. `null` means use defaults from registries.
- List<String>? get models;/// Named variant map. Keys are variant names, values are config dicts.
+@JsonKey(name: 'max_connections') int get maxConnections;/// Models to run (required).
+ List<String> get models;/// Named variant map. Keys are variant names, values are config dicts.
 /// `null` means baseline only.
  Map<String, Map<String, dynamic>>? get variants;/// Glob patterns for discovering task directories (relative to dataset root).
 @JsonKey(name: 'task_paths') List<String>? get taskPaths;/// Per-task configurations with inline overrides.
@@ -74,7 +74,7 @@ abstract mixin class $JobCopyWith<$Res>  {
   factory $JobCopyWith(Job value, $Res Function(Job) _then) = _$JobCopyWithImpl;
 @useResult
 $Res call({
- String? description,@JsonKey(name: 'log_dir') String logDir,@JsonKey(name: 'max_connections') int maxConnections, List<String>? models, Map<String, Map<String, dynamic>>? variants,@JsonKey(name: 'task_paths') List<String>? taskPaths, Map<String, JobTask>? tasks,@JsonKey(name: 'save_examples') bool saveExamples, Map<String, dynamic>? sandbox,@JsonKey(name: 'inspect_eval_arguments') Map<String, dynamic>? inspectEvalArguments,@JsonKey(name: 'task_filters') TagFilter? taskFilters,@JsonKey(name: 'sample_filters') TagFilter? sampleFilters
+ String? description,@JsonKey(name: 'log_dir') String logDir,@JsonKey(name: 'max_connections') int maxConnections, List<String> models, Map<String, Map<String, dynamic>>? variants,@JsonKey(name: 'task_paths') List<String>? taskPaths, Map<String, JobTask>? tasks,@JsonKey(name: 'save_examples') bool saveExamples, Map<String, dynamic>? sandbox,@JsonKey(name: 'inspect_eval_arguments') Map<String, dynamic>? inspectEvalArguments,@JsonKey(name: 'task_filters') TagFilter? taskFilters,@JsonKey(name: 'sample_filters') TagFilter? sampleFilters
 });
 
 
@@ -91,13 +91,13 @@ class _$JobCopyWithImpl<$Res>
 
 /// Create a copy of Job
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? description = freezed,Object? logDir = null,Object? maxConnections = null,Object? models = freezed,Object? variants = freezed,Object? taskPaths = freezed,Object? tasks = freezed,Object? saveExamples = null,Object? sandbox = freezed,Object? inspectEvalArguments = freezed,Object? taskFilters = freezed,Object? sampleFilters = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? description = freezed,Object? logDir = null,Object? maxConnections = null,Object? models = null,Object? variants = freezed,Object? taskPaths = freezed,Object? tasks = freezed,Object? saveExamples = null,Object? sandbox = freezed,Object? inspectEvalArguments = freezed,Object? taskFilters = freezed,Object? sampleFilters = freezed,}) {
   return _then(_self.copyWith(
 description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
 as String?,logDir: null == logDir ? _self.logDir : logDir // ignore: cast_nullable_to_non_nullable
 as String,maxConnections: null == maxConnections ? _self.maxConnections : maxConnections // ignore: cast_nullable_to_non_nullable
-as int,models: freezed == models ? _self.models : models // ignore: cast_nullable_to_non_nullable
-as List<String>?,variants: freezed == variants ? _self.variants : variants // ignore: cast_nullable_to_non_nullable
+as int,models: null == models ? _self.models : models // ignore: cast_nullable_to_non_nullable
+as List<String>,variants: freezed == variants ? _self.variants : variants // ignore: cast_nullable_to_non_nullable
 as Map<String, Map<String, dynamic>>?,taskPaths: freezed == taskPaths ? _self.taskPaths : taskPaths // ignore: cast_nullable_to_non_nullable
 as List<String>?,tasks: freezed == tasks ? _self.tasks : tasks // ignore: cast_nullable_to_non_nullable
 as Map<String, JobTask>?,saveExamples: null == saveExamples ? _self.saveExamples : saveExamples // ignore: cast_nullable_to_non_nullable
@@ -211,7 +211,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? description, @JsonKey(name: 'log_dir')  String logDir, @JsonKey(name: 'max_connections')  int maxConnections,  List<String>? models,  Map<String, Map<String, dynamic>>? variants, @JsonKey(name: 'task_paths')  List<String>? taskPaths,  Map<String, JobTask>? tasks, @JsonKey(name: 'save_examples')  bool saveExamples,  Map<String, dynamic>? sandbox, @JsonKey(name: 'inspect_eval_arguments')  Map<String, dynamic>? inspectEvalArguments, @JsonKey(name: 'task_filters')  TagFilter? taskFilters, @JsonKey(name: 'sample_filters')  TagFilter? sampleFilters)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? description, @JsonKey(name: 'log_dir')  String logDir, @JsonKey(name: 'max_connections')  int maxConnections,  List<String> models,  Map<String, Map<String, dynamic>>? variants, @JsonKey(name: 'task_paths')  List<String>? taskPaths,  Map<String, JobTask>? tasks, @JsonKey(name: 'save_examples')  bool saveExamples,  Map<String, dynamic>? sandbox, @JsonKey(name: 'inspect_eval_arguments')  Map<String, dynamic>? inspectEvalArguments, @JsonKey(name: 'task_filters')  TagFilter? taskFilters, @JsonKey(name: 'sample_filters')  TagFilter? sampleFilters)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Job() when $default != null:
 return $default(_that.description,_that.logDir,_that.maxConnections,_that.models,_that.variants,_that.taskPaths,_that.tasks,_that.saveExamples,_that.sandbox,_that.inspectEvalArguments,_that.taskFilters,_that.sampleFilters);case _:
@@ -232,7 +232,7 @@ return $default(_that.description,_that.logDir,_that.maxConnections,_that.models
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? description, @JsonKey(name: 'log_dir')  String logDir, @JsonKey(name: 'max_connections')  int maxConnections,  List<String>? models,  Map<String, Map<String, dynamic>>? variants, @JsonKey(name: 'task_paths')  List<String>? taskPaths,  Map<String, JobTask>? tasks, @JsonKey(name: 'save_examples')  bool saveExamples,  Map<String, dynamic>? sandbox, @JsonKey(name: 'inspect_eval_arguments')  Map<String, dynamic>? inspectEvalArguments, @JsonKey(name: 'task_filters')  TagFilter? taskFilters, @JsonKey(name: 'sample_filters')  TagFilter? sampleFilters)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? description, @JsonKey(name: 'log_dir')  String logDir, @JsonKey(name: 'max_connections')  int maxConnections,  List<String> models,  Map<String, Map<String, dynamic>>? variants, @JsonKey(name: 'task_paths')  List<String>? taskPaths,  Map<String, JobTask>? tasks, @JsonKey(name: 'save_examples')  bool saveExamples,  Map<String, dynamic>? sandbox, @JsonKey(name: 'inspect_eval_arguments')  Map<String, dynamic>? inspectEvalArguments, @JsonKey(name: 'task_filters')  TagFilter? taskFilters, @JsonKey(name: 'sample_filters')  TagFilter? sampleFilters)  $default,) {final _that = this;
 switch (_that) {
 case _Job():
 return $default(_that.description,_that.logDir,_that.maxConnections,_that.models,_that.variants,_that.taskPaths,_that.tasks,_that.saveExamples,_that.sandbox,_that.inspectEvalArguments,_that.taskFilters,_that.sampleFilters);}
@@ -249,7 +249,7 @@ return $default(_that.description,_that.logDir,_that.maxConnections,_that.models
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? description, @JsonKey(name: 'log_dir')  String logDir, @JsonKey(name: 'max_connections')  int maxConnections,  List<String>? models,  Map<String, Map<String, dynamic>>? variants, @JsonKey(name: 'task_paths')  List<String>? taskPaths,  Map<String, JobTask>? tasks, @JsonKey(name: 'save_examples')  bool saveExamples,  Map<String, dynamic>? sandbox, @JsonKey(name: 'inspect_eval_arguments')  Map<String, dynamic>? inspectEvalArguments, @JsonKey(name: 'task_filters')  TagFilter? taskFilters, @JsonKey(name: 'sample_filters')  TagFilter? sampleFilters)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? description, @JsonKey(name: 'log_dir')  String logDir, @JsonKey(name: 'max_connections')  int maxConnections,  List<String> models,  Map<String, Map<String, dynamic>>? variants, @JsonKey(name: 'task_paths')  List<String>? taskPaths,  Map<String, JobTask>? tasks, @JsonKey(name: 'save_examples')  bool saveExamples,  Map<String, dynamic>? sandbox, @JsonKey(name: 'inspect_eval_arguments')  Map<String, dynamic>? inspectEvalArguments, @JsonKey(name: 'task_filters')  TagFilter? taskFilters, @JsonKey(name: 'sample_filters')  TagFilter? sampleFilters)?  $default,) {final _that = this;
 switch (_that) {
 case _Job() when $default != null:
 return $default(_that.description,_that.logDir,_that.maxConnections,_that.models,_that.variants,_that.taskPaths,_that.tasks,_that.saveExamples,_that.sandbox,_that.inspectEvalArguments,_that.taskFilters,_that.sampleFilters);case _:
@@ -264,7 +264,7 @@ return $default(_that.description,_that.logDir,_that.maxConnections,_that.models
 @JsonSerializable()
 
 class _Job implements Job {
-  const _Job({this.description, @JsonKey(name: 'log_dir') required this.logDir, @JsonKey(name: 'max_connections') this.maxConnections = 10, final  List<String>? models, final  Map<String, Map<String, dynamic>>? variants, @JsonKey(name: 'task_paths') final  List<String>? taskPaths, final  Map<String, JobTask>? tasks, @JsonKey(name: 'save_examples') this.saveExamples = false, final  Map<String, dynamic>? sandbox, @JsonKey(name: 'inspect_eval_arguments') final  Map<String, dynamic>? inspectEvalArguments, @JsonKey(name: 'task_filters') this.taskFilters, @JsonKey(name: 'sample_filters') this.sampleFilters}): _models = models,_variants = variants,_taskPaths = taskPaths,_tasks = tasks,_sandbox = sandbox,_inspectEvalArguments = inspectEvalArguments;
+  const _Job({this.description, @JsonKey(name: 'log_dir') required this.logDir, @JsonKey(name: 'max_connections') this.maxConnections = 10, required final  List<String> models, final  Map<String, Map<String, dynamic>>? variants, @JsonKey(name: 'task_paths') final  List<String>? taskPaths, final  Map<String, JobTask>? tasks, @JsonKey(name: 'save_examples') this.saveExamples = false, final  Map<String, dynamic>? sandbox, @JsonKey(name: 'inspect_eval_arguments') final  Map<String, dynamic>? inspectEvalArguments, @JsonKey(name: 'task_filters') this.taskFilters, @JsonKey(name: 'sample_filters') this.sampleFilters}): _models = models,_variants = variants,_taskPaths = taskPaths,_tasks = tasks,_sandbox = sandbox,_inspectEvalArguments = inspectEvalArguments;
   factory _Job.fromJson(Map<String, dynamic> json) => _$JobFromJson(json);
 
 // ------------------------------------------------------------------
@@ -276,15 +276,13 @@ class _Job implements Job {
 @override@JsonKey(name: 'log_dir') final  String logDir;
 /// Maximum concurrent API connections.
 @override@JsonKey(name: 'max_connections') final  int maxConnections;
-/// Models to run. `null` means use defaults from registries.
- final  List<String>? _models;
-/// Models to run. `null` means use defaults from registries.
-@override List<String>? get models {
-  final value = _models;
-  if (value == null) return null;
+/// Models to run (required).
+ final  List<String> _models;
+/// Models to run (required).
+@override List<String> get models {
   if (_models is EqualUnmodifiableListView) return _models;
   // ignore: implicit_dynamic_type
-  return EqualUnmodifiableListView(value);
+  return EqualUnmodifiableListView(_models);
 }
 
 /// Named variant map. Keys are variant names, values are config dicts.
@@ -401,7 +399,7 @@ abstract mixin class _$JobCopyWith<$Res> implements $JobCopyWith<$Res> {
   factory _$JobCopyWith(_Job value, $Res Function(_Job) _then) = __$JobCopyWithImpl;
 @override @useResult
 $Res call({
- String? description,@JsonKey(name: 'log_dir') String logDir,@JsonKey(name: 'max_connections') int maxConnections, List<String>? models, Map<String, Map<String, dynamic>>? variants,@JsonKey(name: 'task_paths') List<String>? taskPaths, Map<String, JobTask>? tasks,@JsonKey(name: 'save_examples') bool saveExamples, Map<String, dynamic>? sandbox,@JsonKey(name: 'inspect_eval_arguments') Map<String, dynamic>? inspectEvalArguments,@JsonKey(name: 'task_filters') TagFilter? taskFilters,@JsonKey(name: 'sample_filters') TagFilter? sampleFilters
+ String? description,@JsonKey(name: 'log_dir') String logDir,@JsonKey(name: 'max_connections') int maxConnections, List<String> models, Map<String, Map<String, dynamic>>? variants,@JsonKey(name: 'task_paths') List<String>? taskPaths, Map<String, JobTask>? tasks,@JsonKey(name: 'save_examples') bool saveExamples, Map<String, dynamic>? sandbox,@JsonKey(name: 'inspect_eval_arguments') Map<String, dynamic>? inspectEvalArguments,@JsonKey(name: 'task_filters') TagFilter? taskFilters,@JsonKey(name: 'sample_filters') TagFilter? sampleFilters
 });
 
 
@@ -418,13 +416,13 @@ class __$JobCopyWithImpl<$Res>
 
 /// Create a copy of Job
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? description = freezed,Object? logDir = null,Object? maxConnections = null,Object? models = freezed,Object? variants = freezed,Object? taskPaths = freezed,Object? tasks = freezed,Object? saveExamples = null,Object? sandbox = freezed,Object? inspectEvalArguments = freezed,Object? taskFilters = freezed,Object? sampleFilters = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? description = freezed,Object? logDir = null,Object? maxConnections = null,Object? models = null,Object? variants = freezed,Object? taskPaths = freezed,Object? tasks = freezed,Object? saveExamples = null,Object? sandbox = freezed,Object? inspectEvalArguments = freezed,Object? taskFilters = freezed,Object? sampleFilters = freezed,}) {
   return _then(_Job(
 description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
 as String?,logDir: null == logDir ? _self.logDir : logDir // ignore: cast_nullable_to_non_nullable
 as String,maxConnections: null == maxConnections ? _self.maxConnections : maxConnections // ignore: cast_nullable_to_non_nullable
-as int,models: freezed == models ? _self._models : models // ignore: cast_nullable_to_non_nullable
-as List<String>?,variants: freezed == variants ? _self._variants : variants // ignore: cast_nullable_to_non_nullable
+as int,models: null == models ? _self._models : models // ignore: cast_nullable_to_non_nullable
+as List<String>,variants: freezed == variants ? _self._variants : variants // ignore: cast_nullable_to_non_nullable
 as Map<String, Map<String, dynamic>>?,taskPaths: freezed == taskPaths ? _self._taskPaths : taskPaths // ignore: cast_nullable_to_non_nullable
 as List<String>?,tasks: freezed == tasks ? _self._tasks : tasks // ignore: cast_nullable_to_non_nullable
 as Map<String, JobTask>?,saveExamples: null == saveExamples ? _self.saveExamples : saveExamples // ignore: cast_nullable_to_non_nullable

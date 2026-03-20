@@ -30,14 +30,15 @@ String taskTemplate({
 # See docs/configuration_reference.md for full schema reference.
 func: $taskFunc
 $variantsLine$systemMessageBlock$filesSection
-samples:
-  inline:
-    - id: sample_1
-      difficulty: medium
-      input: |
-        # Write prompt here
-      target: |
-        # Write target here
+dataset:
+  samples:
+    inline:
+      - id: sample_1
+        difficulty: medium
+        input: |
+          # Write prompt here
+        target: |
+          # Write target here
 ''';
 }
 

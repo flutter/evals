@@ -10,7 +10,7 @@ _Job _$JobFromJson(Map<String, dynamic> json) => _Job(
   description: json['description'] as String?,
   logDir: json['log_dir'] as String,
   maxConnections: (json['max_connections'] as num?)?.toInt() ?? 10,
-  models: (json['models'] as List<dynamic>?)?.map((e) => e as String).toList(),
+  models: (json['models'] as List<dynamic>).map((e) => e as String).toList(),
   variants: (json['variants'] as Map<String, dynamic>?)?.map(
     (k, e) => MapEntry(k, e as Map<String, dynamic>),
   ),

@@ -15,11 +15,14 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Dataset {
 
-/// The list of sample objects.
+/// The list of sample objects (only used when format is 'memory').
  List<Sample> get samples;/// Dataset name.
  String? get name;/// Dataset location (file path or remote URL).
  String? get location;/// Whether the dataset was shuffled after reading.
- bool get shuffled;
+ bool get shuffled;/// Dataset format: 'memory' (inline samples), 'json', or 'csv'.
+ String get format;/// File path or URL for json/csv datasets.
+ String? get source;/// Extra kwargs passed to json_dataset() or csv_dataset().
+ Map<String, dynamic>? get args;
 /// Create a copy of Dataset
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -32,16 +35,16 @@ $DatasetCopyWith<Dataset> get copyWith => _$DatasetCopyWithImpl<Dataset>(this as
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Dataset&&const DeepCollectionEquality().equals(other.samples, samples)&&(identical(other.name, name) || other.name == name)&&(identical(other.location, location) || other.location == location)&&(identical(other.shuffled, shuffled) || other.shuffled == shuffled));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Dataset&&const DeepCollectionEquality().equals(other.samples, samples)&&(identical(other.name, name) || other.name == name)&&(identical(other.location, location) || other.location == location)&&(identical(other.shuffled, shuffled) || other.shuffled == shuffled)&&(identical(other.format, format) || other.format == format)&&(identical(other.source, source) || other.source == source)&&const DeepCollectionEquality().equals(other.args, args));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(samples),name,location,shuffled);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(samples),name,location,shuffled,format,source,const DeepCollectionEquality().hash(args));
 
 @override
 String toString() {
-  return 'Dataset(samples: $samples, name: $name, location: $location, shuffled: $shuffled)';
+  return 'Dataset(samples: $samples, name: $name, location: $location, shuffled: $shuffled, format: $format, source: $source, args: $args)';
 }
 
 
@@ -52,7 +55,7 @@ abstract mixin class $DatasetCopyWith<$Res>  {
   factory $DatasetCopyWith(Dataset value, $Res Function(Dataset) _then) = _$DatasetCopyWithImpl;
 @useResult
 $Res call({
- List<Sample> samples, String? name, String? location, bool shuffled
+ List<Sample> samples, String? name, String? location, bool shuffled, String format, String? source, Map<String, dynamic>? args
 });
 
 
@@ -69,13 +72,16 @@ class _$DatasetCopyWithImpl<$Res>
 
 /// Create a copy of Dataset
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? samples = null,Object? name = freezed,Object? location = freezed,Object? shuffled = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? samples = null,Object? name = freezed,Object? location = freezed,Object? shuffled = null,Object? format = null,Object? source = freezed,Object? args = freezed,}) {
   return _then(_self.copyWith(
 samples: null == samples ? _self.samples : samples // ignore: cast_nullable_to_non_nullable
 as List<Sample>,name: freezed == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String?,location: freezed == location ? _self.location : location // ignore: cast_nullable_to_non_nullable
 as String?,shuffled: null == shuffled ? _self.shuffled : shuffled // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,format: null == format ? _self.format : format // ignore: cast_nullable_to_non_nullable
+as String,source: freezed == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
+as String?,args: freezed == args ? _self.args : args // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,
   ));
 }
 
@@ -157,10 +163,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<Sample> samples,  String? name,  String? location,  bool shuffled)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<Sample> samples,  String? name,  String? location,  bool shuffled,  String format,  String? source,  Map<String, dynamic>? args)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Dataset() when $default != null:
-return $default(_that.samples,_that.name,_that.location,_that.shuffled);case _:
+return $default(_that.samples,_that.name,_that.location,_that.shuffled,_that.format,_that.source,_that.args);case _:
   return orElse();
 
 }
@@ -178,10 +184,10 @@ return $default(_that.samples,_that.name,_that.location,_that.shuffled);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<Sample> samples,  String? name,  String? location,  bool shuffled)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<Sample> samples,  String? name,  String? location,  bool shuffled,  String format,  String? source,  Map<String, dynamic>? args)  $default,) {final _that = this;
 switch (_that) {
 case _Dataset():
-return $default(_that.samples,_that.name,_that.location,_that.shuffled);}
+return $default(_that.samples,_that.name,_that.location,_that.shuffled,_that.format,_that.source,_that.args);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -195,10 +201,10 @@ return $default(_that.samples,_that.name,_that.location,_that.shuffled);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<Sample> samples,  String? name,  String? location,  bool shuffled)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<Sample> samples,  String? name,  String? location,  bool shuffled,  String format,  String? source,  Map<String, dynamic>? args)?  $default,) {final _that = this;
 switch (_that) {
 case _Dataset() when $default != null:
-return $default(_that.samples,_that.name,_that.location,_that.shuffled);case _:
+return $default(_that.samples,_that.name,_that.location,_that.shuffled,_that.format,_that.source,_that.args);case _:
   return null;
 
 }
@@ -210,12 +216,12 @@ return $default(_that.samples,_that.name,_that.location,_that.shuffled);case _:
 @JsonSerializable()
 
 class _Dataset implements Dataset {
-  const _Dataset({final  List<Sample> samples = const [], this.name, this.location, this.shuffled = false}): _samples = samples;
+  const _Dataset({final  List<Sample> samples = const [], this.name, this.location, this.shuffled = false, this.format = 'memory', this.source, final  Map<String, dynamic>? args}): _samples = samples,_args = args;
   factory _Dataset.fromJson(Map<String, dynamic> json) => _$DatasetFromJson(json);
 
-/// The list of sample objects.
+/// The list of sample objects (only used when format is 'memory').
  final  List<Sample> _samples;
-/// The list of sample objects.
+/// The list of sample objects (only used when format is 'memory').
 @override@JsonKey() List<Sample> get samples {
   if (_samples is EqualUnmodifiableListView) return _samples;
   // ignore: implicit_dynamic_type
@@ -228,6 +234,21 @@ class _Dataset implements Dataset {
 @override final  String? location;
 /// Whether the dataset was shuffled after reading.
 @override@JsonKey() final  bool shuffled;
+/// Dataset format: 'memory' (inline samples), 'json', or 'csv'.
+@override@JsonKey() final  String format;
+/// File path or URL for json/csv datasets.
+@override final  String? source;
+/// Extra kwargs passed to json_dataset() or csv_dataset().
+ final  Map<String, dynamic>? _args;
+/// Extra kwargs passed to json_dataset() or csv_dataset().
+@override Map<String, dynamic>? get args {
+  final value = _args;
+  if (value == null) return null;
+  if (_args is EqualUnmodifiableMapView) return _args;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(value);
+}
+
 
 /// Create a copy of Dataset
 /// with the given fields replaced by the non-null parameter values.
@@ -242,16 +263,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Dataset&&const DeepCollectionEquality().equals(other._samples, _samples)&&(identical(other.name, name) || other.name == name)&&(identical(other.location, location) || other.location == location)&&(identical(other.shuffled, shuffled) || other.shuffled == shuffled));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Dataset&&const DeepCollectionEquality().equals(other._samples, _samples)&&(identical(other.name, name) || other.name == name)&&(identical(other.location, location) || other.location == location)&&(identical(other.shuffled, shuffled) || other.shuffled == shuffled)&&(identical(other.format, format) || other.format == format)&&(identical(other.source, source) || other.source == source)&&const DeepCollectionEquality().equals(other._args, _args));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_samples),name,location,shuffled);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_samples),name,location,shuffled,format,source,const DeepCollectionEquality().hash(_args));
 
 @override
 String toString() {
-  return 'Dataset(samples: $samples, name: $name, location: $location, shuffled: $shuffled)';
+  return 'Dataset(samples: $samples, name: $name, location: $location, shuffled: $shuffled, format: $format, source: $source, args: $args)';
 }
 
 
@@ -262,7 +283,7 @@ abstract mixin class _$DatasetCopyWith<$Res> implements $DatasetCopyWith<$Res> {
   factory _$DatasetCopyWith(_Dataset value, $Res Function(_Dataset) _then) = __$DatasetCopyWithImpl;
 @override @useResult
 $Res call({
- List<Sample> samples, String? name, String? location, bool shuffled
+ List<Sample> samples, String? name, String? location, bool shuffled, String format, String? source, Map<String, dynamic>? args
 });
 
 
@@ -279,13 +300,16 @@ class __$DatasetCopyWithImpl<$Res>
 
 /// Create a copy of Dataset
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? samples = null,Object? name = freezed,Object? location = freezed,Object? shuffled = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? samples = null,Object? name = freezed,Object? location = freezed,Object? shuffled = null,Object? format = null,Object? source = freezed,Object? args = freezed,}) {
   return _then(_Dataset(
 samples: null == samples ? _self._samples : samples // ignore: cast_nullable_to_non_nullable
 as List<Sample>,name: freezed == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String?,location: freezed == location ? _self.location : location // ignore: cast_nullable_to_non_nullable
 as String?,shuffled: null == shuffled ? _self.shuffled : shuffled // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,format: null == format ? _self.format : format // ignore: cast_nullable_to_non_nullable
+as String,source: freezed == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
+as String?,args: freezed == args ? _self._args : args // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,
   ));
 }
 

@@ -85,6 +85,15 @@ class ParsedTask {
   /// Additional metadata to associate with the task.
   final Map<String, dynamic>? metadata;
 
+  /// Dataset format: 'memory' (inline samples), 'json', or 'csv'.
+  final String datasetFormat;
+
+  /// File path or URL for json/csv datasets.
+  final String? datasetSource;
+
+  /// Extra kwargs passed to json_dataset() or csv_dataset().
+  final Map<String, dynamic>? datasetArgs;
+
   const ParsedTask({
     required this.id,
     required this.func,
@@ -114,6 +123,9 @@ class ParsedTask {
     this.displayName,
     this.version,
     this.metadata,
+    this.datasetFormat = 'memory',
+    this.datasetSource,
+    this.datasetArgs,
   });
 
   /// Create a copy with overrides.
@@ -176,6 +188,9 @@ class ParsedTask {
       displayName: displayName ?? this.displayName,
       version: version ?? this.version,
       metadata: metadata ?? this.metadata,
+      datasetFormat: this.datasetFormat,
+      datasetSource: this.datasetSource,
+      datasetArgs: this.datasetArgs,
     );
   }
 }

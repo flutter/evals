@@ -24,66 +24,90 @@ class JsonParser extends Parser {
       final func = (data['func'] as String?) ?? taskId;
       final systemMessage = data['system_message'] as String?;
 
-      // Parse samples from inline data (no file I/O) - optional
-      final samplesRaw = data['samples'];
+      // Parse dataset section (matches YAML parser's dataset key structure)
+      final datasetRaw = data['dataset'];
       final samples = <Sample>[];
-      if (samplesRaw is Map) {
-        final inlineDefs =
-            (samplesRaw['inline'] as List?)?.cast<Map<String, dynamic>>() ??
-            const [];
-        for (final def in inlineDefs) {
-          if (def.isEmpty) continue;
+      var datasetFormat = 'memory';
+      String? datasetSource;
+      Map<String, dynamic>? datasetArgs;
 
-          // Validate required fields
-          for (final field in ['id', 'input', 'target']) {
-            if (!def.containsKey(field)) {
-              throw FormatException(
-                "Sample '${def['id'] ?? 'unknown'}' missing required "
-                "field: $field",
+      if (datasetRaw is Map) {
+        final datasetMap = Map<String, dynamic>.from(datasetRaw);
+
+        // Parse optional args
+        if (datasetMap['args'] is Map) {
+          datasetArgs = Map<String, dynamic>.from(datasetMap['args'] as Map);
+        }
+
+        if (datasetMap.containsKey('json')) {
+          datasetFormat = 'json';
+          datasetSource = datasetMap['json'].toString();
+        } else if (datasetMap.containsKey('csv')) {
+          datasetFormat = 'csv';
+          datasetSource = datasetMap['csv'].toString();
+        } else if (datasetMap.containsKey('samples')) {
+          // Inline samples — same as before
+          final samplesSection = datasetMap['samples'];
+          if (samplesSection is Map) {
+            final inlineDefs =
+                (samplesSection['inline'] as List?)
+                    ?.cast<Map<String, dynamic>>() ??
+                const [];
+            for (final def in inlineDefs) {
+              if (def.isEmpty) continue;
+
+              // Validate required fields
+              for (final field in ['id', 'input', 'target']) {
+                if (!def.containsKey(field)) {
+                  throw FormatException(
+                    "Sample '${def['id'] ?? 'unknown'}' missing required "
+                    "field: $field",
+                  );
+                }
+              }
+
+              // Read metadata from the metadata dict
+              final metaRaw = Map<String, dynamic>.from(
+                def['metadata'] as Map? ?? {},
+              );
+
+              // Normalize tags from metadata
+              final rawTags = metaRaw['tags'];
+              final List<String> tags;
+              if (rawTags is String) {
+                tags = rawTags.split(',').map((t) => t.trim()).toList();
+              } else if (rawTags is List) {
+                tags = rawTags.cast<String>();
+              } else {
+                tags = [];
+              }
+
+              // Parse sample-level fields
+              final choices = (def['choices'] as List?)?.cast<String>();
+              final sampleSandbox = def['sandbox'];
+              final setup = def['setup'] as String?;
+              final files = def['files'] is Map
+                  ? Map<String, String>.from(def['files'] as Map)
+                  : null;
+
+              samples.add(
+                Sample(
+                  id: def['id'] as String,
+                  input: def['input'] as String,
+                  target: def['target'] as String,
+                  metadata: <String, dynamic>{
+                    ...metaRaw,
+                    'difficulty': metaRaw['difficulty'] as String? ?? 'medium',
+                    'tags': tags,
+                  },
+                  choices: choices,
+                  sandbox: sampleSandbox,
+                  setup: setup,
+                  files: files,
+                ),
               );
             }
           }
-
-          // Read metadata from the metadata dict
-          final metaRaw = Map<String, dynamic>.from(
-            def['metadata'] as Map? ?? {},
-          );
-
-          // Normalize tags from metadata
-          final rawTags = metaRaw['tags'];
-          final List<String> tags;
-          if (rawTags is String) {
-            tags = rawTags.split(',').map((t) => t.trim()).toList();
-          } else if (rawTags is List) {
-            tags = rawTags.cast<String>();
-          } else {
-            tags = [];
-          }
-
-          // Parse sample-level fields
-          final choices = (def['choices'] as List?)?.cast<String>();
-          final sampleSandbox = def['sandbox'];
-          final setup = def['setup'] as String?;
-          final files = def['files'] is Map
-              ? Map<String, String>.from(def['files'] as Map)
-              : null;
-
-          samples.add(
-            Sample(
-              id: def['id'] as String,
-              input: def['input'] as String,
-              target: def['target'] as String,
-              metadata: <String, dynamic>{
-                ...metaRaw,
-                'difficulty': metaRaw['difficulty'] as String? ?? 'medium',
-                'tags': tags,
-              },
-              choices: choices,
-              sandbox: sampleSandbox,
-              setup: setup,
-              files: files,
-            ),
-          );
         }
       }
 
@@ -139,6 +163,9 @@ class JsonParser extends Parser {
         displayName: displayName,
         version: version,
         metadata: taskMetadata,
+        datasetFormat: datasetFormat,
+        datasetSource: datasetSource,
+        datasetArgs: datasetArgs,
       );
     }).toList();
   }
@@ -164,10 +191,20 @@ class JsonParser extends Parser {
       sandbox = {'environment': sandboxRaw};
     }
 
+    // Parse models (required)
+    final modelsRaw = data['models'] as List?;
+    if (modelsRaw == null || modelsRaw.isEmpty) {
+      throw FormatException(
+        "Job data is missing required 'models' field. "
+        'Specify at least one model.',
+      );
+    }
+    final models = modelsRaw.cast<String>();
+
     return Job(
       logDir: (data['log_dir'] as String?) ?? '',
       maxConnections: (data['max_connections'] as int?) ?? 10,
-      models: (data['models'] as List?)?.cast<String>(),
+      models: models,
       saveExamples: data['save_examples'] == true,
       sandbox: sandbox,
       inspectEvalArguments: data['inspect_eval_arguments'] is Map

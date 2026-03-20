@@ -40,22 +40,23 @@ This is enough to define a task, but it has no samples — nothing to evaluate y
 
 ### Add a sample
 
-Samples go under `samples.inline`. Each sample needs at minimum an `id`,
+Samples go under `dataset.samples.inline`. Each sample needs at minimum an `id`,
 `input` (the prompt), and `target` (grading criteria):
 
 ```yaml
 func: question_answer
 
-samples:
-  inline:
-    - id: explain_null_safety
-      input: |
-        Explain Dart's sound null safety. How does it prevent
-        null reference errors at compile time?
-      target: |
-        Should explain nullable vs non-nullable types, the `?`
-        suffix, null-aware operators, and how the analyzer enforces
-        null checks at compile time.
+dataset:
+  samples:
+    inline:
+      - id: explain_null_safety
+        input: |
+          Explain Dart's sound null safety. How does it prevent
+          null reference errors at compile time?
+        target: |
+          Should explain nullable vs non-nullable types, the `?`
+          suffix, null-aware operators, and how the analyzer enforces
+          null checks at compile time.
 ```
 
 ### Add a system message
@@ -68,10 +69,11 @@ system_message: |
   You are an expert Dart developer. Answer questions with code
   examples where appropriate. Be concise.
 
-samples:
-  inline:
-    - id: explain_null_safety
-      # ...
+dataset:
+  samples:
+    inline:
+      - id: explain_null_safety
+        # ...
 ```
 
 ### Add files and setup
@@ -86,26 +88,28 @@ files:
   /workspace: ../../workspaces/my_dart_package
 setup: "cd /workspace && dart pub get"
 
-samples:
-  inline:
-    - id: fix_the_bug
-      input: |
-        The tests are failing. Find and fix the bug.
-      target: |
-        All tests should pass after the fix.
+dataset:
+  samples:
+    inline:
+      - id: fix_the_bug
+        input: |
+          The tests are failing. Find and fix the bug.
+        target: |
+          All tests should pass after the fix.
 ```
 
 `files` and `setup` at the task level are **inherited by all samples**. A sample
 can override them:
 
 ```yaml
-samples:
-  inline:
-    - id: fix_the_bug
-      files:
-        /workspace: ./custom_project    # overrides task-level files
-      setup: "cd /workspace && pub get"  # overrides task-level setup
-      input: ...
+dataset:
+  samples:
+    inline:
+      - id: fix_the_bug
+        files:
+          /workspace: ./custom_project    # overrides task-level files
+        setup: "cd /workspace && pub get"  # overrides task-level setup
+        input: ...
 ```
 
 > [!NOTE]
@@ -118,14 +122,15 @@ samples:
 Samples can carry `metadata` with `tags` and `difficulty`. Jobs use these for filtering:
 
 ```yaml
-samples:
-  inline:
-    - id: fix_the_bug
-      metadata:
-        difficulty: medium
-        tags: [dart, bug-fix, async]
-      input: ...
-      target: ...
+dataset:
+  samples:
+    inline:
+      - id: fix_the_bug
+        metadata:
+          difficulty: medium
+          tags: [dart, bug-fix, async]
+        input: ...
+        target: ...
 ```
 
 ### Use external sample files
@@ -136,13 +141,14 @@ with glob patterns:
 ```yaml
 func: question_answer
 
-samples:
-  paths:
-    - samples/*.yaml    # loads every .yaml in the samples/ subdirectory
+dataset:
+  samples:
+    paths:
+      - samples/*.yaml    # loads every .yaml in the samples/ subdirectory
 ```
 
 Each external file contains a list of sample objects in the same format as
-`samples.inline`.
+`dataset.samples.inline`.
 
 ---
 

@@ -52,7 +52,7 @@ class Job(BaseModel):
     description: str | None = None
     log_dir: str
     max_connections: int = 10
-    models: list[str] | None = None
+    models: list[str]
     variants: dict[str, dict[str, Any]] | None = None
     task_paths: list[str] | None = None
     tasks: dict[str, JobTask] | None = None

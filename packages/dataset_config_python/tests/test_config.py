@@ -32,24 +32,25 @@ def dataset_dir(tmp_path):
     task_dir.mkdir(parents=True)
     task_yaml = task_dir / "task.yaml"
     task_yaml.write_text(
-        """
+        """\
 id: dart_qa
 func: question_answer
 system_message: "You are an expert."
-samples:
-  inline:
-    - id: sample_1
-      input: "What is Dart?"
-      target: "A programming language."
-      difficulty: easy
-    - id: sample_2
-      input: "What is Flutter?"
-      target: "A UI framework."
-      metadata:
-        difficulty: medium
-        tags:
-          - ui
-          - framework
+dataset:
+  samples:
+    inline:
+      - id: sample_1
+        input: "What is Dart?"
+        target: "A programming language."
+        difficulty: easy
+      - id: sample_2
+        input: "What is Flutter?"
+        target: "A UI framework."
+        metadata:
+          difficulty: medium
+          tags:
+            - ui
+            - framework
 """
     )
 
@@ -62,11 +63,12 @@ samples:
 func: flutter_code_gen
 inspect_task_args:
   time_limit: 600
-samples:
-  inline:
-    - id: sample_1
-      input: "Create a counter app."
-      target: "A working counter app."
+dataset:
+  samples:
+    inline:
+      - id: sample_1
+        input: "Create a counter app."
+        target: "A working counter app."
 """
     )
 
@@ -116,9 +118,10 @@ target: "Isolates are Dart's concurrency model."
         """
 id: qa
 func: question_answer
-samples:
-  paths:
-    - samples/basics.yaml
+dataset:
+  samples:
+    paths:
+      - samples/basics.yaml
 """
     )
 
@@ -127,6 +130,8 @@ samples:
     (jobs_dir / "default.yaml").write_text(
         """
 logs_dir: ./logs
+models:
+  - test/model
 """
     )
 
@@ -246,6 +251,80 @@ class TestParser:
     def test_parse_tasks_empty_dir(self, tmp_path):
         tasks = parse_tasks(str(tmp_path))
         assert tasks == []
+
+    def test_parse_task_json_dataset(self, tmp_path):
+        """Test parsing a task with a json dataset format."""
+        task_dir = tmp_path / "tasks" / "json_ds"
+        task_dir.mkdir(parents=True)
+        (task_dir / "task.yaml").write_text(
+            """\
+id: json_ds
+func: question_answer
+dataset:
+  json: gs://bucket/data.jsonl
+  args:
+    auto_id: true
+    shuffle: true
+"""
+        )
+        tasks = parse_tasks(str(tmp_path))
+        assert len(tasks) == 1
+        assert tasks[0].dataset_format == "json"
+        assert tasks[0].dataset_source == "gs://bucket/data.jsonl"
+        assert tasks[0].dataset_args == {"auto_id": True, "shuffle": True}
+        assert tasks[0].samples == []
+
+    def test_parse_task_csv_dataset(self, tmp_path):
+        """Test parsing a task with a csv dataset format."""
+        task_dir = tmp_path / "tasks" / "csv_ds"
+        task_dir.mkdir(parents=True)
+        (task_dir / "task.yaml").write_text(
+            """\
+id: csv_ds
+func: question_answer
+dataset:
+  csv: ./data.csv
+  args:
+    delimiter: "\\t"
+"""
+        )
+        tasks = parse_tasks(str(tmp_path))
+        assert len(tasks) == 1
+        assert tasks[0].dataset_format == "csv"
+        assert tasks[0].dataset_source == "./data.csv"
+
+    def test_parse_task_mutually_exclusive_dataset_keys(self, tmp_path):
+        """Test that specifying both json and csv in dataset raises error."""
+        task_dir = tmp_path / "tasks" / "bad_ds"
+        task_dir.mkdir(parents=True)
+        (task_dir / "task.yaml").write_text(
+            """\
+id: bad_ds
+func: question_answer
+dataset:
+  json: ./data.jsonl
+  csv: ./data.csv
+"""
+        )
+        with pytest.raises(ValueError, match="exactly one"):
+            parse_tasks(str(tmp_path))
+
+    def test_parse_job_missing_models(self, tmp_path):
+        """Test that a job without models raises a validation error."""
+        jobs_dir = tmp_path / "jobs"
+        jobs_dir.mkdir()
+        (jobs_dir / "bad.yaml").write_text(
+            """\
+logs_dir: ./logs
+"""
+        )
+        job_path = str(jobs_dir / "bad.yaml")
+        with pytest.raises(ValueError, match="models"):
+            parse_job(job_path, str(tmp_path))
+
+
+# Runner integration tests for json/csv datasets are in:
+# packages/dash_evals/tests/test_json_runner.py
 
 
 # ---------------------------------------------------------------------------

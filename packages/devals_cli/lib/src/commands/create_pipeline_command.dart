@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
-import 'package:dataset_config_dart/dataset_config_dart.dart';
+
 import 'package:devals/src/cli_exception.dart';
 import 'package:devals/src/dataset/eval_writer.dart';
 import 'package:devals/src/dataset/file_templates/job_template.dart';
@@ -34,7 +34,13 @@ class CreatePipelineCommand extends Command<int> {
     }
 
     final availableVariants = datasetReader.getVariants();
-    final models = List.of(kDefaultModels);
+    final models = <String>[
+      'google/gemini-2.5-flash',
+      'google/gemini-3-flash-preview',
+      'google/gemini-3-pro-preview',
+      'anthropic/claude-sonnet-4-5',
+      'openai/gpt-5-mini',
+    ];
     if (models.isEmpty) {
       throw CliException(
         'No models configured.',
@@ -212,7 +218,7 @@ class CreatePipelineCommand extends Command<int> {
               'Models',
               help:
                   'Choose which models to evaluate. You need API keys for each provider.',
-              options: models.map((m) => Option(label: m, value: m)).toList(),
+              options: models.map((m) => Option<String>(label: m, value: m)).toList(),
               defaultValue: [defaultModel],
               key: 'models',
             ),

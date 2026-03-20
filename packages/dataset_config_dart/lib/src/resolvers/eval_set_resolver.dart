@@ -7,19 +7,7 @@ import 'package:path/path.dart' as p;
 
 import '../parsed_task.dart';
 
-/// Default models used when a job doesn't specify its own.
-const List<String> kDefaultModels = [
-  'anthropic/claude-haiku-4-5',
-  'anthropic/claude-sonnet-4-5',
-  'anthropic/claude-opus-4-6',
-  'google/gemini-2.5-flash',
-  'google/gemini-3-pro-preview',
-  'google/gemini-3-flash-preview',
-  'openai/gpt-5-mini',
-  'openai/gpt-5-nano',
-  'openai/gpt-5',
-  'openai/gpt-5-pro',
-];
+
 
 /// Default sandbox configurations for Flutter evaluations.
 ///
@@ -64,7 +52,14 @@ class EvalSetResolver {
     Job job,
     String datasetRoot,
   ) {
-    final models = _resolveModels(job);
+    if (job.models.isEmpty) {
+      throw ArgumentError(
+        'job.models is required and must contain at least one model. '
+        'Specify models in your job YAML, e.g.:\n'
+        '  models:\n    - google/gemini-2.5-flash',
+      );
+    }
+    final models = job.models;
     final sandboxCfg = job.sandbox ?? <String, dynamic>{};
     final sandboxTypeStr = (sandboxCfg['environment'] as String?) ?? 'local';
     final expandedTasks = _expandTaskConfigs(
@@ -150,6 +145,9 @@ class EvalSetResolver {
       final dataset = Dataset(
         samples: inspectSamples,
         name: '${tc.id}:${tc.variant.name}',
+        format: tc.datasetFormat,
+        source: tc.datasetSource,
+        args: tc.datasetArgs,
       );
 
       // Build task metadata (variant config, system message, etc.)
@@ -343,15 +341,7 @@ class EvalSetResolver {
     );
   }
 
-  // ------------------------------------------------------------------
-  // Model resolution
-  // ------------------------------------------------------------------
 
-  /// Resolve which models to run. Job overrides default.
-  List<String> _resolveModels(Job job) {
-    if (job.models != null && job.models!.isNotEmpty) return job.models!;
-    return List.of(kDefaultModels);
-  }
 
   // ------------------------------------------------------------------
   // Sandbox resolution

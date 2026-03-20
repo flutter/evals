@@ -58,6 +58,10 @@ class ParsedTask:
         # Task-level files and setup
         task_files: dict[str, str] | None = None,
         task_setup: str | None = None,
+        # Dataset format metadata
+        dataset_format: str = "memory",
+        dataset_source: str | None = None,
+        dataset_args: dict[str, Any] | None = None,
     ):
         self.id = id
         self.func = func
@@ -87,6 +91,9 @@ class ParsedTask:
         self.sandbox_parameters = sandbox_parameters
         self.task_files = task_files
         self.task_setup = task_setup
+        self.dataset_format = dataset_format
+        self.dataset_source = dataset_source
+        self.dataset_args = dataset_args
 
     _UNSET: Any = object()
 
@@ -153,6 +160,9 @@ class ParsedTask:
             display_name=self.display_name if display_name is _U else display_name,
             version=self.version if version is _U else version,
             metadata=self.metadata if metadata is _U else metadata,
+            dataset_format=self.dataset_format,
+            dataset_source=self.dataset_source,
+            dataset_args=self.dataset_args,
         )
 
 
@@ -238,17 +248,51 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
     else:
         task_setup = None
 
-    # Parse samples section (optional)
-    samples_raw = data.get("samples")
-    if samples_raw is None:
-        samples: list[Sample] = []
-    elif not isinstance(samples_raw, dict):
-        raise ValueError(
-            f"Task '{task_id}': 'samples' must be a dict with 'inline' and/or "
-            f"'paths' keys, got {type(samples_raw).__name__}"
-        )
-    else:
-        samples = _load_samples_section(samples_raw, dataset_root, task_files, task_dir)
+    # Parse dataset section (replaces the old top-level 'samples' key)
+    dataset_raw = data.get("dataset")
+    samples: list[Sample] = []
+    dataset_format = "memory"
+    dataset_source: str | None = None
+    dataset_args: dict[str, Any] | None = None
+
+    if dataset_raw is not None:
+        if not isinstance(dataset_raw, dict):
+            raise ValueError(
+                f"Task '{task_id}': 'dataset' must be a dict with one of "
+                f"'samples', 'json', or 'csv' keys, got {type(dataset_raw).__name__}"
+            )
+
+        # Check for mutually exclusive format keys
+        format_keys = {'samples', 'json', 'csv'}
+        present_keys = format_keys & set(dataset_raw.keys())
+        if len(present_keys) > 1:
+            raise ValueError(
+                f"Task '{task_id}': 'dataset' must have exactly one of "
+                f"'samples', 'json', or 'csv', found: {present_keys}"
+            )
+
+        dataset_args = dataset_raw.get("args")
+        if dataset_args is not None and not isinstance(dataset_args, dict):
+            raise ValueError(
+                f"Task '{task_id}': 'dataset.args' must be a dict, "
+                f"got {type(dataset_args).__name__}"
+            )
+
+        if "samples" in dataset_raw:
+            # Inline/path-based samples (existing MemoryDataset behavior)
+            samples_section = dataset_raw["samples"]
+            if not isinstance(samples_section, dict):
+                raise ValueError(
+                    f"Task '{task_id}': 'dataset.samples' must be a dict with "
+                    f"'inline' and/or 'paths' keys, got {type(samples_section).__name__}"
+                )
+            samples = _load_samples_section(samples_section, dataset_root, task_files, task_dir)
+        elif "json" in dataset_raw:
+            dataset_format = "json"
+            dataset_source = str(dataset_raw["json"])
+        elif "csv" in dataset_raw:
+            dataset_format = "csv"
+            dataset_source = str(dataset_raw["csv"])
 
     # Task-level Inspect AI args are nested under inspect_task_args
     task_args = data.get("inspect_task_args") or {}
@@ -280,6 +324,9 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
             sandbox_parameters=data.get("sandbox_parameters") if isinstance(data.get("sandbox_parameters"), dict) else None,
             task_files=task_files,
             task_setup=task_setup,
+            dataset_format=dataset_format,
+            dataset_source=dataset_source,
+            dataset_args=dataset_args,
         )
     ]
 
@@ -475,10 +522,20 @@ def parse_job(job_path: str, dataset_root: str) -> Job:
     else:
         inspect_eval_arguments = None
 
+    # Parse models (required)
+    models_raw = data.get("models")
+    if not models_raw or not isinstance(models_raw, list) or len(models_raw) == 0:
+        raise ValueError(
+            f"Job file '{job_path}' is missing required 'models' field. "
+            "Specify at least one model, e.g.:\n"
+            "  models:\n    - google/gemini-2.5-flash"
+        )
+    models: list[str] = [str(m) for m in models_raw]
+
     return Job(
         log_dir=log_dir,
         max_connections=max_connections,
-        models=data.get("models"),
+        models=models,
         variants=variants,
         task_paths=task_paths,
         tasks=tasks,

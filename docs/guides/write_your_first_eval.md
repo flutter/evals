@@ -135,20 +135,21 @@ files:
   /workspace: ../../workspaces/buggy_dart_package
 setup: "cd /workspace && dart pub get"
 
-samples:
-  inline:
-    - id: fix_factorial
-      metadata:
-        difficulty: easy
-        tags: [dart, math, bug-fix]
-      input: |
-        The `factorial` function in `lib/math_utils.dart` is returning
-        wrong values. Tests are failing. Find and fix the bug.
+dataset:
+  samples:
+    inline:
+      - id: fix_factorial
+        metadata:
+          difficulty: easy
+          tags: [dart, math, bug-fix]
+        input: |
+          The `factorial` function in `lib/math_utils.dart` is returning
+          wrong values. Tests are failing. Find and fix the bug.
 
-        Run the tests with `dart test` to verify your fix.
-      target: |
-        The fix should change the `+` operator to `*` in the factorial
-        function's recursive case. All tests should pass after the fix.
+          Run the tests with `dart test` to verify your fix.
+        target: |
+          The fix should change the `+` operator to `*` in the factorial
+          function's recursive case. All tests should pass after the fix.
 ```
 
 **What's new here compared to Part 1:**

@@ -55,27 +55,28 @@ files:
   /workspace: ./project
 setup: "cd /workspace && flutter pub get"
 
-samples:
-  inline:
-    - id: flutter_bloc_cart_mutation_001
-      input: |
-        Fix the bug where adding items to cart doesn't update the total.
-      target: |
-        The fix should modify the BLoC to emit a new state instead of mutating.
-      metadata:
-        difficulty: medium
-        tags: [bloc, state]
+dataset:
+  samples:
+    inline:
+      - id: flutter_bloc_cart_mutation_001
+        input: |
+          Fix the bug where adding items to cart doesn't update the total.
+        target: |
+          The fix should modify the BLoC to emit a new state instead of mutating.
+        metadata:
+          difficulty: medium
+          tags: [bloc, state]
 
-    - id: navigation_crash
-      files:
-        /workspace: ./nav_project    # Override task-level files
-      input: |
-        Fix the crash when navigating back from the detail screen.
-      target: |
-        The fix should handle the disposed controller properly.
-      metadata:
-        difficulty: hard
-        tags: [navigation]
+      - id: navigation_crash
+        files:
+          /workspace: ./nav_project    # Override task-level files
+        input: |
+          Fix the crash when navigating back from the detail screen.
+        target: |
+          The fix should handle the disposed controller properly.
+        metadata:
+          difficulty: hard
+          tags: [navigation]
 ```
 
 For the complete list of task fields (including Inspect AI `Task` parameters), see the [Task fields table](yaml_config.md#task).
@@ -105,19 +106,20 @@ A sample is a single test case containing an input prompt, expected output (grad
 
 ```yaml
 # Inline in task.yaml
-samples:
-  inline:
-    - id: dart_async_await_001
-      input: |
-        Explain the difference between Future.then() and async/await in Dart.
-      target: |
-        The answer should cover both approaches, explain that they are
-        functionally equivalent, and note when each is preferred.
-      metadata:
-        difficulty: medium
-        tags: [async, dart]
-        added: 2025-02-04
-        category: language_fundamentals
+dataset:
+  samples:
+    inline:
+      - id: dart_async_await_001
+        input: |
+          Explain the difference between Future.then() and async/await in Dart.
+        target: |
+          The answer should cover both approaches, explain that they are
+          functionally equivalent, and note when each is preferred.
+        metadata:
+          difficulty: medium
+          tags: [async, dart]
+          added: 2025-02-04
+          category: language_fundamentals
 ```
 
 For the complete list of sample fields, see the [Sample fields table](yaml_config.md#sample).
@@ -168,7 +170,7 @@ max_connections: 15
 # Save the agent's final workspace output to logs/<run>/examples/
 # save_examples: true
 
-# Filter what to run (optional - omit to run all)
+# Filter what to run (required)
 models:
   - google/gemini-2.5-flash
 

@@ -1,5 +1,5 @@
 import 'package:args/command_runner.dart';
-import 'package:dataset_config_dart/dataset_config_dart.dart';
+
 import 'package:devals/src/dataset/dataset_reader.dart';
 import 'package:devals/src/dataset/eval_writer.dart';
 import 'package:devals/src/dataset/file_templates/job_template.dart';
@@ -19,7 +19,14 @@ class CreateJobCommand extends Command<int> {
     terminal.writeln();
 
     // Get available options from the generated registries and filesystem
-    final models = List.of(kDefaultModels);
+    // Suggested models for model selection prompt
+    final models = <String>[
+      'google/gemini-2.5-flash',
+      'google/gemini-3-flash-preview',
+      'google/gemini-3-pro-preview',
+      'anthropic/claude-sonnet-4-5',
+      'openai/gpt-5-mini',
+    ];
     final variants = datasetReader.getVariants();
     final tasks = datasetReader.getTasks();
 
@@ -65,9 +72,14 @@ class CreateJobCommand extends Command<int> {
               'Select models',
               help: 'Tasks will run against each of these',
               options: models.map((m) => Option(label: m, value: m)).toList(),
-              key: 'models',
+              validator: (List<dynamic>? selection) {
+                if (selection == null || selection.isEmpty) {
+                  return 'You must select at least one model.';
+                }
+                return null;
+              },
               defaultValue: models
-                  .where((String name) => name.contains('gemini'))
+                  .where((name) => name.contains('gemini'))
                   .toList(),
             ),
             Multiselect(

@@ -63,10 +63,10 @@ Job files define runtime settings for an evaluation run, including sandbox confi
   - Maximum concurrent API connections (default: `10`)
 * - `models`
   - list
-  - Y
+  - N
   - `models`
   - `models`
-  - Filter to specific models — omit to use defaults
+  - List of model identifiers to evaluate (required — at least one model must be specified)
 * - `variants`
   - map
   - Y
@@ -231,26 +231,56 @@ Task-level Inspect AI `Task` parameters (model, limits, sandbox, etc.) are neste
   - `description`
   - `description`
   - Human-readable description
-* - `samples`
+* - `dataset`
   - object
   - Y
   -
   -
-  - Samples config with `inline` and/or `paths` keys (optional — task can have no samples)
-* - `samples` \
+  - Dataset configuration. Must contain exactly one of `samples`, `json`, or `csv`.
+* - `dataset` \
+    &nbsp;&nbsp;`.samples`
+  - object
+  - Y
+  -
+  -
+  - Inline/file-based sample definitions (see `samples.inline` and `samples.paths` below)
+* - `dataset` \
+    &nbsp;&nbsp;`.samples` \
     &nbsp;&nbsp;`.inline`
   - list
   - Y
   -
   -
   - Inline sample definitions (list of sample objects)
-* - `samples` \
+* - `dataset` \
+    &nbsp;&nbsp;`.samples` \
     &nbsp;&nbsp;`.paths`
   - list
   - Y
   -
   -
   - Glob patterns for external sample YAML files (relative to task dir)
+* - `dataset` \
+    &nbsp;&nbsp;`.json`
+  - string
+  - Y
+  -
+  -
+  - Path or URL to a JSON/JSONL dataset file (maps to Inspect's `json_dataset()`)
+* - `dataset` \
+    &nbsp;&nbsp;`.csv`
+  - string
+  - Y
+  -
+  -
+  - Path to a CSV dataset file (maps to Inspect's `csv_dataset()`)
+* - `dataset` \
+    &nbsp;&nbsp;`.args`
+  - object
+  - Y
+  - `Dataset.args`
+  - `Dataset.args`
+  - Additional arguments passed through to the dataset constructor (e.g. `auto_id`, `shuffle`, `delimiter`)
 * - `system_message`
   - string
   - Y
@@ -297,7 +327,7 @@ Task-level Inspect AI `Task` parameters (model, limits, sandbox, etc.) are neste
 
 ## Sample
 
-Samples are individual test cases defined either inline in `task.yaml` under `samples.inline`, or in external YAML files referenced via `samples.paths`. Fields like `difficulty` and `tags` should be nested inside the sample's `metadata` dict.
+Samples are individual test cases defined either inline in `task.yaml` under `dataset.samples.inline`, or in external YAML files referenced via `dataset.samples.paths`. Fields like `difficulty` and `tags` should be nested inside the sample's `metadata` dict.
 
 ```{list-table}
 :header-rows: 1

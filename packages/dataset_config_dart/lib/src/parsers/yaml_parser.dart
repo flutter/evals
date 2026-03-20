@@ -58,21 +58,71 @@ class YamlParser extends Parser {
     final taskFiles = _asStringMap(data['files']);
     final taskSetup = data['setup'] as String?;
 
-    // Parse samples section
-    final samplesRaw = data['samples'];
-    if (samplesRaw is! Map) {
+    // Parse dataset section (replaces the old top-level 'samples' key)
+    final datasetRaw = data['dataset'];
+    var datasetFormat = 'memory';
+    String? datasetSource;
+    Map<String, dynamic>? datasetArgs;
+    List<Sample> samples;
+
+    if (datasetRaw == null) {
+      samples = <Sample>[];
+    } else if (datasetRaw is! Map) {
       throw FormatException(
-        "Task '$taskId': 'samples' must be a dict with 'inline' and/or "
-        "'paths' keys, got ${samplesRaw.runtimeType}",
+        "Task '$taskId': 'dataset' must be a dict with one of "
+        "'samples', 'json', or 'csv' keys, got ${datasetRaw.runtimeType}",
       );
+    } else {
+      final datasetMap = Map<String, dynamic>.from(datasetRaw);
+      final formatKeys = {'samples', 'json', 'csv'};
+      final presentKeys =
+          formatKeys.intersection(datasetMap.keys.toSet().cast<String>());
+      if (presentKeys.length > 1) {
+        throw FormatException(
+          "Task '$taskId': 'dataset' must have exactly one of "
+          "'samples', 'json', or 'csv', found: $presentKeys",
+        );
+      }
+
+      // Parse optional args
+      final argsRaw = datasetMap['args'];
+      if (argsRaw != null) {
+        if (argsRaw is! Map) {
+          throw FormatException(
+            "Task '$taskId': 'dataset.args' must be a dict, "
+            'got ${argsRaw.runtimeType}',
+          );
+        }
+        datasetArgs = Map<String, dynamic>.from(argsRaw);
+      }
+
+      if (datasetMap.containsKey('samples')) {
+        // Inline/path-based samples (existing MemoryDataset behavior)
+        final samplesSection = datasetMap['samples'];
+        if (samplesSection is! Map) {
+          throw FormatException(
+            "Task '$taskId': 'dataset.samples' must be a dict with "
+            "'inline' and/or 'paths' keys, got ${samplesSection.runtimeType}",
+          );
+        }
+        samples = _loadSamplesSection(
+          Map<String, dynamic>.from(samplesSection),
+          datasetRoot,
+          taskFiles,
+          taskDir,
+        );
+      } else if (datasetMap.containsKey('json')) {
+        datasetFormat = 'json';
+        datasetSource = datasetMap['json'].toString();
+        samples = <Sample>[];
+      } else if (datasetMap.containsKey('csv')) {
+        datasetFormat = 'csv';
+        datasetSource = datasetMap['csv'].toString();
+        samples = <Sample>[];
+      } else {
+        samples = <Sample>[];
+      }
     }
-    final samplesMap = Map<String, dynamic>.from(samplesRaw);
-    final samples = _loadSamplesSection(
-      samplesMap,
-      datasetRoot,
-      taskFiles,
-      taskDir,
-    );
 
     // Task-level Inspect AI args are nested under inspect_task_args
     final taskArgs = _asMap(data['inspect_task_args']) ?? <String, dynamic>{};
@@ -105,6 +155,9 @@ class YamlParser extends Parser {
         sandboxParameters: sandboxParameters,
         taskFiles: taskFiles,
         taskSetup: taskSetup,
+        datasetFormat: datasetFormat,
+        datasetSource: datasetSource,
+        datasetArgs: datasetArgs,
         // Task-level settings
         model: model,
         config: config,
@@ -350,11 +403,22 @@ class YamlParser extends Parser {
         ? TagFilter.fromJson(Map<String, dynamic>.from(sampleFiltersRaw))
         : null;
 
+    // Parse models (required)
+    final modelsRaw = data['models'] as List?;
+    if (modelsRaw == null || modelsRaw.isEmpty) {
+      throw FormatException(
+        "Job file '$jobPath' is missing required 'models' field. "
+        "Specify at least one model, e.g.:\n"
+        '  models:\n    - google/gemini-2.5-flash',
+      );
+    }
+    final models = modelsRaw.cast<String>();
+
     return Job(
       logDir: logDir,
       maxConnections: maxConnections,
       description: data['description'] as String?,
-      models: (data['models'] as List?)?.cast<String>(),
+      models: models,
       variants: variants,
       taskPaths: taskPaths,
       tasks: tasks,
@@ -381,9 +445,14 @@ class YamlParser extends Parser {
   }
 
   /// Create a [Job] with default settings (when no job file is provided).
+  ///
+  /// Note: The caller must specify models, as there are no defaults.
+  /// This method creates a job with an empty models list; the resolver
+  /// will raise an error if models is empty at resolution time.
   Job createDefaultJob(String baseDir) {
     return Job(
       logDir: _resolveLogDir(_kDefaultLogsDir, baseDir),
+      models: <String>[],
     );
   }
 

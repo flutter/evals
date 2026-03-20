@@ -14,11 +14,11 @@ void main() {
         {
           'id': 'my_task',
           'func': 'question_answer',
-          'samples': {
+          'dataset': {'samples': {
             'inline': [
               {'id': 's1', 'input': 'What is Dart?', 'target': 'A language'},
             ],
-          },
+          }},
         },
       ]);
 
@@ -35,7 +35,7 @@ void main() {
       final tasks = parser.parseTasksFromMaps([
         {
           'id': 'dart_qa',
-          'samples': {'inline': <Map<String, dynamic>>[]},
+          'dataset': {'samples': {'inline': <Map<String, dynamic>>[]}},
         },
       ]);
 
@@ -47,11 +47,11 @@ void main() {
         () => parser.parseTasksFromMaps([
           {
             'id': 'bad_task',
-            'samples': {
+            'dataset': {'samples': {
               'inline': [
                 {'id': 's1', 'input': 'hello'}, // missing 'target'
               ],
-            },
+            }},
           },
         ]),
         throwsA(isA<FormatException>()),
@@ -62,7 +62,7 @@ void main() {
       final tasks = parser.parseTasksFromMaps([
         {
           'id': 'tagged_task',
-          'samples': {
+          'dataset': {'samples': {
             'inline': [
               {
                 'id': 's1',
@@ -73,7 +73,7 @@ void main() {
                 },
               },
             ],
-          },
+          }},
         },
       ]);
 
@@ -85,7 +85,7 @@ void main() {
       final tasks = parser.parseTasksFromMaps([
         {
           'id': 'tagged_task',
-          'samples': {
+          'dataset': {'samples': {
             'inline': [
               {
                 'id': 's1',
@@ -96,7 +96,7 @@ void main() {
                 },
               },
             ],
-          },
+          }},
         },
       ]);
 
@@ -108,11 +108,11 @@ void main() {
       final tasks = parser.parseTasksFromMaps([
         {
           'id': 'no_tags',
-          'samples': {
+          'dataset': {'samples': {
             'inline': [
               {'id': 's1', 'input': 'q', 'target': 'a'},
             ],
-          },
+          }},
         },
       ]);
 
@@ -124,11 +124,11 @@ void main() {
       final tasks = parser.parseTasksFromMaps([
         {
           'id': 'task',
-          'samples': {
+          'dataset': {'samples': {
             'inline': [
               {'id': 's1', 'input': 'q', 'target': 'a'},
             ],
-          },
+          }},
         },
       ]);
 
@@ -140,7 +140,7 @@ void main() {
       final tasks = parser.parseTasksFromMaps([
         {
           'id': 'task',
-          'samples': {
+          'dataset': {'samples': {
             'inline': [
               {
                 'id': 's1',
@@ -151,7 +151,7 @@ void main() {
                 'files': {'main.dart': 'void main() {}'},
               },
             ],
-          },
+          }},
         },
       ]);
 
@@ -180,7 +180,7 @@ void main() {
           'display_name': 'Full Task',
           'version': 2,
           'metadata': {'author': 'test'},
-          'samples': {'inline': <Map<String, dynamic>>[]},
+          'dataset': {'samples': {'inline': <Map<String, dynamic>>[]}},
         },
       ]);
 
@@ -203,9 +203,9 @@ void main() {
       final tasks = parser.parseTasksFromMaps([
         {
           'id': 'task',
-          'samples': {
+          'dataset': {'samples': {
             'inline': [<String, dynamic>{}],
-          },
+          }},
         },
       ]);
 
@@ -214,13 +214,11 @@ void main() {
   });
 
   group('parseJobFromMap()', () {
-    test('parses minimal job with defaults', () {
-      final job = parser.parseJobFromMap(<String, dynamic>{});
-
-      expect(job.logDir, '');
-      expect(job.maxConnections, 10);
-      expect(job.models, isNull);
-      expect(job.saveExamples, false);
+    test('throws when models is missing', () {
+      expect(
+        () => parser.parseJobFromMap(<String, dynamic>{}),
+        throwsA(isA<FormatException>()),
+      );
     });
 
     test('parses all core fields', () {
@@ -242,6 +240,7 @@ void main() {
     test('parses sandbox string shorthand', () {
       final job = parser.parseJobFromMap({
         'sandbox': 'podman',
+        'models': ['test-model'],
       });
 
       expect(job.sandbox, {'environment': 'podman'});
@@ -249,6 +248,7 @@ void main() {
 
     test('parses inspect_eval_arguments', () {
       final job = parser.parseJobFromMap({
+        'models': ['test-model'],
         'inspect_eval_arguments': {
           'retry_attempts': 20,
           'max_retries': 3,
@@ -278,6 +278,7 @@ void main() {
 
     test('parses nested overrides in inspect_eval_arguments', () {
       final job = parser.parseJobFromMap({
+        'models': ['test-model'],
         'inspect_eval_arguments': {
           'eval_set_overrides': {'custom_key': 'custom_value'},
           'task_defaults': {'time_limit': 600},

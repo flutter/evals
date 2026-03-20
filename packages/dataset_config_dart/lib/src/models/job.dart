@@ -53,8 +53,8 @@ sealed class Job with _$Job {
     /// Maximum concurrent API connections.
     @JsonKey(name: 'max_connections') @Default(10) int maxConnections,
 
-    /// Models to run. `null` means use defaults from registries.
-    List<String>? models,
+    /// Models to run (required).
+    required List<String> models,
 
     /// Named variant map. Keys are variant names, values are config dicts.
     /// `null` means baseline only.

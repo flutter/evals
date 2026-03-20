@@ -18,11 +18,6 @@ from dataset_config_python.models.task import Task
 from dataset_config_python.models.variant import Variant
 from dataset_config_python.parser import ParsedTask, find_job_file, parse_job, parse_tasks
 
-# Default models when a job doesn't specify its own.
-DEFAULT_MODELS: list[str] = [
-    "google/gemini-2.5-flash",
-    "google/gemini-3-flash-preview",
-]
 
 # Default sandbox configurations for Flutter evaluations.
 # Consumers can pass these to resolve() or provide their own.
@@ -123,7 +118,13 @@ def _resolve_job(
     sandbox_registry: dict[str, dict[str, str]],
 ) -> list[EvalSet]:
     """Resolve task configs and job into EvalSet objects."""
-    models = job.models if job.models else list(DEFAULT_MODELS)
+    if not job.models:
+        raise ValueError(
+            "job.models is required and must contain at least one model. "
+            "Specify models in your job YAML, e.g.:\n"
+            "  models:\n    - google/gemini-2.5-flash"
+        )
+    models = job.models
     sandbox_cfg = job.sandbox or {}
     sandbox_type_str = sandbox_cfg.get("environment", "local")
 
@@ -196,6 +197,9 @@ def _build_eval_set(
         dataset = Dataset(
             samples=inspect_samples,
             name=f"{tc.id}:{tc.variant.name}",
+            format=tc.dataset_format,
+            source=tc.dataset_source,
+            args=tc.dataset_args,
         )
 
         # Task metadata (variant config, system message, etc.)
@@ -361,15 +365,6 @@ def _build_eval_set(
     )
 
 
-# ---------------------------------------------------------------------------
-# Model resolution
-# ---------------------------------------------------------------------------
-
-
-def _resolve_models(job: Any) -> list[str]:
-    if job.models:
-        return job.models
-    return list(DEFAULT_MODELS)
 
 
 # ---------------------------------------------------------------------------
