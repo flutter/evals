@@ -15,7 +15,7 @@ This repo includes
 - **Evaluation Explorer** — Dart/Flutter app for browsing and analyzing results
 
 > [!TIP]
-> Full documentation at [dash-evals-docs.web.app/](https://evals-docs.web.app/)
+> Full documentation at [dash-evals-docs.web.app/](https://dash-evals-docs.web.app/)
 
 ## Packages
 
