@@ -15,7 +15,7 @@ This repo includes
 - **Evaluation Explorer** — Dart/Flutter app for browsing and analyzing results
 
 > [!TIP]
-> Full documentation at [evals-docs.web.app/](https://evals-docs.web.app/)
+> Full documentation at [dash-evals-docs.web.app/](https://evals-docs.web.app/)
 
 ## Packages
 
@@ -25,10 +25,7 @@ This repo includes
 | [dataset_config_dart](packages/dataset_config_dart/) | Dart library for resolving dataset YAML into EvalSet JSON (includes shared data models) | [dataset_config_dart docs](docs/contributing/packages/dataset_config_dart.md) |
 | [dataset_config_python](packages/dataset_config_python/) | Python configuration models | — |
 | [devals_cli](packages/devals_cli/) | Dart CLI for managing evaluation tasks and jobs | [CLI docs](docs/reference/cli.md) |
-| [eval_explorer](packages/eval_explorer/) | Dart/Flutter results viewer (Serverpod) | [eval_explorer docs](docs/contributing/packages/eval_explorer.md) |
-
-> [!NOTE]
-> The **uploader** and **report_app** packages are deprecated and will be replaced by **eval_explorer**.
+| [eval_explorer](packages/eval_explorer/) | Dart/Flutter reporting app | [eval_explorer docs](docs/contributing/packages/eval_explorer.md) |
 
 ## Documentation
 
