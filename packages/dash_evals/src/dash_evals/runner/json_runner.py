@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 
 import inspect_ai
-from inspect_ai.dataset import MemoryDataset, Sample, csv_dataset, json_dataset
+from dataset_config_python.hydrate import build_dataset as _build_dataset
 
 from dash_evals.utils.logging import capture_output, setup_logging
 
@@ -94,74 +94,8 @@ def _resolve_task_func(name: str):
         return func
 
 
-def _build_dataset(task_def: dict):
-    """Build an Inspect AI dataset from a task definition.
 
-    Dispatches on ``task_def["dataset"]["format"]``:
 
-    - ``"memory"`` (default): builds a ``MemoryDataset`` from inline samples.
-    - ``"json"``: delegates to ``inspect_ai.dataset.json_dataset(source, **args)``.
-    - ``"csv"``: delegates to ``inspect_ai.dataset.csv_dataset(source, **args)``.
-
-    Args:
-        task_def: A task entry from the EvalSet JSON manifest.
-
-    Returns:
-        An Inspect AI dataset object.
-
-    Raises:
-        ValueError: If the dataset format is unrecognized or required fields
-            (e.g. ``source`` for json/csv) are missing.
-    """
-    dataset_def = task_def.get("dataset")
-    task_name = task_def.get("name", "")
-
-    if not dataset_def:
-        return MemoryDataset([], name=task_name)
-
-    fmt = dataset_def.get("format", "memory")
-    extra_args: dict = dataset_def.get("args") or {}
-
-    if fmt == "json":
-        source = dataset_def.get("source")
-        if not source:
-            raise ValueError(
-                f"Task '{task_name}': dataset format 'json' requires a 'source' field."
-            )
-        return json_dataset(source, **extra_args)
-
-    if fmt == "csv":
-        source = dataset_def.get("source")
-        if not source:
-            raise ValueError(
-                f"Task '{task_name}': dataset format 'csv' requires a 'source' field."
-            )
-        return csv_dataset(source, **extra_args)
-
-    if fmt == "memory":
-        raw_samples = dataset_def.get("samples", [])
-        samples = []
-        for raw in raw_samples:
-            sample = Sample(
-                input=raw["input"],
-                target=raw.get("target", ""),
-                id=raw.get("id"),
-                metadata=raw.get("metadata"),
-                files=raw.get("files"),
-                setup=raw.get("setup"),
-                sandbox=raw.get("sandbox"),
-            )
-            samples.append(sample)
-
-        return MemoryDataset(
-            samples,
-            name=dataset_def.get("name", task_name),
-        )
-
-    raise ValueError(
-        f"Task '{task_name}': unknown dataset format '{fmt}'. "
-        f"Expected one of: 'memory', 'json', 'csv'."
-    )
 
 
 def run_from_json(manifest_path: str | Path) -> bool:

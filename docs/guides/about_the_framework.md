@@ -18,6 +18,7 @@ YAML config → Dart resolver → JSON manifest → Python runner → Inspect AI
 |-------|---------|-------------|
 | **YAML config** | — | Your `task.yaml` and `job.yaml` files |
 | **Dart resolver** | `dataset_config_dart` | Parses YAML, resolves globs and references, produces a JSON manifest |
+| **Hydration** | `dataset_config_python` | Converts config dicts into Inspect AI objects (datasets, MCP servers, skills) |
 | **Python runner** | `dash_evals` | Reads the manifest, builds Inspect AI `Task` objects, calls `eval_set()` |
 | **Inspect AI** | `inspect_ai` | Runs solver chains, sends prompts, collects responses, runs scorers |
 
@@ -148,16 +149,19 @@ calling `submit()`.
 
 ## Shared helpers
 
-The `task_helpers.py` module contains functions used across all tasks:
+The `task_helpers.py` module contains functions used across all tasks. Some of
+these are re-exported from `dataset_config_python.hydrate` — the shared
+config-interpretation layer that both `dash_evals` and external consumers (like
+yardstick) use to ensure consistent hydration of config into Inspect AI objects.
 
-| Helper | What it does |
-|--------|-------------|
-| `append_context_injection(chain, config)` | Adds a `context_injector` solver if the variant has `files` |
-| `append_model_interaction(chain, config)` | Adds `react()` (if tools exist) or `generate()` (if not) |
-| `get_skill_tool(config)` | Creates a skill tool if the variant has `skills` configured |
-| `build_task_metadata(config)` | Builds the metadata dict for the `Task` object |
-| `create_mcp_servers(configs, sandbox_type)` | Creates MCP server objects from variant config |
-| `validate_sandbox_tools(config, tool_names)` | Checks that sandbox-requiring tools aren't used on local |
+| Helper | Source | What it does |
+|--------|--------|-------------|
+| `create_mcp_servers(configs, sandbox_type)` | `dataset_config_python` | Creates MCP server objects from variant config |
+| `get_skill_tool(config)` | `dataset_config_python` | Creates a skill tool if the variant has `skills` configured |
+| `build_task_metadata(config)` | `dataset_config_python` | Builds the metadata dict for the `Task` object |
+| `append_context_injection(chain, config)` | `dash_evals` | Adds a `context_injector` solver if the variant has `files` |
+| `append_model_interaction(chain, config)` | `dash_evals` | Adds `react()` (if tools exist) or `generate()` (if not) |
+| `validate_sandbox_tools(config, tool_names)` | `dash_evals` | Checks that sandbox-requiring tools aren't used on local |
 
 These helpers mean that most of the variant logic (context injection, MCP tools,
 skills) is handled **automatically**. You just need to define the core solver

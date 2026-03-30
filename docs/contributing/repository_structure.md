@@ -10,7 +10,7 @@ evals/
 │   ├── devals_cli/             # Dart CLI for managing dataset (devals)
 │   ├── dataset_config_dart/    # Dart library: YAML → EvalSet JSON
 │   ├── dash_evals/             # Python evaluation runner
-│   ├── dataset_config_python/  # Python configuration models
+│   ├── dataset_config_python/  # Python config: YAML → EvalSet JSON + config → Inspect AI objects
 │   └── eval_explorer/          # Dart/Flutter results viewer (Serverpod)
 ├── tool/                       # Utility scripts
 ├── pubspec.yaml                # Dart workspace configuration
