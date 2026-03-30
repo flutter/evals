@@ -336,7 +336,7 @@ and [`MemoryDataset`](https://inspect.aisi.org.uk/reference/inspect_ai.dataset.h
 #### `Dataset`
 
 ```dart
-Dataset({List<Sample> samples, String? name, String? location, bool shuffled})
+Dataset({List<Sample> samples, String? name, String? location, bool shuffled, String format, String? source, Map<String, dynamic>? args})
 ```
 
 #### `Dataset.fromJson`
@@ -1007,7 +1007,7 @@ inspect_eval_arguments:
 #### `Job`
 
 ```dart
-Job({String? description, required String logDir, int maxConnections, List<String>? models, Map<String, Map<String, dynamic>>? variants, List<String>? taskPaths, Map<String, JobTask>? tasks, bool saveExamples, Map<String, dynamic>? sandbox, Map<String, dynamic>? inspectEvalArguments, TagFilter? taskFilters, TagFilter? sampleFilters})
+Job({String? description, required String logDir, int maxConnections, required List<String> models, Map<String, Map<String, dynamic>>? variants, List<String>? taskPaths, Map<String, JobTask>? tasks, bool saveExamples, Map<String, dynamic>? sandbox, Map<String, dynamic>? inspectEvalArguments, TagFilter? taskFilters, TagFilter? sampleFilters})
 ```
 
 #### `Job.fromJson`
@@ -1203,7 +1203,7 @@ former `TaskConfig` model-package class.
 #### `ParsedTask`
 
 ```dart
-ParsedTask({required String id, required String func, required List<Sample> samples, required Variant variant, String sandboxType, String? systemMessage, bool saveExamples, String? examplesDir, Map<String, dynamic>? sandboxParameters, Map<String, String>? taskFiles, String? taskSetup, String? model, Map<String, dynamic>? config, Map<String, String>? modelRoles, Object? sandbox, Object? approval, Object? epochs, Object? failOnError, bool? continueOnFail, int? messageLimit, int? tokenLimit, int? timeLimit, int? workingLimit, double? costLimit, Object? earlyStopping, String? displayName, Object? version, Map<String, dynamic>? metadata})
+ParsedTask({required String id, required String func, required List<Sample> samples, required Variant variant, String sandboxType, String? systemMessage, bool saveExamples, String? examplesDir, Map<String, dynamic>? sandboxParameters, Map<String, String>? taskFiles, String? taskSetup, String? model, Map<String, dynamic>? config, Map<String, String>? modelRoles, Object? sandbox, Object? approval, Object? epochs, Object? failOnError, bool? continueOnFail, int? messageLimit, int? tokenLimit, int? timeLimit, int? workingLimit, double? costLimit, Object? earlyStopping, String? displayName, Object? version, Map<String, dynamic>? metadata, String datasetFormat, String? datasetSource, Map<String, dynamic>? datasetArgs})
 ```
 
 ### Properties
@@ -1303,6 +1303,18 @@ ParsedTask({required String id, required String func, required List<Sample> samp
 - **`metadata`** → `Map<String, dynamic>?` *(final)*
 
   Additional metadata to associate with the task.
+
+- **`datasetFormat`** → `String` *(final)*
+
+  Dataset format: 'memory' (inline samples), 'json', or 'csv'.
+
+- **`datasetSource`** → `String?` *(final)*
+
+  File path or URL for json/csv datasets.
+
+- **`datasetArgs`** → `Map<String, dynamic>?` *(final)*
+
+  Extra kwargs passed to json_dataset() or csv_dataset().
 
 ### Methods
 
@@ -1721,6 +1733,10 @@ Job createDefaultJob(String baseDir)
 ```
 
 Create a [Job] with default settings (when no job file is provided).
+
+Note: The caller must specify models, as there are no defaults.
+This method creates a job with an empty models list; the resolver
+will raise an error if models is empty at resolution time.
 
 **Parameters:**
 
