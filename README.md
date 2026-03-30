@@ -11,6 +11,7 @@ This repo includes
 
 - **eval runner** — Python package for running LLM evaluations with configurable tasks, variants, and models
 - **config packages** — Dart and Python packages that resolve dataset YAML into EvalSet JSON for the runner
+  - **NB**: These packages largely overlap, and coexist for backwards compatibility purposes. In time, the Dart package will be deprecated.  
 - **devals CLI** — Dart CLI for creating and managing dataset samples, tasks, and jobs
 - **Evaluation Explorer** — Dart/Flutter app for browsing and analyzing results
 

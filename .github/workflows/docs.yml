@@ -32,6 +32,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r docs/requirements.txt
+          pip install -e packages/dataset_config_python
           pip install -e packages/dash_evals
 
       - name: Install Dart dependencies

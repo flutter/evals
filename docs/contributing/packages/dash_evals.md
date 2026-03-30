@@ -41,9 +41,10 @@ src/dash_evals/
 
 1. **Configure**: The Dart `dataset_config_dart` package parses dataset YAML and resolves it into an `EvalSet` JSON manifest
 2. **Load**: The Python runner reads the JSON manifest via `json_runner.py`, resolving task functions dynamically with `importlib`
-3. **Execute**: Each task function receives its dataset and task definition, producing an `inspect_ai.Task`
-4. **Score**: Scorers evaluate model outputs against targets
-5. **Log**: Results written to the configured `log_dir`
+3. **Hydrate**: Config dicts are converted to Inspect AI objects (datasets, MCP servers, skills) using shared helpers from `dataset_config_python.hydrate`
+4. **Execute**: Each task function receives its dataset and task definition, producing an `inspect_ai.Task`
+5. **Score**: Scorers evaluate model outputs against targets
+6. **Log**: Results written to the configured `log_dir`
 
 Alternatively, the runner can be invoked directly with `--task` and `--model` arguments (via `args_runner.py`), bypassing the Dart config pipeline.
 
