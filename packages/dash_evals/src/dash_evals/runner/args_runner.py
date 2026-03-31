@@ -35,7 +35,7 @@ def _run_from_args(args: argparse.Namespace) -> bool:
         dataset = json_dataset(str(args.dataset))
 
     # Build the task instance
-    task_def = {"name": args.task}
+    task_def = {"task_name": args.task}
     task_instance = task_func(dataset, task_def) if dataset else task_func(None, task_def)
 
     # Set up logging
