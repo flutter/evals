@@ -46,7 +46,7 @@ point is `run-evals`.
 If you have the Dart SDK installed, you can also install the CLI, which automates some of the configuration and eval authoring.
 
 ```bash
-dart pub global activate devals --source git https://github.com/flutter/evals.git --git-path packages/devals_cli
+dart pub global activate --source git https://github.com/flutter/evals.git --git-path packages/devals_cli
 ```
 
 **`devals`** resolves YAML configuration, scaffolds new tasks and jobs, and
