@@ -67,7 +67,7 @@ class InitCommand extends Command<int> {
           File(jobPath).writeAsStringSync(
             initJobTemplate(
               name: 'local_dev',
-              models: ['google/gemini-2.0-flash'],
+              models: ['google/gemini-2.5-flash'],
               tasks: ['get_started'],
             ),
           );

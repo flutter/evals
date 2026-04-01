@@ -39,7 +39,7 @@ The Python CLI entry point is `run-evals`, defined in
 run-evals --json ./eval_set.json
 
 # Mode 2: Direct CLI arguments (what you used in Part 1)
-run-evals --task question_answer --model google/gemini-2.0-flash --dataset samples.json
+run-evals --task question_answer --model google/gemini-2.5-flash --dataset samples.json
 ```
 
 ### JSON runner
