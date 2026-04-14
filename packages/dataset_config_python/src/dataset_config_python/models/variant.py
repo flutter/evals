@@ -37,3 +37,9 @@ class Variant(BaseModel):
 
     task_parameters: dict[str, Any] = Field(default_factory=dict)
     """Optional parameters merged into the task config dict at runtime."""
+
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    """Optional metadata for the variant."""
+
+    tags: list[str] = Field(default_factory=list)
+    """Optional tags for the variant."""

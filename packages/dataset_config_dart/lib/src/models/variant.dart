@@ -53,6 +53,12 @@ sealed class Variant with _$Variant {
     @JsonKey(name: 'task_parameters')
     @Default({})
     Map<String, dynamic> taskParameters,
+
+    /// Optional metadata for the variant.
+    @JsonKey(name: 'metadata') @Default({}) Map<String, dynamic> metadata,
+
+    /// Optional tags for the variant.
+    @JsonKey(name: 'tags') @Default([]) List<String> tags,
   }) = _Variant;
 
   const Variant._();

@@ -38,6 +38,17 @@ def _is_glob(pattern: str) -> bool:
     return "*" in pattern or "?" in pattern or "[" in pattern
 
 
+def _parse_tags(tags: Any) -> list[str]:
+    """Parse tags into a list of strings, handling lists or comma-separated strings."""
+    if not tags:
+        return []
+    if isinstance(tags, str):
+        return [t.strip() for t in tags.split(",") if t.strip()]
+    if isinstance(tags, list):
+        return [str(t) for t in tags]
+    return [str(tags)]
+
+
 def resolve(
     dataset_path: str,
     job_names: list[str],
@@ -164,7 +175,22 @@ def _build_eval_set(
         # Enrich each sample with task-level metadata
         inspect_samples: list[Sample] = []
         for sample in tc.samples:
-            enriched: dict[str, Any] = {**(sample.metadata or {})}
+            # Priority: Sample > Variant > Task
+            enriched: dict[str, Any] = dict(tc.metadata or {})
+            enriched.update(tc.variant.metadata or {})
+            enriched.update(sample.metadata or {})
+
+            # Handle tags merge
+            all_tags: set[str] = set()
+            if tc.metadata and "tags" in tc.metadata:
+                all_tags.update(_parse_tags(tc.metadata["tags"]))
+            if tc.variant.tags:
+                all_tags.update(_parse_tags(tc.variant.tags))
+            if sample.metadata and "tags" in sample.metadata:
+                all_tags.update(_parse_tags(sample.metadata["tags"]))
+
+            if all_tags:
+                enriched["tags"] = sorted(list(all_tags))
 
             if tc.save_examples:
                 enriched["save_examples"] = True
@@ -232,8 +258,22 @@ def _build_eval_set(
         # Propagate image_prefix from job for container image resolution
         if (job.sandbox or {}).get("image_prefix"):
             task_metadata["image_prefix"] = job.sandbox["image_prefix"]
+
+        # Priority: Variant > Task
         if tc.metadata:
             task_metadata.update(tc.metadata)
+        if tc.variant.metadata:
+            task_metadata.update(tc.variant.metadata)
+
+        # Handle tags merge
+        all_task_tags: set[str] = set()
+        if tc.metadata and "tags" in tc.metadata:
+            all_task_tags.update(_parse_tags(tc.metadata["tags"]))
+        if tc.variant.tags:
+            all_task_tags.update(_parse_tags(tc.variant.tags))
+
+        if all_task_tags:
+            task_metadata["tags"] = sorted(list(all_task_tags))
 
         # Determine sandbox for this task
         task_sandbox = None
@@ -547,8 +587,10 @@ def _resolve_variant(
     for raw in raw_mcp:
         mcp_servers.append(McpServerConfig.from_yaml(raw))
 
-    # Task parameters
+    # Resolve task_parameters, metadata, and tags
     task_parameters: dict[str, Any] = vdef.get("task_parameters") or {}
+    metadata: dict[str, Any] = vdef.get("metadata") or {}
+    tags: list[str] = vdef.get("tags") or []
 
     return Variant(
         name=name,
@@ -556,6 +598,8 @@ def _resolve_variant(
         mcp_servers=mcp_servers,
         skills=skill_paths,
         task_parameters=task_parameters,
+        metadata=metadata,
+        tags=tags,
     )
 
 

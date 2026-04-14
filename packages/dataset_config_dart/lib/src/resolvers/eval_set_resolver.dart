@@ -109,7 +109,22 @@ class EvalSetResolver {
       // Enrich each sample with task-level metadata
       final inspectSamples = <Sample>[];
       for (final sample in tc.samples) {
-        final enriched = <String, dynamic>{...?sample.metadata};
+        // Priority: Sample > Variant > Task
+        final enriched = <String, dynamic>{
+          ...?tc.metadata,
+          ...tc.variant.metadata,
+          ...?sample.metadata,
+        };
+
+        // Merge tags
+        final allTags = <String>{
+          ..._parseTags(tc.metadata?['tags']),
+          ...tc.variant.tags,
+          ..._parseTags(sample.metadata?['tags']),
+        };
+        if (allTags.isNotEmpty) {
+          enriched['tags'] = allTags.toList()..sort();
+        }
 
         if (tc.saveExamples) {
           enriched['save_examples'] = true;
@@ -178,12 +193,21 @@ class EvalSetResolver {
         if (tc.systemMessage != null) 'system_message': tc.systemMessage,
         if (tc.saveExamples) 'save_examples': true,
         if (tc.examplesDir != null) 'examples_dir': tc.examplesDir,
-        // Propagate image_prefix from sandbox for container image resolution
         if (sandboxCfg['image_prefix'] != null)
           'image_prefix': sandboxCfg['image_prefix'],
-        // Merge any task-level metadata from YAML
+        // Priority: Variant > Task
         ...?tc.metadata,
+        ...tc.variant.metadata,
       };
+
+      // Merge task-level tags
+      final allTaskTags = <String>{
+        ..._parseTags(tc.metadata?['tags']),
+        ...tc.variant.tags,
+      };
+      if (allTaskTags.isNotEmpty) {
+        metadata['tags'] = allTaskTags.toList()..sort();
+      }
 
       // Determine sandbox for this task
       Object? taskSandbox;
@@ -565,12 +589,18 @@ class EvalSetResolver {
     // Parse task_parameters
     final taskParameters = (vDef['task_parameters'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
 
+    // Parse metadata and tags
+    final metadata = (vDef['metadata'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
+    final tags = (vDef['tags'] as List?)?.cast<String>() ?? const <String>[];
+
     return Variant(
       name: name,
       files: files,
       mcpServers: mcpServers,
       skills: skills,
       taskParameters: taskParameters,
+      metadata: metadata,
+      tags: tags,
     );
   }
 
@@ -600,6 +630,21 @@ class EvalSetResolver {
 
   static bool _isGlob(String pattern) =>
       pattern.contains('*') || pattern.contains('?') || pattern.contains('[');
+
+  static List<String> _parseTags(dynamic tags) {
+    if (tags == null) return const [];
+    if (tags is String) {
+      return tags
+          .split(',')
+          .map((t) => t.trim())
+          .where((t) => t.isNotEmpty)
+          .toList();
+    }
+    if (tags is List) {
+      return tags.map((t) => t.toString()).toList();
+    }
+    return [tags.toString()];
+  }
 
   /// Expand a glob pattern relative to [baseDir], returning matching files.
   static List<String> _expandGlobFiles(String baseDir, String pattern) {
