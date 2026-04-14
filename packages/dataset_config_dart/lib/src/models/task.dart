@@ -121,7 +121,32 @@ sealed class Task with _$Task {
     Map<String, dynamic>? metadata,
   }) = _Task;
 
+  const Task._();
+
   factory Task.fromJson(Map<String, dynamic> json) => _$TaskFromJson(json);
+
+  /// Get a job-level task argument.
+  Object? getArg(String key, [Object? defaultValue]) {
+    final args = metadata?['args'] as Map<String, dynamic>?;
+    return args?[key] ?? defaultValue;
+  }
+
+  /// Hydrate and return MCP servers defined in the variant.
+  ///
+  /// This is a convenience method that returns the raw config maps.
+  /// In Dart, hydration happens in the Python runner, so we return
+  /// the config maps that the runner will use.
+  List<Map<String, dynamic>> getMcp() {
+    final vcfg = metadata?['variant_config'] as Map<String, dynamic>?;
+    return (vcfg?['mcp_servers'] as List?)?.cast<Map<String, dynamic>>() ??
+        const [];
+  }
+
+  /// Return the skill paths defined in the variant.
+  List<String> getSkills() {
+    final vcfg = metadata?['variant_config'] as Map<String, dynamic>?;
+    return (vcfg?['skills'] as List?)?.cast<String>() ?? const [];
+  }
 }
 
 class TaskMetadata {

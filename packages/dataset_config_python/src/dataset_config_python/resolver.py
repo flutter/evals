@@ -164,7 +164,22 @@ def _build_eval_set(
         # Enrich each sample with task-level metadata
         inspect_samples: list[Sample] = []
         for sample in tc.samples:
-            enriched: dict[str, Any] = {**(sample.metadata or {})}
+            # Priority: Variant > Sample > Task
+            enriched: dict[str, Any] = dict(tc.metadata or {})
+            enriched.update(sample.metadata or {})
+            enriched.update(tc.variant.metadata or {})
+
+            # Handle tags merge
+            all_tags: set[str] = set()
+            if tc.metadata and "tags" in tc.metadata:
+                all_tags.update(tc.metadata["tags"])
+            if sample.metadata and "tags" in sample.metadata:
+                all_tags.update(sample.metadata["tags"])
+            if tc.variant.tags:
+                all_tags.update(tc.variant.tags)
+
+            if all_tags:
+                enriched["tags"] = sorted(list(all_tags))
 
             if tc.save_examples:
                 enriched["save_examples"] = True
@@ -232,8 +247,22 @@ def _build_eval_set(
         # Propagate image_prefix from job for container image resolution
         if (job.sandbox or {}).get("image_prefix"):
             task_metadata["image_prefix"] = job.sandbox["image_prefix"]
+
+        # Priority: Variant > Task
         if tc.metadata:
             task_metadata.update(tc.metadata)
+        if tc.variant.metadata:
+            task_metadata.update(tc.variant.metadata)
+
+        # Handle tags merge
+        all_task_tags: set[str] = set()
+        if tc.metadata and "tags" in tc.metadata:
+            all_task_tags.update(tc.metadata["tags"])
+        if tc.variant.tags:
+            all_task_tags.update(tc.variant.tags)
+
+        if all_task_tags:
+            task_metadata["tags"] = sorted(list(all_task_tags))
 
         # Determine sandbox for this task
         task_sandbox = None
@@ -547,8 +576,10 @@ def _resolve_variant(
     for raw in raw_mcp:
         mcp_servers.append(McpServerConfig.from_yaml(raw))
 
-    # Task parameters
+    # Resolve task_parameters, metadata, and tags
     task_parameters: dict[str, Any] = vdef.get("task_parameters") or {}
+    metadata: dict[str, Any] = vdef.get("metadata") or {}
+    tags: list[str] = vdef.get("tags") or []
 
     return Variant(
         name=name,
@@ -556,6 +587,8 @@ def _resolve_variant(
         mcp_servers=mcp_servers,
         skills=skill_paths,
         task_parameters=task_parameters,
+        metadata=metadata,
+        tags=tags,
     )
 
 

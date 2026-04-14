@@ -99,3 +99,38 @@ class Task(BaseModel):
 
     version: Any = 0
     """Version of task."""
+
+    def get_arg(self, key: str, default: Any = None) -> Any:
+        """Get a job-level task argument.
+
+        Args:
+            key: Argument key.
+            default: Default value if key is missing.
+
+        Returns:
+            The argument value or default.
+        """
+        return self.metadata.get("args", {}).get(key, default) if self.metadata else default
+
+    def get_mcp(self) -> list[Any]:
+        """Hydrate and return MCP servers defined in the variant.
+
+        Returns:
+            List of hydrated MCPServer objects.
+        """
+        from dataset_config_python.hydrate import create_mcp_servers
+
+        vcfg = self.metadata.get("variant_config", {}) if self.metadata else {}
+        mcp_configs = vcfg.get("mcp_servers", [])
+        return create_mcp_servers(mcp_configs)
+
+    def get_skills(self) -> Any:
+        """Hydrate and return the skill tool defined in the variant.
+
+        Returns:
+            The hydrated skill Tool object, or None if no skills are defined.
+        """
+        from dataset_config_python.hydrate import get_skill_tool
+
+        vcfg = self.metadata.get("variant_config", {}) if self.metadata else {}
+        return get_skill_tool({"variant": vcfg})

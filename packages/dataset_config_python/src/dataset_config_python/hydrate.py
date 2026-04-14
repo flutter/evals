@@ -265,6 +265,17 @@ def build_task_metadata(config: dict) -> dict:
     if variant:
         metadata["variant_config"] = variant
 
+        # Merge variant-level metadata and tags
+        if "metadata" in variant:
+            metadata.update(variant["metadata"])
+        if "tags" in variant:
+            variant_tags = variant["tags"]
+            if isinstance(variant_tags, str):
+                variant_tags = [t.strip() for t in variant_tags.split(",")]
+            existing_tags = set(metadata.get("tags", []))
+            existing_tags.update(variant_tags)
+            metadata["tags"] = sorted(list(existing_tags))
+
     if config.get("save_examples") and config.get("examples_dir"):
         metadata["save_examples"] = True
         metadata["examples_dir"] = config["examples_dir"]

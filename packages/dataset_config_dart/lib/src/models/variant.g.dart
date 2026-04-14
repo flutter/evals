@@ -22,6 +22,10 @@ _Variant _$VariantFromJson(Map<String, dynamic> json) => _Variant(
       (json['skills'] as List<dynamic>?)?.map((e) => e as String).toList() ??
       const [],
   taskParameters: json['task_parameters'] as Map<String, dynamic>? ?? const {},
+  metadata: json['metadata'] as Map<String, dynamic>? ?? const {},
+  tags:
+      (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+      const [],
 );
 
 Map<String, dynamic> _$VariantToJson(_Variant instance) => <String, dynamic>{
@@ -30,4 +34,6 @@ Map<String, dynamic> _$VariantToJson(_Variant instance) => <String, dynamic>{
   'mcp_servers': instance.mcpServers,
   'skills': instance.skills,
   'task_parameters': instance.taskParameters,
+  'metadata': instance.metadata,
+  'tags': instance.tags,
 };

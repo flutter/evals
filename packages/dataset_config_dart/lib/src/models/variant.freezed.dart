@@ -21,7 +21,9 @@ mixin _$Variant {
 @JsonKey(name: 'mcp_servers') List<Map<String, dynamic>> get mcpServers;/// Resolved paths to agent skill directories.
 /// Each directory must contain a `SKILL.md` file.
 @JsonKey(name: 'skills') List<String> get skills;/// Optional parameters merged into the task config dict at runtime.
-@JsonKey(name: 'task_parameters') Map<String, dynamic> get taskParameters;
+@JsonKey(name: 'task_parameters') Map<String, dynamic> get taskParameters;/// Optional metadata for the variant.
+@JsonKey(name: 'metadata') Map<String, dynamic> get metadata;/// Optional tags for the variant.
+@JsonKey(name: 'tags') List<String> get tags;
 /// Create a copy of Variant
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -34,16 +36,16 @@ $VariantCopyWith<Variant> get copyWith => _$VariantCopyWithImpl<Variant>(this as
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Variant&&(identical(other.name, name) || other.name == name)&&const DeepCollectionEquality().equals(other.files, files)&&const DeepCollectionEquality().equals(other.mcpServers, mcpServers)&&const DeepCollectionEquality().equals(other.skills, skills)&&const DeepCollectionEquality().equals(other.taskParameters, taskParameters));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Variant&&(identical(other.name, name) || other.name == name)&&const DeepCollectionEquality().equals(other.files, files)&&const DeepCollectionEquality().equals(other.mcpServers, mcpServers)&&const DeepCollectionEquality().equals(other.skills, skills)&&const DeepCollectionEquality().equals(other.taskParameters, taskParameters)&&const DeepCollectionEquality().equals(other.metadata, metadata)&&const DeepCollectionEquality().equals(other.tags, tags));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,name,const DeepCollectionEquality().hash(files),const DeepCollectionEquality().hash(mcpServers),const DeepCollectionEquality().hash(skills),const DeepCollectionEquality().hash(taskParameters));
+int get hashCode => Object.hash(runtimeType,name,const DeepCollectionEquality().hash(files),const DeepCollectionEquality().hash(mcpServers),const DeepCollectionEquality().hash(skills),const DeepCollectionEquality().hash(taskParameters),const DeepCollectionEquality().hash(metadata),const DeepCollectionEquality().hash(tags));
 
 @override
 String toString() {
-  return 'Variant(name: $name, files: $files, mcpServers: $mcpServers, skills: $skills, taskParameters: $taskParameters)';
+  return 'Variant(name: $name, files: $files, mcpServers: $mcpServers, skills: $skills, taskParameters: $taskParameters, metadata: $metadata, tags: $tags)';
 }
 
 
@@ -54,7 +56,7 @@ abstract mixin class $VariantCopyWith<$Res>  {
   factory $VariantCopyWith(Variant value, $Res Function(Variant) _then) = _$VariantCopyWithImpl;
 @useResult
 $Res call({
- String name,@JsonKey(name: 'files') List<ContextFile> files,@JsonKey(name: 'mcp_servers') List<Map<String, dynamic>> mcpServers,@JsonKey(name: 'skills') List<String> skills,@JsonKey(name: 'task_parameters') Map<String, dynamic> taskParameters
+ String name,@JsonKey(name: 'files') List<ContextFile> files,@JsonKey(name: 'mcp_servers') List<Map<String, dynamic>> mcpServers,@JsonKey(name: 'skills') List<String> skills,@JsonKey(name: 'task_parameters') Map<String, dynamic> taskParameters,@JsonKey(name: 'metadata') Map<String, dynamic> metadata,@JsonKey(name: 'tags') List<String> tags
 });
 
 
@@ -71,14 +73,16 @@ class _$VariantCopyWithImpl<$Res>
 
 /// Create a copy of Variant
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? name = null,Object? files = null,Object? mcpServers = null,Object? skills = null,Object? taskParameters = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? name = null,Object? files = null,Object? mcpServers = null,Object? skills = null,Object? taskParameters = null,Object? metadata = null,Object? tags = null,}) {
   return _then(_self.copyWith(
 name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,files: null == files ? _self.files : files // ignore: cast_nullable_to_non_nullable
 as List<ContextFile>,mcpServers: null == mcpServers ? _self.mcpServers : mcpServers // ignore: cast_nullable_to_non_nullable
 as List<Map<String, dynamic>>,skills: null == skills ? _self.skills : skills // ignore: cast_nullable_to_non_nullable
 as List<String>,taskParameters: null == taskParameters ? _self.taskParameters : taskParameters // ignore: cast_nullable_to_non_nullable
-as Map<String, dynamic>,
+as Map<String, dynamic>,metadata: null == metadata ? _self.metadata : metadata // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>,tags: null == tags ? _self.tags : tags // ignore: cast_nullable_to_non_nullable
+as List<String>,
   ));
 }
 
@@ -160,10 +164,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String name, @JsonKey(name: 'files')  List<ContextFile> files, @JsonKey(name: 'mcp_servers')  List<Map<String, dynamic>> mcpServers, @JsonKey(name: 'skills')  List<String> skills, @JsonKey(name: 'task_parameters')  Map<String, dynamic> taskParameters)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String name, @JsonKey(name: 'files')  List<ContextFile> files, @JsonKey(name: 'mcp_servers')  List<Map<String, dynamic>> mcpServers, @JsonKey(name: 'skills')  List<String> skills, @JsonKey(name: 'task_parameters')  Map<String, dynamic> taskParameters, @JsonKey(name: 'metadata')  Map<String, dynamic> metadata, @JsonKey(name: 'tags')  List<String> tags)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Variant() when $default != null:
-return $default(_that.name,_that.files,_that.mcpServers,_that.skills,_that.taskParameters);case _:
+return $default(_that.name,_that.files,_that.mcpServers,_that.skills,_that.taskParameters,_that.metadata,_that.tags);case _:
   return orElse();
 
 }
@@ -181,10 +185,10 @@ return $default(_that.name,_that.files,_that.mcpServers,_that.skills,_that.taskP
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String name, @JsonKey(name: 'files')  List<ContextFile> files, @JsonKey(name: 'mcp_servers')  List<Map<String, dynamic>> mcpServers, @JsonKey(name: 'skills')  List<String> skills, @JsonKey(name: 'task_parameters')  Map<String, dynamic> taskParameters)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String name, @JsonKey(name: 'files')  List<ContextFile> files, @JsonKey(name: 'mcp_servers')  List<Map<String, dynamic>> mcpServers, @JsonKey(name: 'skills')  List<String> skills, @JsonKey(name: 'task_parameters')  Map<String, dynamic> taskParameters, @JsonKey(name: 'metadata')  Map<String, dynamic> metadata, @JsonKey(name: 'tags')  List<String> tags)  $default,) {final _that = this;
 switch (_that) {
 case _Variant():
-return $default(_that.name,_that.files,_that.mcpServers,_that.skills,_that.taskParameters);}
+return $default(_that.name,_that.files,_that.mcpServers,_that.skills,_that.taskParameters,_that.metadata,_that.tags);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -198,10 +202,10 @@ return $default(_that.name,_that.files,_that.mcpServers,_that.skills,_that.taskP
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String name, @JsonKey(name: 'files')  List<ContextFile> files, @JsonKey(name: 'mcp_servers')  List<Map<String, dynamic>> mcpServers, @JsonKey(name: 'skills')  List<String> skills, @JsonKey(name: 'task_parameters')  Map<String, dynamic> taskParameters)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String name, @JsonKey(name: 'files')  List<ContextFile> files, @JsonKey(name: 'mcp_servers')  List<Map<String, dynamic>> mcpServers, @JsonKey(name: 'skills')  List<String> skills, @JsonKey(name: 'task_parameters')  Map<String, dynamic> taskParameters, @JsonKey(name: 'metadata')  Map<String, dynamic> metadata, @JsonKey(name: 'tags')  List<String> tags)?  $default,) {final _that = this;
 switch (_that) {
 case _Variant() when $default != null:
-return $default(_that.name,_that.files,_that.mcpServers,_that.skills,_that.taskParameters);case _:
+return $default(_that.name,_that.files,_that.mcpServers,_that.skills,_that.taskParameters,_that.metadata,_that.tags);case _:
   return null;
 
 }
@@ -213,7 +217,7 @@ return $default(_that.name,_that.files,_that.mcpServers,_that.skills,_that.taskP
 @JsonSerializable()
 
 class _Variant extends Variant {
-  const _Variant({this.name = 'baseline', @JsonKey(name: 'files') final  List<ContextFile> files = const [], @JsonKey(name: 'mcp_servers') final  List<Map<String, dynamic>> mcpServers = const [], @JsonKey(name: 'skills') final  List<String> skills = const [], @JsonKey(name: 'task_parameters') final  Map<String, dynamic> taskParameters = const {}}): _files = files,_mcpServers = mcpServers,_skills = skills,_taskParameters = taskParameters,super._();
+  const _Variant({this.name = 'baseline', @JsonKey(name: 'files') final  List<ContextFile> files = const [], @JsonKey(name: 'mcp_servers') final  List<Map<String, dynamic>> mcpServers = const [], @JsonKey(name: 'skills') final  List<String> skills = const [], @JsonKey(name: 'task_parameters') final  Map<String, dynamic> taskParameters = const {}, @JsonKey(name: 'metadata') final  Map<String, dynamic> metadata = const {}, @JsonKey(name: 'tags') final  List<String> tags = const []}): _files = files,_mcpServers = mcpServers,_skills = skills,_taskParameters = taskParameters,_metadata = metadata,_tags = tags,super._();
   factory _Variant.fromJson(Map<String, dynamic> json) => _$VariantFromJson(json);
 
 /// User-defined variant name from the job file.
@@ -256,6 +260,24 @@ class _Variant extends Variant {
   return EqualUnmodifiableMapView(_taskParameters);
 }
 
+/// Optional metadata for the variant.
+ final  Map<String, dynamic> _metadata;
+/// Optional metadata for the variant.
+@override@JsonKey(name: 'metadata') Map<String, dynamic> get metadata {
+  if (_metadata is EqualUnmodifiableMapView) return _metadata;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(_metadata);
+}
+
+/// Optional tags for the variant.
+ final  List<String> _tags;
+/// Optional tags for the variant.
+@override@JsonKey(name: 'tags') List<String> get tags {
+  if (_tags is EqualUnmodifiableListView) return _tags;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_tags);
+}
+
 
 /// Create a copy of Variant
 /// with the given fields replaced by the non-null parameter values.
@@ -270,16 +292,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Variant&&(identical(other.name, name) || other.name == name)&&const DeepCollectionEquality().equals(other._files, _files)&&const DeepCollectionEquality().equals(other._mcpServers, _mcpServers)&&const DeepCollectionEquality().equals(other._skills, _skills)&&const DeepCollectionEquality().equals(other._taskParameters, _taskParameters));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Variant&&(identical(other.name, name) || other.name == name)&&const DeepCollectionEquality().equals(other._files, _files)&&const DeepCollectionEquality().equals(other._mcpServers, _mcpServers)&&const DeepCollectionEquality().equals(other._skills, _skills)&&const DeepCollectionEquality().equals(other._taskParameters, _taskParameters)&&const DeepCollectionEquality().equals(other._metadata, _metadata)&&const DeepCollectionEquality().equals(other._tags, _tags));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,name,const DeepCollectionEquality().hash(_files),const DeepCollectionEquality().hash(_mcpServers),const DeepCollectionEquality().hash(_skills),const DeepCollectionEquality().hash(_taskParameters));
+int get hashCode => Object.hash(runtimeType,name,const DeepCollectionEquality().hash(_files),const DeepCollectionEquality().hash(_mcpServers),const DeepCollectionEquality().hash(_skills),const DeepCollectionEquality().hash(_taskParameters),const DeepCollectionEquality().hash(_metadata),const DeepCollectionEquality().hash(_tags));
 
 @override
 String toString() {
-  return 'Variant(name: $name, files: $files, mcpServers: $mcpServers, skills: $skills, taskParameters: $taskParameters)';
+  return 'Variant(name: $name, files: $files, mcpServers: $mcpServers, skills: $skills, taskParameters: $taskParameters, metadata: $metadata, tags: $tags)';
 }
 
 
@@ -290,7 +312,7 @@ abstract mixin class _$VariantCopyWith<$Res> implements $VariantCopyWith<$Res> {
   factory _$VariantCopyWith(_Variant value, $Res Function(_Variant) _then) = __$VariantCopyWithImpl;
 @override @useResult
 $Res call({
- String name,@JsonKey(name: 'files') List<ContextFile> files,@JsonKey(name: 'mcp_servers') List<Map<String, dynamic>> mcpServers,@JsonKey(name: 'skills') List<String> skills,@JsonKey(name: 'task_parameters') Map<String, dynamic> taskParameters
+ String name,@JsonKey(name: 'files') List<ContextFile> files,@JsonKey(name: 'mcp_servers') List<Map<String, dynamic>> mcpServers,@JsonKey(name: 'skills') List<String> skills,@JsonKey(name: 'task_parameters') Map<String, dynamic> taskParameters,@JsonKey(name: 'metadata') Map<String, dynamic> metadata,@JsonKey(name: 'tags') List<String> tags
 });
 
 
@@ -307,14 +329,16 @@ class __$VariantCopyWithImpl<$Res>
 
 /// Create a copy of Variant
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? name = null,Object? files = null,Object? mcpServers = null,Object? skills = null,Object? taskParameters = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? name = null,Object? files = null,Object? mcpServers = null,Object? skills = null,Object? taskParameters = null,Object? metadata = null,Object? tags = null,}) {
   return _then(_Variant(
 name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,files: null == files ? _self._files : files // ignore: cast_nullable_to_non_nullable
 as List<ContextFile>,mcpServers: null == mcpServers ? _self._mcpServers : mcpServers // ignore: cast_nullable_to_non_nullable
 as List<Map<String, dynamic>>,skills: null == skills ? _self._skills : skills // ignore: cast_nullable_to_non_nullable
 as List<String>,taskParameters: null == taskParameters ? _self._taskParameters : taskParameters // ignore: cast_nullable_to_non_nullable
-as Map<String, dynamic>,
+as Map<String, dynamic>,metadata: null == metadata ? _self._metadata : metadata // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>,tags: null == tags ? _self._tags : tags // ignore: cast_nullable_to_non_nullable
+as List<String>,
   ));
 }
 
