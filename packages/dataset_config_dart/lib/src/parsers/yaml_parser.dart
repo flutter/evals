@@ -41,12 +41,6 @@ class YamlParser extends Parser {
     }
 
     return taskConfigs..sort((a, b) => a.id.compareTo(b.id));
-
-    for (final taskFile in taskFiles) {
-      taskConfigs.addAll(_loadTaskFile(taskFile.path, datasetRoot));
-    }
-
-    return taskConfigs;
   }
 
   /// Load a single task.yaml file into a [ParsedTask].
@@ -426,7 +420,8 @@ class YamlParser extends Parser {
     }
     final models = modelsRaw.cast<String>();
 
-    final inspectEvalArgs = _asMap(data['inspect_eval_arguments']) ?? <String, dynamic>{};
+    final inspectEvalArgs =
+        _asMap(data['inspect_eval_arguments']) ?? <String, dynamic>{};
     if (data.containsKey('working_limit')) {
       inspectEvalArgs['working_limit'] = data['working_limit'];
     }
