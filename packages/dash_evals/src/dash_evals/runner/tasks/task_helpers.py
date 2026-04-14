@@ -118,11 +118,11 @@ def append_model_interaction(
 
     if mcp_servers_config:
         sandbox_type = config.get("sandbox_type", "local")
-        tools.extend(create_mcp_servers(mcp_servers_config, sandbox_type))
+        tools.extend(cast(list[Tool | MCPServer], create_mcp_servers(mcp_servers_config, sandbox_type)))
 
     skill_tool = get_skill_tool(config)
     if skill_tool:
-        tools.append(skill_tool)
+        tools.append(cast(Tool | MCPServer, skill_tool))
 
     if extra_tools:
         tools.extend(extra_tools)

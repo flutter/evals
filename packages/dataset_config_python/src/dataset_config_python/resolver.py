@@ -18,7 +18,6 @@ from dataset_config_python.models.task import Task
 from dataset_config_python.models.variant import Variant
 from dataset_config_python.parser import ParsedTask, find_job_file, parse_job, parse_tasks
 
-
 # Default sandbox configurations for Flutter evaluations.
 # Consumers can pass these to resolve() or provide their own.
 DEFAULT_SANDBOX_REGISTRY: dict[str, dict[str, str]] = {
@@ -365,8 +364,6 @@ def _build_eval_set(
     )
 
 
-
-
 # ---------------------------------------------------------------------------
 # Sandbox resolution
 # ---------------------------------------------------------------------------
@@ -462,7 +459,7 @@ def _expand_task_configs(
 
         # Create one ParsedTask per effective variant
         for vname, vdef in effective_variants.items():
-            variant = _resolve_variant(vname, vdef, dataset_root)
+            variant = _resolve_variant(vname, vdef, dataset_root, task_id)
 
             examples_dir = None
             if job.save_examples:
@@ -492,6 +489,7 @@ def _resolve_variant(
     name: str,
     vdef: dict[str, Any],
     dataset_root: str,
+    task_id: str,
 ) -> Variant:
     """Resolve a variant dict into a fully-resolved Variant."""
     if not vdef:
@@ -501,6 +499,7 @@ def _resolve_variant(
     context_files: list[ContextFile] = []
     cf_paths: list[str] = vdef.get("files") or []
     for cf_path in cf_paths:
+        cf_path = cf_path.replace("{task_id}", task_id)
         if _is_glob(cf_path):
             full_pattern = os.path.join(dataset_root, cf_path)
             matched = sorted(
@@ -521,6 +520,7 @@ def _resolve_variant(
     skill_paths: list[str] = []
     raw_skills: list[str] = vdef.get("skills") or []
     for skill_path_str in raw_skills:
+        skill_path_str = skill_path_str.replace("{task_id}", task_id)
         if _is_glob(skill_path_str):
             full_pattern = os.path.join(dataset_root, skill_path_str)
             matched_dirs = sorted(

@@ -1,4 +1,4 @@
-logs_dir: ./logs
+log_dir: ./logs
 sandbox_type: local
 max_connections: 5
 models:

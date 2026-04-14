@@ -1,4 +1,4 @@
 # Pyrefly configuration
 # Tell Pyrefly to use the repo-root venv Python interpreter
 
-python-interpreter = "../../.venv/bin/python"
+python-interpreter = "../../../dash_evals/.venv/bin/python"

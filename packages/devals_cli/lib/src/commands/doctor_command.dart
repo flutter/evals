@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 import 'package:devals/src/utils/env.dart';
 import 'package:devals/src/utils/expand_home_dir.dart';
+import 'package:devals/src/utils/process_utils.dart';
 import 'package:howdy/howdy.dart';
 
 /// The result status of a single doctor check.
@@ -51,7 +52,7 @@ typedef ProcessRunner =
 /// for the CLI, dash_evals, and eval_explorer.
 class DoctorCommand extends Command<int> {
   DoctorCommand({ProcessRunner? processRunner})
-    : _runProcess = processRunner ?? Process.run;
+    : _runProcess = processRunner ?? runVenvProcess;
 
   final ProcessRunner _runProcess;
 

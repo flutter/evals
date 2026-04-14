@@ -140,7 +140,9 @@ class ParsedTask:
             system_message=self.system_message if system_message is _U else system_message,
             save_examples=self.save_examples if save_examples is _U else save_examples,  # type: ignore[arg-type]
             examples_dir=self.examples_dir if examples_dir is _U else examples_dir,
-            sandbox_parameters=self.sandbox_parameters if sandbox_parameters is _U else sandbox_parameters,
+            sandbox_parameters=self.sandbox_parameters
+            if sandbox_parameters is _U
+            else sandbox_parameters,
             task_files=self.task_files if task_files is _U else task_files,
             task_setup=self.task_setup if task_setup is _U else task_setup,
             model=self.model if model is _U else model,
@@ -192,15 +194,11 @@ def _read_yaml_file(path: str) -> dict[str, Any]:
     return data
 
 
-def _resolve_log_dir(logs_dir: str, base_dir: str) -> str:
+def _resolve_log_dir(log_dir: str, base_dir: str) -> str:
     """Resolve log directory with a timestamp subfolder."""
     now = datetime.now(timezone.utc)
     timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
-    return os.path.normpath(os.path.join(base_dir, logs_dir, timestamp))
-
-
-
-
+    return os.path.normpath(os.path.join(base_dir, log_dir, timestamp))
 
 
 # ---------------------------------------------------------------------------
@@ -209,20 +207,20 @@ def _resolve_log_dir(logs_dir: str, base_dir: str) -> str:
 
 
 def parse_tasks(dataset_root: str) -> list[ParsedTask]:
-    """Parse all task.yaml files from tasks/ subdirectories."""
+    """Parse all task.yaml files from tasks/ subdirectories (recursive)."""
     tasks_dir = os.path.join(dataset_root, "tasks")
     if not os.path.isdir(tasks_dir):
         return []
 
     parsed = []
-    for entry in sorted(os.listdir(tasks_dir)):
-        task_dir = os.path.join(tasks_dir, entry)
-        if not os.path.isdir(task_dir):
-            continue
-        task_file = os.path.join(task_dir, "task.yaml")
-        if os.path.isfile(task_file):
+    # Recursive search for task.yaml files
+    for root, _, files in os.walk(tasks_dir):
+        if "task.yaml" in files:
+            task_file = os.path.join(root, "task.yaml")
             parsed.extend(_load_task_file(task_file, dataset_root))
 
+    # Stable order for evaluation runs
+    parsed.sort(key=lambda t: t.id)
     return parsed
 
 
@@ -263,7 +261,7 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
             )
 
         # Check for mutually exclusive format keys
-        format_keys = {'samples', 'json', 'csv'}
+        format_keys = {"samples", "json", "csv"}
         present_keys = format_keys & set(dataset_raw.keys())
         if len(present_keys) > 1:
             raise ValueError(
@@ -294,6 +292,12 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
             dataset_format = "csv"
             dataset_source = str(dataset_raw["csv"])
 
+    # Task-level metadata: collect extra top-level fields for parity
+    metadata = dict(data.get("metadata") or {})
+    for field in ("workspace", "working_dir"):
+        if field in data and field not in metadata:
+            metadata[field] = data[field]
+
     # Task-level Inspect AI args are nested under inspect_task_args
     task_args = data.get("inspect_task_args") or {}
 
@@ -306,7 +310,9 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
             system_message=system_message,
             model=task_args.get("model"),
             config=task_args.get("config") if isinstance(task_args.get("config"), dict) else None,
-            model_roles=task_args.get("model_roles") if isinstance(task_args.get("model_roles"), dict) else None,
+            model_roles=task_args.get("model_roles")
+            if isinstance(task_args.get("model_roles"), dict)
+            else None,
             sandbox=task_args.get("sandbox"),
             approval=task_args.get("approval"),
             epochs=task_args.get("epochs"),
@@ -316,12 +322,16 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
             token_limit=task_args.get("token_limit"),
             time_limit=task_args.get("time_limit"),
             working_limit=task_args.get("working_limit"),
-            cost_limit=float(task_args["cost_limit"]) if task_args.get("cost_limit") is not None else None,
+            cost_limit=float(task_args["cost_limit"])
+            if task_args.get("cost_limit") is not None
+            else None,
             early_stopping=task_args.get("early_stopping"),
             display_name=data.get("display_name"),
             version=data.get("version"),
-            metadata=data.get("metadata") if isinstance(data.get("metadata"), dict) else None,
-            sandbox_parameters=data.get("sandbox_parameters") if isinstance(data.get("sandbox_parameters"), dict) else None,
+            metadata=metadata if isinstance(metadata, dict) else None,
+            sandbox_parameters=data.get("sandbox_parameters")
+            if isinstance(data.get("sandbox_parameters"), dict)
+            else None,
             task_files=task_files,
             task_setup=task_setup,
             dataset_format=dataset_format,
@@ -392,9 +402,7 @@ def _load_samples_from_files(
                 continue
             data = yaml.safe_load(doc)
             if isinstance(data, dict):
-                samples.append(
-                    _resolve_sample(data, sample_dir, dataset_root, task_files)
-                )
+                samples.append(_resolve_sample(data, sample_dir, dataset_root, task_files))
 
     return samples
 
@@ -408,9 +416,7 @@ def _resolve_sample(
     """Resolve a single sample dict into a Sample."""
     for field in ("id", "input", "target"):
         if field not in doc:
-            raise ValueError(
-                f"Sample '{doc.get('id', 'unknown')}' missing required field: {field}"
-            )
+            raise ValueError(f"Sample '{doc.get('id', 'unknown')}' missing required field: {field}")
 
     # Read metadata fields from the metadata dict
     meta_raw: dict[str, Any] = doc.get("metadata") or {}
@@ -465,11 +471,21 @@ def parse_job(job_path: str, dataset_root: str) -> Job:
 
     data = _read_yaml_file(job_path)
 
-    logs_dir = data.get("logs_dir") or _DEFAULT_LOGS_DIR
-    log_dir = _resolve_log_dir(logs_dir, dataset_root)
+    log_dir = data.get("log_dir") or _DEFAULT_LOGS_DIR
+    log_dir = _resolve_log_dir(log_dir, dataset_root)
 
-    # Parse sandbox config
-    sandbox_raw = data.get("sandbox")
+    # Parse inspect_eval_arguments and swallow top-level parity fields
+    inspect_eval_arguments = data.get("inspect_eval_arguments")
+    if isinstance(inspect_eval_arguments, dict):
+        inspect_eval_arguments = dict(inspect_eval_arguments)
+    else:
+        inspect_eval_arguments = {}
+
+    if "working_limit" in data:
+        inspect_eval_arguments["working_limit"] = data["working_limit"]
+
+    # Parse sandbox config with alias support
+    sandbox_raw = data.get("sandbox") or data.get("sandbox_type")
     sandbox = None
     if isinstance(sandbox_raw, dict):
         sandbox = sandbox_raw
@@ -508,19 +524,12 @@ def parse_job(job_path: str, dataset_root: str) -> Job:
             variant_file = os.path.normpath(os.path.join(job_dir, str(rel_path)))
             if not os.path.isfile(variant_file):
                 raise FileNotFoundError(
-                    f"Variant file not found: {variant_file} "
-                    f"(referenced from {job_path})"
+                    f"Variant file not found: {variant_file} (referenced from {job_path})"
                 )
             file_data = _read_yaml_file(variant_file)
             for vname, vdef in file_data.items():
                 variants[str(vname)] = dict(vdef) if isinstance(vdef, dict) else {}
 
-    # Parse inspect_eval_arguments
-    inspect_eval_arguments = data.get("inspect_eval_arguments")
-    if isinstance(inspect_eval_arguments, dict):
-        inspect_eval_arguments = dict(inspect_eval_arguments)
-    else:
-        inspect_eval_arguments = None
 
     # Parse models (required)
     models_raw = data.get("models")
@@ -562,8 +571,7 @@ def find_job_file(dataset_root: str, job: str) -> str:
     jobs_dir = os.path.join(dataset_root, "jobs")
     if not os.path.isdir(jobs_dir):
         raise FileNotFoundError(
-            "Jobs directory not found. "
-            "Create it or specify a full path to the job file."
+            "Jobs directory not found. Create it or specify a full path to the job file."
         )
 
     with_ext = os.path.join(jobs_dir, f"{job}.yaml")
@@ -575,11 +583,8 @@ def find_job_file(dataset_root: str, job: str) -> str:
         return os.path.normpath(without_ext)
 
     available = [
-        os.path.splitext(f)[0]
-        for f in sorted(os.listdir(jobs_dir))
-        if f.endswith(".yaml")
+        os.path.splitext(f)[0] for f in sorted(os.listdir(jobs_dir)) if f.endswith(".yaml")
     ]
     raise FileNotFoundError(
-        f"Job '{job}' not found in {jobs_dir}. "
-        f"Available jobs: {available or '(none)'}"
+        f"Job '{job}' not found in {jobs_dir}. Available jobs: {available or '(none)'}"
     )

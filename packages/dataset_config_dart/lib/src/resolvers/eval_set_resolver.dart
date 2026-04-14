@@ -455,7 +455,12 @@ class EvalSetResolver {
 
       // Create one ParsedTask per effective variant
       for (final entry in effectiveVariants.entries) {
-        final variant = _resolveVariant(entry.key, entry.value, datasetRoot);
+        final variant = _resolveVariant(
+          entry.key,
+          entry.value,
+          datasetRoot,
+          taskId,
+        );
 
         // Compute examples_dir from job log_dir
         String? examplesDir;
@@ -489,14 +494,15 @@ class EvalSetResolver {
     String name,
     Map<String, dynamic> vDef,
     String datasetRoot,
+    String taskId,
   ) {
     if (vDef.isEmpty) return Variant(name: name);
 
     // Load context files (with glob support)
     final files = <ContextFile>[];
-    final cfPaths =
-        (vDef['files'] as List?)?.cast<String>() ?? const [];
-    for (final cfPath in cfPaths) {
+    final cfPaths = (vDef['files'] as List?)?.cast<String>() ?? const [];
+    for (var cfPath in cfPaths) {
+      cfPath = cfPath.replaceAll('{task_id}', taskId);
       if (_isGlob(cfPath)) {
         final matched = _expandGlobFiles(datasetRoot, cfPath);
         if (matched.isEmpty) {
@@ -515,9 +521,9 @@ class EvalSetResolver {
 
     // Resolve skill paths (with glob support)
     final skills = <String>[];
-    final rawSkills =
-        (vDef['skills'] as List?)?.cast<String>() ?? const [];
-    for (final skillPathStr in rawSkills) {
+    final rawSkills = (vDef['skills'] as List?)?.cast<String>() ?? const [];
+    for (var skillPathStr in rawSkills) {
+      skillPathStr = skillPathStr.replaceAll('{task_id}', taskId);
       if (_isGlob(skillPathStr)) {
         final matched = _expandGlobDirs(datasetRoot, skillPathStr);
         final validDirs = matched

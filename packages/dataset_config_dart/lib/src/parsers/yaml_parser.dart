@@ -29,17 +29,18 @@ class YamlParser extends Parser {
 
     final taskConfigs = <ParsedTask>[];
 
-    final taskDirs = tasksDir.listSync().whereType<Directory>().toList()
-      ..sort((a, b) => a.path.compareTo(b.path));
+    // Recursive search for task.yaml files
+    final taskFiles = tasksDir
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => p.basename(f.path) == 'task.yaml')
+        .toList();
 
-    for (final taskDir in taskDirs) {
-      final taskFile = File(p.join(taskDir.path, 'task.yaml'));
-      if (taskFile.existsSync()) {
-        taskConfigs.addAll(_loadTaskFile(taskFile.path, datasetRoot));
-      }
+    for (final taskFile in taskFiles) {
+      taskConfigs.addAll(_loadTaskFile(taskFile.path, datasetRoot));
     }
 
-    return taskConfigs;
+    return taskConfigs..sort((a, b) => a.id.compareTo(b.id));
   }
 
   /// Load a single task.yaml file into a [ParsedTask].
@@ -75,8 +76,9 @@ class YamlParser extends Parser {
     } else {
       final datasetMap = Map<String, dynamic>.from(datasetRaw);
       final formatKeys = {'samples', 'json', 'csv'};
-      final presentKeys =
-          formatKeys.intersection(datasetMap.keys.toSet().cast<String>());
+      final presentKeys = formatKeys.intersection(
+        datasetMap.keys.toSet().cast<String>(),
+      );
       if (presentKeys.length > 1) {
         throw FormatException(
           "Task '$taskId': 'dataset' must have exactly one of "
@@ -142,7 +144,11 @@ class YamlParser extends Parser {
     final earlyStopping = taskArgs['early_stopping'];
     final displayName = data['display_name'] as String?;
     final version = data['version'];
-    final taskMetadata = _asMap(data['metadata']);
+    final taskMetadata = <String, dynamic>{
+      if (data.containsKey('workspace')) 'workspace': data['workspace'],
+      if (data.containsKey('working_dir')) 'working_dir': data['working_dir'],
+      ...?_asMap(data['metadata']),
+    };
     final sandboxParameters = _asMap(data['sandbox_parameters']);
 
     return [
@@ -353,7 +359,7 @@ class YamlParser extends Parser {
 
     final data = readYamlFileAsMap(jobPath);
 
-    final logsDir = (data['logs_dir'] as String?) ?? _kDefaultLogsDir;
+    final logsDir = (data['log_dir'] as String?) ?? _kDefaultLogsDir;
     final maxConnections = (data['max_connections'] as int?) ?? 10;
 
     // Resolve log directory with timestamp
@@ -414,6 +420,12 @@ class YamlParser extends Parser {
     }
     final models = modelsRaw.cast<String>();
 
+    final inspectEvalArgs =
+        _asMap(data['inspect_eval_arguments']) ?? <String, dynamic>{};
+    if (data.containsKey('working_limit')) {
+      inspectEvalArgs['working_limit'] = data['working_limit'];
+    }
+
     return Job(
       logDir: logDir,
       maxConnections: maxConnections,
@@ -426,9 +438,9 @@ class YamlParser extends Parser {
       sampleFilters: sampleFilters,
       saveExamples: data['save_examples'] == true,
       // Sandbox configuration
-      sandbox: _parseSandbox(data['sandbox']),
+      sandbox: _parseSandbox(data['sandbox'] ?? data['sandbox_type']),
       // All inspect eval arguments
-      inspectEvalArguments: _asMap(data['inspect_eval_arguments']),
+      inspectEvalArguments: inspectEvalArgs,
     );
   }
 
@@ -471,9 +483,6 @@ class YamlParser extends Parser {
     if (value is Map) return Map<String, String>.from(value);
     return null;
   }
-
-
-
 
   // ------------------------------------------------------------------
   // Log dir helpers
@@ -522,42 +531,39 @@ class YamlParser extends Parser {
 ///
 /// Throws [FileSystemException] if the job file is not found.
 String findJobFile(String datasetRoot, String job) {
-  // Check if it's a path (contains / or ends with .yaml)
+  final jobsDir = Directory(p.join(datasetRoot, 'jobs'));
+
+  // 1. Try relative to jobs/ directory
+  if (jobsDir.existsSync()) {
+    // Try literally (e.g. "skills/skill.yaml")
+    final path1 = p.join(jobsDir.path, job);
+    if (File(path1).existsSync()) return p.normalize(path1);
+
+    // Try with .yaml extension (e.g. "skills/skill" -> "skills/skill.yaml")
+    final path2 = '$path1.yaml';
+    if (File(path2).existsSync()) return p.normalize(path2);
+  }
+
+  // 2. Try as absolute or relative to dataset root
+  // (only if it contains a slash or ends in .yaml to avoid ambiguous discovery)
   if (job.contains('/') || job.endsWith('.yaml')) {
     final jobPath = p.isAbsolute(job) ? job : p.join(datasetRoot, job);
-    if (!File(jobPath).existsSync()) {
-      throw FileSystemException('Job file not found', jobPath);
-    }
-    return p.normalize(jobPath);
+    if (File(jobPath).existsSync()) return p.normalize(jobPath);
   }
 
-  // Look in jobs/ directory
-  final jobsDir = Directory(p.join(datasetRoot, 'jobs'));
-  if (!jobsDir.existsSync()) {
-    throw FileSystemException(
-      'Jobs directory not found. '
-      'Create it or specify a full path to the job file.',
-      jobsDir.path,
-    );
+  // List available jobs for helpful error message (top-level only for now)
+  var available = <String>[];
+  if (jobsDir.existsSync()) {
+    available = jobsDir
+        .listSync()
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.yaml'))
+        .map((f) => p.basenameWithoutExtension(f.path))
+        .toList();
   }
 
-  // Try with .yaml extension
-  final withExt = File(p.join(jobsDir.path, '$job.yaml'));
-  if (withExt.existsSync()) return p.normalize(withExt.path);
-
-  // Try without extension (maybe they included it)
-  final withoutExt = File(p.join(jobsDir.path, job));
-  if (withoutExt.existsSync()) return p.normalize(withoutExt.path);
-
-  // List available jobs for helpful error message
-  final available = jobsDir
-      .listSync()
-      .whereType<File>()
-      .where((f) => f.path.endsWith('.yaml'))
-      .map((f) => p.basenameWithoutExtension(f.path))
-      .toList();
   throw FileSystemException(
-    "Job '$job' not found in ${jobsDir.path}. "
-    'Available jobs: ${available.isEmpty ? '(none)' : available}',
+    "Job '$job' not found. Checked 'jobs/' and dataset root. "
+    'Available top-level jobs: ${available.isEmpty ? '(none)' : available}',
   );
 }
