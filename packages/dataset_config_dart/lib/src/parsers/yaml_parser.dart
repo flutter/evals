@@ -75,8 +75,9 @@ class YamlParser extends Parser {
     } else {
       final datasetMap = Map<String, dynamic>.from(datasetRaw);
       final formatKeys = {'samples', 'json', 'csv'};
-      final presentKeys =
-          formatKeys.intersection(datasetMap.keys.toSet().cast<String>());
+      final presentKeys = formatKeys.intersection(
+        datasetMap.keys.toSet().cast<String>(),
+      );
       if (presentKeys.length > 1) {
         throw FormatException(
           "Task '$taskId': 'dataset' must have exactly one of "
@@ -353,7 +354,7 @@ class YamlParser extends Parser {
 
     final data = readYamlFileAsMap(jobPath);
 
-    final logsDir = (data['logs_dir'] as String?) ?? _kDefaultLogsDir;
+    final logsDir = (data['log_dir'] as String?) ?? _kDefaultLogsDir;
     final maxConnections = (data['max_connections'] as int?) ?? 10;
 
     // Resolve log directory with timestamp
@@ -471,9 +472,6 @@ class YamlParser extends Parser {
     if (value is Map) return Map<String, String>.from(value);
     return null;
   }
-
-
-
 
   // ------------------------------------------------------------------
   // Log dir helpers

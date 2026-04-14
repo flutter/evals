@@ -28,7 +28,7 @@ String initJobTemplate({
 
 # Directory for evaluation logs (relative to dataset root)
 # A timestamped subdirectory is created automatically for each run.
-# logs_dir: ../logs
+# log_dir: ../logs
 
 # Sandbox environment: "local", "docker", or "podman"
 # - local: Run directly on host (fastest, no isolation)

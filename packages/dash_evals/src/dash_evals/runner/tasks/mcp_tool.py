@@ -39,7 +39,9 @@ def mcp_tool(dataset: Dataset, config: dict) -> Task:
             - system_message: custom system prompt (optional)
     """
     required_tools = config.get("required_tools", [])
-    inject_temp_dir = config.get("inject_temp_dir", False)
+    # inject_temp_dir can be set via task.yaml metadata.task_parameters
+    task_params = (config.get("metadata") or {}).get("task_parameters") or {}
+    inject_temp_dir = config.get("inject_temp_dir", False) or task_params.get("inject_temp_dir", False)
 
     # Pre-process samples if temp directory injection is needed
     active_dataset = dataset

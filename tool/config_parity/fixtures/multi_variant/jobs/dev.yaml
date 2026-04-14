@@ -1,4 +1,4 @@
-logs_dir: ./logs
+log_dir: ./logs
 sandbox_type: local
 models:
   - google/gemini-2.5-flash

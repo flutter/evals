@@ -103,9 +103,17 @@ async def _setup_local_workspace(state: TaskState) -> TaskState:
     # absolute paths that are invalid after copying to a new location.
     dep_cmd = state.metadata.get("dep_install_cmd", ["flutter", "pub", "get"])
     sb = sandbox()
+
+    working_dir_arg = state.metadata.get("working_dir")
+    if working_dir_arg:
+        working_dir = workspace_copy / working_dir_arg
+    else:
+        working_dir = workspace_copy
+    state.metadata["working_dir"] = str(working_dir)
+
     dep_result = await sb.exec(
         dep_cmd,
-        cwd=str(workspace_copy),
+        cwd=str(working_dir),
     )
 
     if not dep_result.success:

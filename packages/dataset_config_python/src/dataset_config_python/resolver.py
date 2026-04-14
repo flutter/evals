@@ -18,7 +18,6 @@ from dataset_config_python.models.task import Task
 from dataset_config_python.models.variant import Variant
 from dataset_config_python.parser import ParsedTask, find_job_file, parse_job, parse_tasks
 
-
 # Default sandbox configurations for Flutter evaluations.
 # Consumers can pass these to resolve() or provide their own.
 DEFAULT_SANDBOX_REGISTRY: dict[str, dict[str, str]] = {
@@ -363,8 +362,6 @@ def _build_eval_set(
         bundle_overwrite=_get("bundle_overwrite", False),
         eval_set_id=_get("eval_set_id"),
     )
-
-
 
 
 # ---------------------------------------------------------------------------

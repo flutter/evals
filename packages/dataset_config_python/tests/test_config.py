@@ -77,7 +77,7 @@ dataset:
     jobs_dir.mkdir()
     job_yaml = jobs_dir / "local_dev.yaml"
     job_yaml.write_text(
-        """logs_dir: ./logs
+        """log_dir: ./logs
 max_connections: 5
 models:
   - google/gemini-2.5-flash
@@ -129,7 +129,7 @@ dataset:
     jobs_dir.mkdir()
     (jobs_dir / "default.yaml").write_text(
         """
-logs_dir: ./logs
+log_dir: ./logs
 models:
   - test/model
 """
@@ -315,7 +315,7 @@ dataset:
         jobs_dir.mkdir()
         (jobs_dir / "bad.yaml").write_text(
             """\
-logs_dir: ./logs
+log_dir: ./logs
 """
         )
         job_path = str(jobs_dir / "bad.yaml")
