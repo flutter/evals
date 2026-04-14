@@ -34,8 +34,13 @@ class YamlParser extends Parser {
         .listSync(recursive: true)
         .whereType<File>()
         .where((f) => p.basename(f.path) == 'task.yaml')
-        .toList()
-      ..sort((a, b) => a.path.compareTo(b.path));
+        .toList();
+
+    for (final taskFile in taskFiles) {
+      taskConfigs.addAll(_loadTaskFile(taskFile.path, datasetRoot));
+    }
+
+    return taskConfigs..sort((a, b) => a.id.compareTo(b.id));
 
     for (final taskFile in taskFiles) {
       taskConfigs.addAll(_loadTaskFile(taskFile.path, datasetRoot));
@@ -146,9 +151,9 @@ class YamlParser extends Parser {
     final displayName = data['display_name'] as String?;
     final version = data['version'];
     final taskMetadata = <String, dynamic>{
-      ...?_asMap(data['metadata']),
       if (data.containsKey('workspace')) 'workspace': data['workspace'],
       if (data.containsKey('working_dir')) 'working_dir': data['working_dir'],
+      ...?_asMap(data['metadata']),
     };
     final sandboxParameters = _asMap(data['sandbox_parameters']);
 
