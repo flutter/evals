@@ -60,7 +60,11 @@ def _build_solver_chain(config: dict, system_message: str) -> list:
     # Build tools list — skill tool is required for this task type
     skill_tool = get_skill_tool(config)
 
-    tools = [bash(timeout=120)]
+    tools: list = []
+    # bash() requires a real sandbox (Docker/Podman), skip for local runs
+    sandbox_type = config.get("sandbox_type", "local")
+    if sandbox_type != "local":
+        tools.append(bash(timeout=120))
     if skill_tool is not None:
         tools.append(skill_tool)
 

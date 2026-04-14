@@ -531,42 +531,39 @@ class YamlParser extends Parser {
 ///
 /// Throws [FileSystemException] if the job file is not found.
 String findJobFile(String datasetRoot, String job) {
-  // Check if it's a path (contains / or ends with .yaml)
+  final jobsDir = Directory(p.join(datasetRoot, 'jobs'));
+
+  // 1. Try relative to jobs/ directory
+  if (jobsDir.existsSync()) {
+    // Try literally (e.g. "skills/skill.yaml")
+    final path1 = p.join(jobsDir.path, job);
+    if (File(path1).existsSync()) return p.normalize(path1);
+
+    // Try with .yaml extension (e.g. "skills/skill" -> "skills/skill.yaml")
+    final path2 = '$path1.yaml';
+    if (File(path2).existsSync()) return p.normalize(path2);
+  }
+
+  // 2. Try as absolute or relative to dataset root
+  // (only if it contains a slash or ends in .yaml to avoid ambiguous discovery)
   if (job.contains('/') || job.endsWith('.yaml')) {
     final jobPath = p.isAbsolute(job) ? job : p.join(datasetRoot, job);
-    if (!File(jobPath).existsSync()) {
-      throw FileSystemException('Job file not found', jobPath);
-    }
-    return p.normalize(jobPath);
+    if (File(jobPath).existsSync()) return p.normalize(jobPath);
   }
 
-  // Look in jobs/ directory
-  final jobsDir = Directory(p.join(datasetRoot, 'jobs'));
-  if (!jobsDir.existsSync()) {
-    throw FileSystemException(
-      'Jobs directory not found. '
-      'Create it or specify a full path to the job file.',
-      jobsDir.path,
-    );
+  // List available jobs for helpful error message (top-level only for now)
+  var available = <String>[];
+  if (jobsDir.existsSync()) {
+    available = jobsDir
+        .listSync()
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.yaml'))
+        .map((f) => p.basenameWithoutExtension(f.path))
+        .toList();
   }
 
-  // Try with .yaml extension
-  final withExt = File(p.join(jobsDir.path, '$job.yaml'));
-  if (withExt.existsSync()) return p.normalize(withExt.path);
-
-  // Try without extension (maybe they included it)
-  final withoutExt = File(p.join(jobsDir.path, job));
-  if (withoutExt.existsSync()) return p.normalize(withoutExt.path);
-
-  // List available jobs for helpful error message
-  final available = jobsDir
-      .listSync()
-      .whereType<File>()
-      .where((f) => f.path.endsWith('.yaml'))
-      .map((f) => p.basenameWithoutExtension(f.path))
-      .toList();
   throw FileSystemException(
-    "Job '$job' not found in ${jobsDir.path}. "
-    'Available jobs: ${available.isEmpty ? '(none)' : available}',
+    "Job '$job' not found. Checked 'jobs/' and dataset root. "
+    'Available top-level jobs: ${available.isEmpty ? '(none)' : available}',
   );
 }

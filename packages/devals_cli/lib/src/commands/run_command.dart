@@ -4,6 +4,7 @@ import 'package:args/command_runner.dart';
 import 'package:dataset_config_dart/dataset_config_dart.dart';
 import 'package:devals/src/dataset/dry_run.dart';
 import 'package:devals/src/dataset/filesystem_utils.dart';
+import 'package:devals/src/utils/process_utils.dart';
 import 'package:howdy/howdy.dart';
 import 'package:path/path.dart' as p;
 
@@ -71,7 +72,7 @@ class RunCommand extends Command<int> {
 
     // Use inheritStdio to preserve inspect-ai's interactive terminal display
     try {
-      final process = await Process.start(
+      final process = await startVenvProcess(
         'run-evals',
         ['--json', evalSetPath],
         mode: ProcessStartMode.inheritStdio,
