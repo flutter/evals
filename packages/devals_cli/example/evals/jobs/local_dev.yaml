@@ -40,7 +40,7 @@
 # Which models to evaluate. Format: "provider/model-name"
 # If omitted, falls back to DEFAULT_MODELS from the Python registries.
 models:
-  - google/gemini-2.0-flash
+  - google/gemini-2.5-flash
 
 # =============================================================================
 # VARIANTS (Optional)

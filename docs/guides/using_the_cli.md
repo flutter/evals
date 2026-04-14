@@ -35,7 +35,7 @@ my-project/
 - The starter task uses `func: analyze_codebase` — fine for a smoke test, but
   you'll want to change `func` to match your eval type (`question_answer`,
   `bug_fix`, `code_gen`, etc.)
-- The job defaults to `google/gemini-2.0-flash`. Update `models:` to the
+- The job defaults to `google/gemini-2.5-flash`. Update `models:` to the
   provider(s) you want to test.
 - `files` points at `../../` (your project root). Update if your workspace
   lives elsewhere.
