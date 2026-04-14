@@ -233,12 +233,21 @@ def get_skill_tool(config: dict) -> Tool | None:
     """Create the skill tool if the variant has skills configured.
 
     Args:
-        config: Task manifest entry with 'variant' key.
+        config: Task manifest entry with 'variant' key or 'metadata' key.
 
     Returns:
         The skill Tool, or None if no skills are configured.
     """
-    variant = config.get("variant", {})
+    # Try metadata first (resolver structure)
+    variant = config.get("metadata", {}).get("variant_config")
+    if variant is None:
+        # Fallback to top-level variant field (legacy or direct call)
+        variant = config.get("variant", config)
+
+    # If variant is just a name string, we can't extract skills from it.
+    if isinstance(variant, str):
+        return None
+
     # Support both old "skill_paths" and new "skills" key
     skill_paths = variant.get("skills") or variant.get("skill_paths", [])
     if skill_paths:
@@ -255,30 +264,10 @@ def build_task_metadata(config: dict) -> dict:
     """Build task metadata dictionary from manifest config.
 
     Args:
-        config: Task manifest entry with 'variant', 'save_examples', etc.
+        config: Task manifest entry with 'metadata' dictionary.
 
     Returns:
         Metadata dictionary for Task.
     """
-    metadata: dict[str, Any] = {}
-    variant = config.get("variant", {})
-    if variant:
-        metadata["variant_config"] = variant
-
-        # Merge variant-level metadata and tags
-        if "metadata" in variant:
-            metadata.update(variant["metadata"])
-        if "tags" in variant:
-            variant_tags = variant["tags"]
-            if isinstance(variant_tags, str):
-                variant_tags = [t.strip() for t in variant_tags.split(",")]
-            existing_tags = set(metadata.get("tags", []))
-            existing_tags.update(variant_tags)
-            metadata["tags"] = sorted(list(existing_tags))
-
-    if config.get("save_examples") and config.get("examples_dir"):
-        metadata["save_examples"] = True
-        metadata["examples_dir"] = config["examples_dir"]
-        metadata["task_variant"] = config.get("task_name", "unknown")
-
-    return metadata
+    # The resolver.py already builds and merges the full metadata dictionary.
+    return config.get("metadata", {})

@@ -90,9 +90,17 @@ def append_context_injection(solver_chain: list, config: dict) -> None:
 
     Args:
         solver_chain: The solver chain list to append to.
-        config: Task manifest entry with 'variant' key.
+        config: Task manifest entry with 'variant' key or 'metadata' key.
     """
-    variant = config.get("variant", {})
+    metadata = config.get("metadata", {})
+    variant = metadata.get("variant_config")
+    if variant is None:
+        variant = config.get("variant", {})
+
+    # If variant is still just a name string, we can't extract files from it.
+    if isinstance(variant, str):
+        return
+
     # Support both old "context_files" and new "files" key
     context_files = variant.get("files") or variant.get("context_files", [])
     if context_files:
@@ -109,12 +117,18 @@ def append_model_interaction(
 
     Args:
         solver_chain: The solver chain list to append to.
-        config: Task manifest entry with 'variant' key.
+        config: Task manifest entry with 'variant' key or 'metadata' key.
         extra_tools: Additional tools to include alongside MCP (optional).
     """
     tools: list[Tool | MCPServer] = []
-    variant = config.get("variant", {})
-    mcp_servers_config = variant.get("mcp_servers", [])
+    metadata = config.get("metadata", {})
+    variant = metadata.get("variant_config")
+    if variant is None:
+        variant = config.get("variant", {})
+
+    mcp_servers_config = []
+    if not isinstance(variant, str):
+        mcp_servers_config = variant.get("mcp_servers", [])
 
     if mcp_servers_config:
         sandbox_type = config.get("sandbox_type", "local")

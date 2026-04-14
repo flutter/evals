@@ -109,18 +109,18 @@ class EvalSetResolver {
       // Enrich each sample with task-level metadata
       final inspectSamples = <Sample>[];
       for (final sample in tc.samples) {
-        // Priority: Variant > Sample > Task
+        // Priority: Sample > Variant > Task
         final enriched = <String, dynamic>{
           ...?tc.metadata,
-          ...?sample.metadata,
           ...tc.variant.metadata,
+          ...?sample.metadata,
         };
 
         // Merge tags
         final allTags = <String>{
-          ...(tc.metadata?['tags'] as List?)?.cast<String>() ?? const [],
-          ...(sample.metadata?['tags'] as List?)?.cast<String>() ?? const [],
+          ..._parseTags(tc.metadata?['tags']),
           ...tc.variant.tags,
+          ..._parseTags(sample.metadata?['tags']),
         };
         if (allTags.isNotEmpty) {
           enriched['tags'] = allTags.toList()..sort();
@@ -202,7 +202,7 @@ class EvalSetResolver {
 
       // Merge task-level tags
       final allTaskTags = <String>{
-        ...(tc.metadata?['tags'] as List?)?.cast<String>() ?? const [],
+        ..._parseTags(tc.metadata?['tags']),
         ...tc.variant.tags,
       };
       if (allTaskTags.isNotEmpty) {
@@ -630,6 +630,21 @@ class EvalSetResolver {
 
   static bool _isGlob(String pattern) =>
       pattern.contains('*') || pattern.contains('?') || pattern.contains('[');
+
+  static List<String> _parseTags(dynamic tags) {
+    if (tags == null) return const [];
+    if (tags is String) {
+      return tags
+          .split(',')
+          .map((t) => t.trim())
+          .where((t) => t.isNotEmpty)
+          .toList();
+    }
+    if (tags is List) {
+      return tags.map((t) => t.toString()).toList();
+    }
+    return [tags.toString()];
+  }
 
   /// Expand a glob pattern relative to [baseDir], returning matching files.
   static List<String> _expandGlobFiles(String baseDir, String pattern) {

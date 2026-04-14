@@ -133,4 +133,4 @@ class Task(BaseModel):
         from dataset_config_python.hydrate import get_skill_tool
 
         vcfg = self.metadata.get("variant_config", {}) if self.metadata else {}
-        return get_skill_tool({"variant": vcfg})
+        return get_skill_tool(vcfg)

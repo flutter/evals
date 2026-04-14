@@ -38,6 +38,17 @@ def _is_glob(pattern: str) -> bool:
     return "*" in pattern or "?" in pattern or "[" in pattern
 
 
+def _parse_tags(tags: Any) -> list[str]:
+    """Parse tags into a list of strings, handling lists or comma-separated strings."""
+    if not tags:
+        return []
+    if isinstance(tags, str):
+        return [t.strip() for t in tags.split(",") if t.strip()]
+    if isinstance(tags, list):
+        return [str(t) for t in tags]
+    return [str(tags)]
+
+
 def resolve(
     dataset_path: str,
     job_names: list[str],
@@ -164,19 +175,19 @@ def _build_eval_set(
         # Enrich each sample with task-level metadata
         inspect_samples: list[Sample] = []
         for sample in tc.samples:
-            # Priority: Variant > Sample > Task
+            # Priority: Sample > Variant > Task
             enriched: dict[str, Any] = dict(tc.metadata or {})
-            enriched.update(sample.metadata or {})
             enriched.update(tc.variant.metadata or {})
+            enriched.update(sample.metadata or {})
 
             # Handle tags merge
             all_tags: set[str] = set()
             if tc.metadata and "tags" in tc.metadata:
-                all_tags.update(tc.metadata["tags"])
-            if sample.metadata and "tags" in sample.metadata:
-                all_tags.update(sample.metadata["tags"])
+                all_tags.update(_parse_tags(tc.metadata["tags"]))
             if tc.variant.tags:
-                all_tags.update(tc.variant.tags)
+                all_tags.update(_parse_tags(tc.variant.tags))
+            if sample.metadata and "tags" in sample.metadata:
+                all_tags.update(_parse_tags(sample.metadata["tags"]))
 
             if all_tags:
                 enriched["tags"] = sorted(list(all_tags))
@@ -257,9 +268,9 @@ def _build_eval_set(
         # Handle tags merge
         all_task_tags: set[str] = set()
         if tc.metadata and "tags" in tc.metadata:
-            all_task_tags.update(tc.metadata["tags"])
+            all_task_tags.update(_parse_tags(tc.metadata["tags"]))
         if tc.variant.tags:
-            all_task_tags.update(tc.variant.tags)
+            all_task_tags.update(_parse_tags(tc.variant.tags))
 
         if all_task_tags:
             task_metadata["tags"] = sorted(list(all_task_tags))
