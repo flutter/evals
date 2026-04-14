@@ -9,7 +9,8 @@ String? findLocalVenvBin() {
     for (var i = 0; i < 10; i++) {
       if (File(p.join(dir.path, 'devals.yaml')).existsSync() &&
           Directory(p.join(dir.path, '.venv')).existsSync()) {
-        return p.join(dir.path, '.venv', 'bin');
+        final venvSubdir = Platform.isWindows ? 'Scripts' : 'bin';
+        return p.join(dir.path, '.venv', venvSubdir);
       }
       final parent = dir.parent;
       if (parent.path == dir.path) break;
@@ -43,8 +44,12 @@ Future<ProcessResult> runVenvProcess(
     env[pathKey] = '$venvBin$separator$currentPath';
   }
 
-  return Process.run(resolvedExecutable, arguments,
-      workingDirectory: workingDirectory, environment: env);
+  return Process.run(
+    resolvedExecutable,
+    arguments,
+    workingDirectory: workingDirectory,
+    environment: env,
+  );
 }
 
 /// Starts a process, accounting for a local .venv if present.
@@ -72,6 +77,11 @@ Future<Process> startVenvProcess(
     env[pathKey] = '$venvBin$separator$currentPath';
   }
 
-  return Process.start(resolvedExecutable, arguments,
-      workingDirectory: workingDirectory, environment: env, mode: mode);
+  return Process.start(
+    resolvedExecutable,
+    arguments,
+    workingDirectory: workingDirectory,
+    environment: env,
+    mode: mode,
+  );
 }
