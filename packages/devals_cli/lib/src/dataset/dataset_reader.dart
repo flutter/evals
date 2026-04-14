@@ -39,15 +39,19 @@ class DatasetReader {
     }
 
     final taskNames = <String>[];
-    for (final entity in tasksDir.listSync()) {
-      if (entity is Directory) {
-        final taskFile = File(p.join(entity.path, 'task.yaml'));
-        if (taskFile.existsSync()) {
-          taskNames.add(p.basename(entity.path));
-        }
-      }
+    // Recursive search for task.yaml files
+    final taskFiles = tasksDir
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => p.basename(f.path) == 'task.yaml')
+        .toList()
+      ..sort((a, b) => a.path.compareTo(b.path));
+
+    for (final taskFile in taskFiles) {
+      // The task name is the parent directory name of task.yaml
+      taskNames.add(p.basename(taskFile.parent.path));
     }
-    taskNames.sort();
+
     return taskNames;
   }
 

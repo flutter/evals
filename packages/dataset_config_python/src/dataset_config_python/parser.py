@@ -207,20 +207,20 @@ def _resolve_log_dir(log_dir: str, base_dir: str) -> str:
 
 
 def parse_tasks(dataset_root: str) -> list[ParsedTask]:
-    """Parse all task.yaml files from tasks/ subdirectories."""
+    """Parse all task.yaml files from tasks/ subdirectories (recursive)."""
     tasks_dir = os.path.join(dataset_root, "tasks")
     if not os.path.isdir(tasks_dir):
         return []
 
     parsed = []
-    for entry in sorted(os.listdir(tasks_dir)):
-        task_dir = os.path.join(tasks_dir, entry)
-        if not os.path.isdir(task_dir):
-            continue
-        task_file = os.path.join(task_dir, "task.yaml")
-        if os.path.isfile(task_file):
+    # Recursive search for task.yaml files
+    for root, _, files in os.walk(tasks_dir):
+        if "task.yaml" in files:
+            task_file = os.path.join(root, "task.yaml")
             parsed.extend(_load_task_file(task_file, dataset_root))
 
+    # Stable order for evaluation runs
+    parsed.sort(key=lambda t: t.id)
     return parsed
 
 
@@ -292,6 +292,12 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
             dataset_format = "csv"
             dataset_source = str(dataset_raw["csv"])
 
+    # Task-level metadata: collect extra top-level fields for parity
+    metadata = dict(data.get("metadata") or {})
+    for field in ("workspace", "working_dir"):
+        if field in data and field not in metadata:
+            metadata[field] = data[field]
+
     # Task-level Inspect AI args are nested under inspect_task_args
     task_args = data.get("inspect_task_args") or {}
 
@@ -322,7 +328,7 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
             early_stopping=task_args.get("early_stopping"),
             display_name=data.get("display_name"),
             version=data.get("version"),
-            metadata=data.get("metadata") if isinstance(data.get("metadata"), dict) else None,
+            metadata=metadata if isinstance(metadata, dict) else None,
             sandbox_parameters=data.get("sandbox_parameters")
             if isinstance(data.get("sandbox_parameters"), dict)
             else None,
@@ -468,8 +474,18 @@ def parse_job(job_path: str, dataset_root: str) -> Job:
     log_dir = data.get("log_dir") or _DEFAULT_LOGS_DIR
     log_dir = _resolve_log_dir(log_dir, dataset_root)
 
-    # Parse sandbox config
-    sandbox_raw = data.get("sandbox")
+    # Parse inspect_eval_arguments and swallow top-level parity fields
+    inspect_eval_arguments = data.get("inspect_eval_arguments")
+    if isinstance(inspect_eval_arguments, dict):
+        inspect_eval_arguments = dict(inspect_eval_arguments)
+    else:
+        inspect_eval_arguments = {}
+
+    if "working_limit" in data:
+        inspect_eval_arguments["working_limit"] = data["working_limit"]
+
+    # Parse sandbox config with alias support
+    sandbox_raw = data.get("sandbox") or data.get("sandbox_type")
     sandbox = None
     if isinstance(sandbox_raw, dict):
         sandbox = sandbox_raw
@@ -514,12 +530,6 @@ def parse_job(job_path: str, dataset_root: str) -> Job:
             for vname, vdef in file_data.items():
                 variants[str(vname)] = dict(vdef) if isinstance(vdef, dict) else {}
 
-    # Parse inspect_eval_arguments
-    inspect_eval_arguments = data.get("inspect_eval_arguments")
-    if isinstance(inspect_eval_arguments, dict):
-        inspect_eval_arguments = dict(inspect_eval_arguments)
-    else:
-        inspect_eval_arguments = None
 
     # Parse models (required)
     models_raw = data.get("models")

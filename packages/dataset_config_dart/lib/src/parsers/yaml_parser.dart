@@ -29,14 +29,16 @@ class YamlParser extends Parser {
 
     final taskConfigs = <ParsedTask>[];
 
-    final taskDirs = tasksDir.listSync().whereType<Directory>().toList()
+    // Recursive search for task.yaml files
+    final taskFiles = tasksDir
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => p.basename(f.path) == 'task.yaml')
+        .toList()
       ..sort((a, b) => a.path.compareTo(b.path));
 
-    for (final taskDir in taskDirs) {
-      final taskFile = File(p.join(taskDir.path, 'task.yaml'));
-      if (taskFile.existsSync()) {
-        taskConfigs.addAll(_loadTaskFile(taskFile.path, datasetRoot));
-      }
+    for (final taskFile in taskFiles) {
+      taskConfigs.addAll(_loadTaskFile(taskFile.path, datasetRoot));
     }
 
     return taskConfigs;
@@ -143,7 +145,11 @@ class YamlParser extends Parser {
     final earlyStopping = taskArgs['early_stopping'];
     final displayName = data['display_name'] as String?;
     final version = data['version'];
-    final taskMetadata = _asMap(data['metadata']);
+    final taskMetadata = <String, dynamic>{
+      ...?_asMap(data['metadata']),
+      if (data.containsKey('workspace')) 'workspace': data['workspace'],
+      if (data.containsKey('working_dir')) 'working_dir': data['working_dir'],
+    };
     final sandboxParameters = _asMap(data['sandbox_parameters']);
 
     return [
@@ -415,6 +421,11 @@ class YamlParser extends Parser {
     }
     final models = modelsRaw.cast<String>();
 
+    final inspectEvalArgs = _asMap(data['inspect_eval_arguments']) ?? <String, dynamic>{};
+    if (data.containsKey('working_limit')) {
+      inspectEvalArgs['working_limit'] = data['working_limit'];
+    }
+
     return Job(
       logDir: logDir,
       maxConnections: maxConnections,
@@ -427,9 +438,9 @@ class YamlParser extends Parser {
       sampleFilters: sampleFilters,
       saveExamples: data['save_examples'] == true,
       // Sandbox configuration
-      sandbox: _parseSandbox(data['sandbox']),
+      sandbox: _parseSandbox(data['sandbox'] ?? data['sandbox_type']),
       // All inspect eval arguments
-      inspectEvalArguments: _asMap(data['inspect_eval_arguments']),
+      inspectEvalArguments: inspectEvalArgs,
     );
   }
 
