@@ -499,7 +499,7 @@ def _expand_task_configs(
 
         # Create one ParsedTask per effective variant
         for vname, vdef in effective_variants.items():
-            variant = _resolve_variant(vname, vdef, dataset_root, task_id)
+            variant = _resolve_variant(vname, vdef, dataset_root, task_id, job=job)
 
             examples_dir = None
             if job.save_examples:
@@ -530,10 +530,13 @@ def _resolve_variant(
     vdef: dict[str, Any],
     dataset_root: str,
     task_id: str,
+    job: Job | None = None,
 ) -> Variant:
     """Resolve a variant dict into a fully-resolved Variant."""
     if not vdef:
         return Variant(name=name)
+
+    base_dir = (job.job_dir if job and job.job_dir else dataset_root)
 
     # Load context files (with glob support) — YAML key is "files"
     context_files: list[ContextFile] = []
@@ -541,7 +544,7 @@ def _resolve_variant(
     for cf_path in cf_paths:
         cf_path = cf_path.replace("{task_id}", task_id)
         if _is_glob(cf_path):
-            full_pattern = os.path.join(dataset_root, cf_path)
+            full_pattern = os.path.join(base_dir, cf_path)
             matched = sorted(
                 f
                 for f in globmod.glob(full_pattern, recursive=True)
@@ -553,7 +556,7 @@ def _resolve_variant(
             for f in matched:
                 context_files.append(ContextFile.load(f))
         else:
-            full_path = os.path.normpath(os.path.join(dataset_root, cf_path))
+            full_path = os.path.normpath(os.path.join(base_dir, cf_path))
             context_files.append(ContextFile.load(full_path))
 
     # Resolve skill paths (with glob support) — YAML key is "skills"
@@ -562,7 +565,7 @@ def _resolve_variant(
     for skill_path_str in raw_skills:
         skill_path_str = skill_path_str.replace("{task_id}", task_id)
         if _is_glob(skill_path_str):
-            full_pattern = os.path.join(dataset_root, skill_path_str)
+            full_pattern = os.path.join(base_dir, skill_path_str)
             matched_dirs = sorted(
                 d for d in globmod.glob(full_pattern, recursive=True) if os.path.isdir(d)
             )
@@ -571,7 +574,7 @@ def _resolve_variant(
                 raise FileNotFoundError(f"No skill directories matched pattern: {skill_path_str}")
             skill_paths.extend(valid_dirs)
         else:
-            skill_dir = os.path.normpath(os.path.join(dataset_root, skill_path_str))
+            skill_dir = os.path.normpath(os.path.join(base_dir, skill_path_str))
             if not os.path.isdir(skill_dir):
                 raise FileNotFoundError(f"Skill directory not found: {skill_dir}")
             if not os.path.isfile(os.path.join(skill_dir, "SKILL.md")):

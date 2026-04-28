@@ -296,7 +296,13 @@ def _load_task_file(task_path: str, dataset_root: str) -> list[ParsedTask]:
     metadata = dict(data.get("metadata") or {})
     for field in ("workspace", "working_dir"):
         if field in data and field not in metadata:
-            metadata[field] = data[field]
+            value = data[field]
+            # Resolve relative paths against the task directory so that
+            # "workspace: ./empty_project" in task.yaml points to the correct
+            # absolute path regardless of the process CWD at eval runtime.
+            if value and isinstance(value, str) and not os.path.isabs(value):
+                value = os.path.normpath(os.path.join(task_dir, value))
+            metadata[field] = value
 
     # Task-level Inspect AI args are nested under inspect_task_args
     task_args = data.get("inspect_task_args") or {}
@@ -554,6 +560,7 @@ def parse_job(job_path: str, dataset_root: str) -> Job:
         inspect_eval_arguments=inspect_eval_arguments,
         task_filters=data.get("task_filters"),
         sample_filters=data.get("sample_filters"),
+        job_dir=os.path.dirname(os.path.abspath(job_path)),
     )
 
 
@@ -574,6 +581,7 @@ def find_job_file(dataset_root: str, job: str) -> str:
             "Jobs directory not found. Create it or specify a full path to the job file."
         )
 
+    # 1. Try literal match at top level
     with_ext = os.path.join(jobs_dir, f"{job}.yaml")
     if os.path.isfile(with_ext):
         return os.path.normpath(with_ext)
@@ -582,9 +590,23 @@ def find_job_file(dataset_root: str, job: str) -> str:
     if os.path.isfile(without_ext):
         return os.path.normpath(without_ext)
 
-    available = [
-        os.path.splitext(f)[0] for f in sorted(os.listdir(jobs_dir)) if f.endswith(".yaml")
-    ]
+    # 2. Recursive search
+    for root, _, files in os.walk(jobs_dir):
+        for f in files:
+            name_no_ext = os.path.splitext(f)[0]
+            if f == job or name_no_ext == job:
+                return os.path.normpath(os.path.join(root, f))
+
+    # 3. Help the user by listing available jobs
+    available = []
+    for root, _, files in os.walk(jobs_dir):
+        for f in files:
+            if f.endswith(".yaml"):
+                full_path = os.path.join(root, f)
+                rel_path = os.path.relpath(full_path, jobs_dir)
+                available.append(rel_path)
+
+    available.sort()
     raise FileNotFoundError(
-        f"Job '{job}' not found in {jobs_dir}. Available jobs: {available or '(none)'}"
+        f"Job '{job}' not found in {jobs_dir}. Available jobs: {', '.join(available) or '(none)'}"
     )

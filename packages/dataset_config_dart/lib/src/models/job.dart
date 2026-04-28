@@ -94,6 +94,9 @@ sealed class Job with _$Job {
 
     /// Tag filters applied to samples.
     @JsonKey(name: 'sample_filters') TagFilter? sampleFilters,
+
+    /// Directory where the job file is located (used for relative path resolution).
+    @JsonKey(includeFromJson: false, includeToJson: false) String? jobDir,
   }) = _Job;
 
   factory Job.fromJson(Map<String, dynamic> json) => _$JobFromJson(json);

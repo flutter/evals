@@ -88,6 +88,17 @@ variants:
 """
     )
 
+    # jobs/nested/deep_job.yaml
+    nested_jobs_dir = jobs_dir / "nested"
+    nested_jobs_dir.mkdir()
+    deep_job_yaml = nested_jobs_dir / "deep_job.yaml"
+    deep_job_yaml.write_text(
+        """log_dir: ./logs
+models:
+  - google/gemini-2.5-flash
+"""
+    )
+
     return tmp_path
 
 
@@ -237,6 +248,10 @@ class TestParser:
     def test_find_job_file_not_found(self, dataset_dir):
         with pytest.raises(FileNotFoundError):
             find_job_file(str(dataset_dir), "nonexistent")
+
+    def test_find_job_file_nested(self, dataset_dir):
+        path = find_job_file(str(dataset_dir), "deep_job")
+        assert path.endswith("nested/deep_job.yaml")
 
     def test_parse_tasks_with_sample_files(self, dataset_dir_with_sample_files):
         """Test parsing tasks with external sample files (multi-doc YAML)."""

@@ -36,11 +36,10 @@ const Map<String, Map<String, String>> kDefaultSandboxRegistry = {
 class EvalSetResolver {
   /// Creates a resolver with optional sandbox configuration.
   ///
-  /// If [sandboxRegistry] is not provided, it defaults to an empty map
-  /// (no sandbox resolution). Pass [kDefaultSandboxRegistry] for the
-  /// Flutter-specific sandbox setup.
+  /// If [sandboxRegistry] is not provided, it defaults to [kDefaultSandboxRegistry]
+  /// (standard Flutter sandbox setup).
   const EvalSetResolver({
-    this.sandboxRegistry = const {},
+    this.sandboxRegistry = kDefaultSandboxRegistry,
   });
 
   /// Named sandbox configurations (e.g. `'podman'` → compose file path).
@@ -219,11 +218,12 @@ class EvalSetResolver {
       }
 
       // Resolve task-level settings with precedence:
-      // task.yaml > task_defaults > hardcoded defaults
-      final resolvedTimeLimit =
-          tc.timeLimit ??
-          taskDefaults['time_limit'] as int? ??
+      // task.yaml > task_defaults > job-level time_limit > hardcoded defaults
+      final jobTimeLimit =
+          evalArgs['time_limit'] as int? ??
           (sandboxTypeStr != 'local' ? 300 : null);
+      final resolvedTimeLimit =
+          tc.timeLimit ?? taskDefaults['time_limit'] as int? ?? jobTimeLimit;
       final resolvedMessageLimit =
           tc.messageLimit ?? taskDefaults['message_limit'] as int?;
       final resolvedTokenLimit =
@@ -482,7 +482,7 @@ class EvalSetResolver {
         final variant = _resolveVariant(
           entry.key,
           entry.value,
-          datasetRoot,
+          job.jobDir ?? datasetRoot,
           taskId,
         );
 
@@ -517,7 +517,7 @@ class EvalSetResolver {
   Variant _resolveVariant(
     String name,
     Map<String, dynamic> vDef,
-    String datasetRoot,
+    String baseDir,
     String taskId,
   ) {
     if (vDef.isEmpty) return Variant(name: name);
@@ -528,7 +528,7 @@ class EvalSetResolver {
     for (var cfPath in cfPaths) {
       cfPath = cfPath.replaceAll('{task_id}', taskId);
       if (_isGlob(cfPath)) {
-        final matched = _expandGlobFiles(datasetRoot, cfPath);
+        final matched = _expandGlobFiles(baseDir, cfPath);
         if (matched.isEmpty) {
           throw FileSystemException(
             'No context files matched pattern: $cfPath',
@@ -538,7 +538,7 @@ class EvalSetResolver {
           files.add(ContextFile.load(f));
         }
       } else {
-        final fullPath = p.normalize(p.join(datasetRoot, cfPath));
+        final fullPath = p.normalize(p.join(baseDir, cfPath));
         files.add(ContextFile.load(fullPath));
       }
     }
@@ -549,7 +549,7 @@ class EvalSetResolver {
     for (var skillPathStr in rawSkills) {
       skillPathStr = skillPathStr.replaceAll('{task_id}', taskId);
       if (_isGlob(skillPathStr)) {
-        final matched = _expandGlobDirs(datasetRoot, skillPathStr);
+        final matched = _expandGlobDirs(baseDir, skillPathStr);
         final validDirs = matched
             .where((d) => File(p.join(d, 'SKILL.md')).existsSync())
             .toList();
@@ -560,7 +560,7 @@ class EvalSetResolver {
         }
         skills.addAll(validDirs);
       } else {
-        final skillDir = p.normalize(p.join(datasetRoot, skillPathStr));
+        final skillDir = p.normalize(p.join(baseDir, skillPathStr));
         if (!Directory(skillDir).existsSync()) {
           throw FileSystemException('Skill directory not found', skillDir);
         }

@@ -144,9 +144,22 @@ class YamlParser extends Parser {
     final earlyStopping = taskArgs['early_stopping'];
     final displayName = data['display_name'] as String?;
     final version = data['version'];
+    // Resolve relative path strings (workspace / working_dir) against taskDir
+    // so that `workspace: ./empty_project` in task.yaml always resolves to an
+    // absolute path, regardless of the process CWD when the eval runs.
+    String? resolvePathField(Object? value) {
+      if (value is! String) return null; // leave dicts (git config) untouched
+      if (p.isAbsolute(value)) return value;
+      return p.normalize(p.join(taskDir, value));
+    }
+
     final taskMetadata = <String, dynamic>{
-      if (data.containsKey('workspace')) 'workspace': data['workspace'],
-      if (data.containsKey('working_dir')) 'working_dir': data['working_dir'],
+      if (data.containsKey('workspace'))
+        'workspace':
+            resolvePathField(data['workspace']) ?? data['workspace'],
+      if (data.containsKey('working_dir'))
+        'working_dir':
+            resolvePathField(data['working_dir']) ?? data['working_dir'],
       ...?_asMap(data['metadata']),
     };
     final sandboxParameters = _asMap(data['sandbox_parameters']);
@@ -422,8 +435,19 @@ class YamlParser extends Parser {
 
     final inspectEvalArgs =
         _asMap(data['inspect_eval_arguments']) ?? <String, dynamic>{};
-    if (data.containsKey('working_limit')) {
-      inspectEvalArgs['working_limit'] = data['working_limit'];
+    // Propagate top-level convenience limit keys into inspect_eval_arguments
+    // so they flow through to per-task defaults in the resolver.
+    // Priority: explicit inspect_eval_arguments block > top-level shorthand.
+    for (final key in const [
+      'time_limit',
+      'working_limit',
+      'token_limit',
+      'message_limit',
+      'cost_limit',
+    ]) {
+      if (data.containsKey(key)) {
+        inspectEvalArgs.putIfAbsent(key, () => data[key]);
+      }
     }
 
     return Job(
@@ -441,6 +465,7 @@ class YamlParser extends Parser {
       sandbox: _parseSandbox(data['sandbox'] ?? data['sandbox_type']),
       // All inspect eval arguments
       inspectEvalArguments: inspectEvalArgs,
+      jobDir: p.dirname(p.absolute(jobPath)),
     );
   }
 
@@ -542,6 +567,16 @@ String findJobFile(String datasetRoot, String job) {
     // Try with .yaml extension (e.g. "skills/skill" -> "skills/skill.yaml")
     final path2 = '$path1.yaml';
     if (File(path2).existsSync()) return p.normalize(path2);
+
+    // 1.5 Recursive search for a file named {job}.yaml or {job}
+    final allFiles = jobsDir.listSync(recursive: true).whereType<File>();
+    for (final file in allFiles) {
+      final name = p.basenameWithoutExtension(file.path);
+      final fullName = p.basename(file.path);
+      if (name == job || fullName == job) {
+        return p.normalize(file.path);
+      }
+    }
   }
 
   // 2. Try as absolute or relative to dataset root
@@ -551,19 +586,23 @@ String findJobFile(String datasetRoot, String job) {
     if (File(jobPath).existsSync()) return p.normalize(jobPath);
   }
 
-  // List available jobs for helpful error message (top-level only for now)
+  // List available jobs for helpful error message (recursive)
   var available = <String>[];
   if (jobsDir.existsSync()) {
     available = jobsDir
-        .listSync()
+        .listSync(recursive: true)
         .whereType<File>()
         .where((f) => f.path.endsWith('.yaml'))
-        .map((f) => p.basenameWithoutExtension(f.path))
-        .toList();
+        .map((f) {
+          // Return the path relative to jobs/ for clarity
+          return p.relative(f.path, from: jobsDir.path);
+        })
+        .toList()
+      ..sort();
   }
 
   throw FileSystemException(
     "Job '$job' not found. Checked 'jobs/' and dataset root. "
-    'Available top-level jobs: ${available.isEmpty ? '(none)' : available}',
+    'Available jobs: ${available.isEmpty ? '(none)' : available.join(', ')}',
   );
 }

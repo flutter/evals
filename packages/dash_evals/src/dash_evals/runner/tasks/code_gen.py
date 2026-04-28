@@ -20,6 +20,7 @@ from inspect_ai.dataset import Dataset
 from inspect_ai.model import GenerateConfig, ResponseSchema
 from inspect_ai.solver import Generate, Solver, TaskState, chain_of_thought, solver
 from inspect_ai.util import json_schema
+from inspect_ai.tool import bash_session, text_editor
 from pydantic import BaseModel, Field
 
 from dash_evals.runner.scorers import export_workspace, flutter_code_scorer
@@ -29,12 +30,12 @@ from dash_evals.runner.solvers import (
     setup_workspace,
     write_to_sandbox,
 )
-from dash_evals.runner.tasks.task_helpers import validate_sandbox_tools
-
+from dash_evals.utils.markdown import extract_code_from_markdown
 from .task_helpers import (
     append_context_injection,
     append_model_interaction,
     build_task_metadata,
+    validate_sandbox_tools,
 )
 
 # ============================================================================
@@ -95,7 +96,9 @@ def parse_structured_code(
     async def solve(state: TaskState, generate: Generate) -> TaskState:
         try:
             if response_model:
-                response = response_model.model_validate_json(state.output.completion)
+                # Clean up markdown if present (e.g. ```json ... ```)
+                completion = extract_code_from_markdown(state.output.completion, language="json")
+                response = response_model.model_validate_json(completion)
                 code = getattr(response, code_field)
                 state.store.set("extracted_code", code)
                 state.metadata["generated_code"] = code
@@ -147,7 +150,16 @@ def _build_solver_with_tools(config: dict, system_msg: str):
     solver_chain = [add_system_message(system_msg)]
     append_context_injection(solver_chain, config)
     solver_chain.append(chain_of_thought())
-    append_model_interaction(solver_chain, config)
+
+    # Add standard agentic tools if a sandbox is present
+    extra_tools = []
+    if config.get("sandbox_type", "local") != "local":
+        extra_tools.extend([
+            bash_session(timeout=240),
+            text_editor(timeout=120),
+        ])
+
+    append_model_interaction(solver_chain, config, extra_tools=extra_tools)
 
     return solver_chain
 

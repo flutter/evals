@@ -69,3 +69,7 @@ class Job(BaseModel):
     # Tag-based filtering
     task_filters: TagFilter | None = None
     sample_filters: TagFilter | None = None
+
+    # Internal state
+    job_dir: str | None = None
+    """Directory where the job file is located (used for relative path resolution)."""
