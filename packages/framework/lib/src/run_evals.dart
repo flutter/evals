@@ -1,7 +1,7 @@
+import 'package:ai/agents.dart' show Agent;
 import 'package:logging/logging.dart';
 import 'package:evals_results/evals_results.dart';
 
-import 'backend/agent.dart';
 import 'eval.dart';
 import 'eval_context.dart';
 import 'eval_set.dart';

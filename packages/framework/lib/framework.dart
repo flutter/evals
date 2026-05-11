@@ -25,9 +25,8 @@
 /// ```
 library;
 
-// Agent — the public interface only. SdkAgentAdapter is an internal
-// implementation detail of GenkitBackend.
-export 'src/backend/agent.dart';
+// Agent — re-exported from package:ai.
+export 'package:ai/agents.dart';
 export 'src/util/observation.dart';
 
 // Backends — the integration points.

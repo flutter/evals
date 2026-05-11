@@ -1,8 +1,8 @@
 import 'package:ai/ai.dart' as ai;
+import 'package:ai/agents.dart' show Agent;
 import 'package:devals_sandbox/sandbox.dart';
 import 'package:equatable/equatable.dart';
 
-import 'backend/agent.dart';
 import 'scenario.dart';
 
 /// Immutable configuration for a single eval run.

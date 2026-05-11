@@ -1,12 +1,11 @@
 import 'dart:io';
 
-import 'package:ai/agents.dart' as ai show Result, AgentStatus;
+import 'package:ai/agents.dart' as ai show Agent, Result, AgentStatus;
 import 'package:ai/ai.dart' as ai;
 import 'package:devals_sandbox/sandbox.dart';
 
 import '../../logging/eval_log.dart';
 import '../model_provider.dart';
-import '../agent.dart';
 import 'gemini_api_proxy.dart';
 
 /// An agent that runs the Gemini CLI inside a sandbox.
@@ -27,7 +26,7 @@ import 'gemini_api_proxy.dart';
 ///
 /// When [modelProvider] is `null`, the CLI talks directly to the Gemini API
 /// (no trajectory capture beyond stdout).
-class GeminiCliAgent implements Agent {
+class GeminiCliAgent extends ai.Agent {
   /// The model name passed to the CLI via `--model`.
   @override
   final String model;

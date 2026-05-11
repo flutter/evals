@@ -2,15 +2,13 @@ import 'package:genkit/genkit.dart' as g;
 import 'package:genkit_mcp/genkit_mcp.dart' as gmcp;
 import 'package:ai/ai.dart' as ai;
 import 'package:ai/agents.dart' as agents;
+import 'package:ai/agents.dart' show Agent;
 import 'package:devals_sandbox/sandbox.dart';
 
-import '../agent.dart';
-import '../sdk_agent_adapter.dart';
 import '../../logging/eval_log.dart';
-import '../../middlewares/cache/cache_middleware.dart';
-import '../../middlewares/cache/cache_middleware_def.dart';
 import 'genkit_ai.dart';
 import '../backend.dart';
+import '../cacheable_backend.dart';
 
 /// Default agent builder — creates a [agents.MiniSweAgent].
 agents.Agent _defaultAgentBuilder(ai.AI ai, String model) =>
@@ -50,7 +48,7 @@ agents.Agent _defaultAgentBuilder(ai.AI ai, String model) =>
 ///   agentBuilder: (ai, model) => BasicAgent(ai: ai, model: model, tools: []),
 /// )
 /// ```
-class GenkitBackend implements Backend {
+class GenkitBackend with CacheableBackend implements Backend {
   /// The Genkit instance used for MCP client creation and model generation.
   final g.Genkit genkit;
 
@@ -63,10 +61,6 @@ class GenkitBackend implements Backend {
   /// Builder that creates an [agents.Agent] given an [ai.AI] provider and
   /// a model string. Defaults to [agents.MiniSweAgent].
   final agents.Agent Function(ai.AI ai, String model) _agentBuilder;
-
-  /// Per-model cache middleware instances (created lazily when [cacheDir]
-  /// is set).
-  final Map<String, CacheMiddleware> _cacheMiddlewareByModel = {};
 
   GenkitBackend({
     required this.genkit,
@@ -88,12 +82,12 @@ class GenkitBackend implements Backend {
     // Inject cache middleware if configured.
     if (cacheDir != null) {
       genkitAi = genkitAi.withMiddleware([
-        _middlewareRefFor(cacheDir!, model, genkitAi),
+        middlewareRefFor(cacheDir!, model, genkitAi),
       ]);
     }
 
     final inner = _agentBuilder(genkitAi, model.toString());
-    return SdkAgentAdapter(inner);
+    return inner;
   }
 
   // ---------------------------------------------------------------------------
@@ -159,22 +153,6 @@ class GenkitBackend implements Backend {
   }
 
   // ---------------------------------------------------------------------------
-  // Backend — cache stats
-  // ---------------------------------------------------------------------------
-
-  @override
-  ({int hits, int misses}) get cacheStats {
-    var totalHits = 0;
-    var totalMisses = 0;
-    for (final mw in _cacheMiddlewareByModel.values) {
-      final (:hits, :misses) = mw.stats;
-      totalHits += hits;
-      totalMisses += misses;
-    }
-    return (hits: totalHits, misses: totalMisses);
-  }
-
-  // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
 
@@ -207,29 +185,5 @@ class GenkitBackend implements Backend {
           ),
         )
         .toList();
-  }
-
-  /// Lazily creates a per-model [g.GenerateMiddlewareRef] backed by a
-  /// [CacheMiddleware] that writes to a model-specific subdirectory.
-  g.GenerateMiddlewareRef _middlewareRefFor(
-    String dir,
-    ai.Model model,
-    GenkitAI genkitAi,
-  ) {
-    final modelKey = model.toString().replaceAll('/', '_');
-    if (!_cacheMiddlewareByModel.containsKey(modelKey)) {
-      final modelCacheDir = '$dir/$modelKey';
-      final mw = CacheMiddleware(cacheDir: modelCacheDir);
-      _cacheMiddlewareByModel[modelKey] = mw;
-      final mwName = '${cacheMwName}_$modelKey';
-      genkitAi.genkit.registry.registerValue(
-        'middleware',
-        mwName,
-        cacheMiddlewareDefFor(mw),
-      );
-      return g.middlewareRef(name: mwName);
-    }
-    final mwName = '${cacheMwName}_$modelKey';
-    return g.middlewareRef(name: mwName);
   }
 }

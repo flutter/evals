@@ -1,7 +1,6 @@
 import 'package:ai/ai.dart' as ai;
+import 'package:ai/agents.dart' show Agent;
 import 'package:devals_sandbox/sandbox.dart';
-
-import 'agent.dart';
 
 /// Backend-specific integration hook for [EvalSet].
 ///

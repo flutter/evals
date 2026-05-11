@@ -1,6 +1,6 @@
 import 'package:ai/ai.dart' as ai;
+import 'package:ai/agents.dart' show Agent, Result;
 
-import 'backend/agent.dart';
 import 'eval_context.dart';
 
 /// Mutable execution state for a single eval run.

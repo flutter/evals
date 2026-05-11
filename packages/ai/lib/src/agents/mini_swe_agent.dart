@@ -45,9 +45,8 @@ import 'prompts.dart';
 ///    tools, append results to the message history, and loop.
 /// 4. If the model returns a text-only response → the agent is done.
 /// 5. If the step limit is reached → stop and report.
-class MiniSweAgent implements Agent {
+class MiniSweAgent extends Agent {
   /// The AI provider for model calls.
-  @override
   final AI ai;
 
   /// The model identifier (e.g. `'googleai/gemini-2.5-flash'`).
@@ -55,11 +54,9 @@ class MiniSweAgent implements Agent {
   final String model;
 
   /// Tools to provide to the model.
-  @override
   final List<Tool> tools;
 
   /// Configuration for this agent run.
-  @override
   final AgentConfig config;
 
   /// Creates a [MiniSweAgent].
@@ -71,12 +68,12 @@ class MiniSweAgent implements Agent {
   });
 
   @override
-  MiniSweAgent copyWith({AI? ai, String? model, AgentConfig? config}) =>
+  MiniSweAgent copyWith({String? model}) =>
       MiniSweAgent(
-        ai: ai ?? this.ai,
+        ai: ai,
         model: model ?? this.model,
         tools: tools,
-        config: config ?? this.config,
+        config: config,
       );
 
   /// Run the agent loop.

@@ -3,37 +3,6 @@ import 'package:genkit/genkit.dart' as g;
 import 'package:ai/ai.dart';
 
 /// An [AI] implementation that routes generation through a [g.Genkit] instance.
-///
-/// This is the single file in the dart-evals framework that depends on Genkit
-/// for model generation. All agent code uses the [AI] interface; [GenkitAI]
-/// is injected at the framework boundary (e.g. inside [EvalSet]) to provide
-/// the actual generation backend.
-///
-/// ## Usage
-///
-/// ```dart
-/// final genkit = Genkit(plugins: [googleAI(...)]);
-///
-/// EvalSet(
-///   agent: SdkAgentAdapter(
-///     MiniSweAgent(
-///       ai: GenkitAI(genkit),
-///       model: 'googleai/gemini-2.5-flash',
-///       tools: SandboxTools.all(sandbox),
-///     ),
-///   ),
-///   ...
-/// )
-/// ```
-///
-/// ## Middleware
-///
-/// To inject cache or other middleware into generation calls, use
-/// [withMiddleware]:
-///
-/// ```dart
-/// final cachedAi = GenkitAI(genkit).withMiddleware([cacheRef]);
-/// ```
 class GenkitAI implements AI {
   /// The underlying Genkit instance.
   final g.Genkit genkit;
@@ -76,18 +45,15 @@ class GenkitAI implements AI {
 
   g.Part _toGenkitPart(Part part) => switch (part) {
     TextPart(:final text) => g.TextPart(text: text),
-    ToolRequestPart(:final name, :final ref, :final input) =>
-      g.ToolRequestPart(
-        toolRequest: g.ToolRequest(name: name, ref: ref, input: input),
-      ),
+    ToolRequestPart(:final name, :final ref, :final input) => g.ToolRequestPart(
+      toolRequest: g.ToolRequest(name: name, ref: ref, input: input),
+    ),
     ToolResponsePart(:final name, :final ref, :final output) =>
       g.ToolResponsePart(
         toolResponse: g.ToolResponse(
           name: name,
           ref: ref,
-          output: output is Map<String, dynamic>
-              ? output
-              : {'result': output},
+          output: output is Map<String, dynamic> ? output : {'result': output},
         ),
       ),
     _ => g.TextPart(text: part.toString()),

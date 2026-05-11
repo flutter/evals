@@ -11,9 +11,8 @@ import 'prompts.dart';
 /// It makes one `generate()` call and returns the result. Useful for
 /// evaluating single-turn capabilities (e.g. code generation without
 /// iteration).
-class BasicAgent implements Agent {
+class BasicAgent extends Agent {
   /// The AI provider for model calls.
-  @override
   final AI ai;
 
   /// The model identifier (e.g. `'googleai/gemini-2.5-flash'`).
@@ -21,11 +20,9 @@ class BasicAgent implements Agent {
   final String model;
 
   /// Tools to provide to the model.
-  @override
   final List<Tool> tools;
 
   /// Configuration for this agent run.
-  @override
   final AgentConfig config;
 
   /// Creates a [BasicAgent].
@@ -37,12 +34,12 @@ class BasicAgent implements Agent {
   });
 
   @override
-  BasicAgent copyWith({AI? ai, String? model, AgentConfig? config}) =>
+  BasicAgent copyWith({String? model}) =>
       BasicAgent(
-        ai: ai ?? this.ai,
+        ai: ai,
         model: model ?? this.model,
         tools: tools,
-        config: config ?? this.config,
+        config: config,
       );
 
   @override
