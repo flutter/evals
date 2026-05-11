@@ -1,5 +1,0 @@
-enum: Variant
-serialized: byName
-values:
-  - mcp
-  - rules

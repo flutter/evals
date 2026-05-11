@@ -1,6 +1,7 @@
 # Added by human
 data/
 logs/
+eval_logs/
 _uploaded_logs/
 *.log
 htmlcov/
@@ -12,10 +13,12 @@ htmlcov/
 coverage
 .dart_tool/
 .devals-tool/
+.devals-cache/
 /docs/_build
 /docs/dart_docs
 logs/
 **/pyrefly.toml
+
 
 
 ##

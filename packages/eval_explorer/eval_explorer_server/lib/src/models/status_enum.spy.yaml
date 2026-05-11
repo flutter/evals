@@ -1,6 +1,0 @@
-enum: Status
-serialized: byName
-values:
-  - complete
-  - inProgress
-  - failed

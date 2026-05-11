@@ -1,0 +1,20 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # Treat these as errors for stricter scoring
+    avoid_dynamic_calls: warning
+    prefer_const_constructors: info
+  exclude:
+    - "**/*.g.dart"
+
+linter:
+  rules:
+    # Bloc-specific
+    - close_sinks
+    - cancel_subscriptions
+    # General good practices
+    - prefer_const_constructors
+    - prefer_const_declarations
+    - avoid_print
+    - prefer_single_quotes
