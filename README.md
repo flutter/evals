@@ -1,46 +1,40 @@
 # dart-evals
 
-A Dart framework for evaluating LLM agents across models, scenarios, and sandboxed environments. Built on [Genkit](https://pub.dev/packages/genkit).
+A Dart framework for evaluating LLM agents across models, scenarios, and sandboxed environments.
 
 ## Example
 
-A complete entry point running 3 evals × 2 models × 2 scenarios with Podman sandboxing and response caching:
+A complete entry point running evals × models × scenarios with Podman sandboxing and response caching:
 
 ```dart
 void main() async {
-  final genkit = Genkit(
-    plugins: [googleAI(apiKey: Platform.environment['GEMINI_API_KEY'])],
-  );
-
-  final agent = MiniSweAgent(genkit: genkit, model: '', tools: []);
-
   final evalSet = EvalSet(
-    agent: agent,
     models: [
       Model('googleai', 'gemini-2.5-flash'),
       Model('googleai', 'gemini-2.5-pro'),
     ],
     scenarios: [
-      Scenario(name: 'baseline', tags: ['flutter', 'dart']),
-      Scenario(name: 'dart_fix_focus', tags: ['dart']),
+      const Scenario(name: 'baseline', tags: ['dart']),
+      Scenario(
+        name: 'with_mcp',
+        tags: ['dart', 'mcp'],
+        mcpServers: [
+          McpServerConfig(command: 'dart', args: ['mcp-server']),
+        ],
+      ),
     ],
-    cacheDir: '.devals-cache',
-    sandbox: PodmanSandboxManager(
-      dockerfilePath: 'docker/Dockerfile',
-      buildContext: '.',
-      memLimit: '4g',
-      cpuLimit: '2.0',
-      defaultSetupScript: '''
-        cp -r /fixtures/app /workspace/app
-        cd /workspace/app && flutter pub get
-      ''',
-    ),
     evals: [
-      // Eval class API inspired by Commands from pkg:args
-      FlutterBugFixEval(), 
-      FixRemoteBugEval(), 
-      McpPubDevSearchEval(input: '...', target: '...')
+      PubDevSearchEval(
+        input: 'What is the best package to display line charts in Flutter?',
+        target: 'fl_chart',
+      ),
+      FlutterBugFixEval(),
     ],
+    config: EvalConfig(cacheDir: '.devals-cache'),
+    sandbox: PodmanSandboxManager(
+      dockerfilePath: 'example/docker/Dockerfile',
+      buildContext: 'example',
+    ),
   );
 
   await runEvals(evalSet);
@@ -50,6 +44,7 @@ void main() async {
 ### Framework features
 
 - **Matrix runner** — Run sets of evals across any combination of models, scenarios, and eval samples.
+- **Auto-resolved backends** — The framework resolves the correct AI backend from `Model.provider` (e.g. `googleai`). No manual Genkit or plugin setup needed.
 - **Eval lifecycle management** — Override only what you need — the framework handles the rest.
 - **Scenarios** — Test the same evals under different configurations — different tool sets, skill files, or tags for filtering.
 - **Built-in evaluators** that handle scoring, or implement your own.
@@ -58,18 +53,20 @@ void main() async {
 
 #### Matrix runner
 
-Run every combination of **models × scenarios × evals** in a single call. `EvalSet` stamps the correct model into an immutable agent template per cell, creates fresh sandbox sessions, and collects results into a flat list.
+Run every combination of **models × scenarios × evals** in a single call. `EvalSet` auto-resolves the backend from `Model.provider`, stamps the correct model into a fresh agent per cell, creates sandbox sessions, and collects results into a flat list.
 
 ```dart
 final results = await runEvals(EvalSet(
-  agent: agent,
   models: [
     Model('googleai', 'gemini-2.5-flash'),
     Model('googleai', 'gemini-2.5-pro'),
   ],
   scenarios: [
-    Scenario(name: 'baseline'),
-    Scenario(name: 'with_tools', tools: [dartAnalyzer()]),
+    const Scenario(name: 'baseline'),
+    Scenario(
+      name: 'with_mcp',
+      mcpServers: [McpServerConfig(command: 'dart', args: ['mcp-server'])],
+    ),
   ],
   evals: [FlutterBugFixEval(), FixRemoteBugEval()],
 ));
@@ -110,10 +107,11 @@ class FlutterBugFixEval extends Eval {
 
   @override
   Future<EvalState> run(EvalState state) async {
+    // state.tools already has sandbox + scenario + eval + MCP tools merged
     final result = await state.agent.run(
       task: input,
       systemMessage: systemMessage,
-      additionalTools: SandboxTools.all(state.context.sandbox!),
+      additionalTools: state.tools,
     );
     state.output = result;
     return state;
@@ -121,14 +119,39 @@ class FlutterBugFixEval extends Eval {
 }
 ```
 
+For simple evals that don't need custom `run` logic, the framework calls `agent.run()` with all resolved tools automatically — just define `name`, `input`, and `evaluators`:
+
+```dart
+class PubDevSearchEval extends Eval {
+  PubDevSearchEval({required this.input, required this.target});
+
+  @override String get name => 'pub_dev_search';
+  @override final String input;
+  @override final String target;
+
+  @override
+  List<Evaluator> get evaluators => [
+    IncludesEvaluator(target),
+    const McpToolUsageEvaluator(requiredTools: ['dart/pub_dev_search']),
+  ];
+
+  // No setUp, run, or cleanUp overrides needed.
+  // The framework resolves tools and calls agent.run() automatically.
+}
+```
+
 #### Scenarios
 
-Test the same evals under different configurations — different tool sets, skill files, or tags for filtering:
+Test the same evals under different configurations — different tool sets, MCP servers, skill files, or tags for filtering:
 
 ```dart
 const scenarios = [
   Scenario(name: 'baseline', tags: ['flutter', 'dart']),
-  Scenario(name: 'with_dart_fix', tools: [dartFixTool()]),
+  Scenario(
+    name: 'with_mcp',
+    mcpServers: [McpServerConfig(command: 'dart', args: ['mcp-server'])],
+    evaluators: [McpToolUsageEvaluator(requiredTools: ['dart/pub_dev_search'])],
+  ),
   Scenario(name: 'with_skills', skillPaths: ['/path/to/skill.md']),
 ];
 ```
@@ -159,22 +182,24 @@ McpToolUsageEvaluator(requiredTools: ['pub_dev_search'])
 
 #### Agents
 
-Two built-in agent implementations, both immutable and `copyWith`-able:
+Two built-in agent implementations in `package:ai`, both immutable and `copyWith`-able:
 
 - **`BasicAgent`** — single-turn: one `generate()` call, returns immediately.
 - **`MiniSweAgent`** — multi-turn agentic loop with tool calling, step budgets, output truncation, and automatic conversation management.
 
+Agents are constructed by the backend automatically — eval authors rarely need to instantiate them directly. For advanced use:
+
 ```dart
 // Single-turn
 final basic = BasicAgent(
-  genkit: genkit,
+  ai: myAiProvider,
   model: 'googleai/gemini-2.5-flash',
   tools: [],
 );
 
 // Multi-turn agentic loop
 final swe = MiniSweAgent(
-  genkit: genkit,
+  ai: myAiProvider,
   model: 'googleai/gemini-2.5-flash',
   tools: [],
   config: AgentConfig(maxSteps: 30, commandTimeout: Duration(seconds: 120)),
@@ -187,10 +212,9 @@ Cache model responses to disk during development. Saves tokens and time when ite
 
 ```dart
 final evalSet = EvalSet(
-  agent: agent,
   models: [Model('googleai', 'gemini-2.5-flash')],
   evals: [MyEval()],
-  cacheDir: '.devals-cache', // ← opt-in
+  config: EvalConfig(cacheDir: '.devals-cache'), // ← opt-in
 );
 ```
 
@@ -213,14 +237,14 @@ Every run produces:
 
 ### Real-time logging
 
-Structured, color-coded terminal output with progress bars, agent step traces, tool call/response logging, and cache event indicators. Configurable via `LogLevel`:
+Structured, color-coded terminal output with progress bars, agent step traces, tool call/response logging, and cache event indicators. Configurable via `Level` from `package:logging`:
 
 ```dart
-await runEvals(evalSet, logLevel: LogLevel.normal);
-// LogLevel.quiet   — errors only
-// LogLevel.normal  — progress + scores + cache events
-// LogLevel.verbose — + agent messages and tool I/O
-// LogLevel.debug   — everything
+await runEvals(evalSet, logLevel: Level.FINER);
+// Level.SEVERE  — errors only
+// Level.INFO    — progress + scores + cache events
+// Level.FINER   — + agent messages and tool I/O (default)
+// Level.FINEST  — everything
 ```
 
 ### Error isolation
@@ -244,7 +268,7 @@ The `devals_sandbox` package (`packages/sandbox`) provides container-based isola
 
 ### Sandbox tools
 
-Pre-built Genkit tools that give the model direct access to a `SandboxEnvironment`:
+Pre-built tools that give the model direct access to a `SandboxEnvironment`:
 
 ```dart
 // Give the agent bash, read_file, and write_file tools
@@ -318,10 +342,7 @@ final session = await sandbox.createSession('my-eval');
 
 | Package | Description |
 |---|---|
-| `packages/evals` | Core framework — `Eval`, `EvalSet`, agents, evaluators, logging, caching |
+| `packages/framework` | Core framework — `Eval`, `EvalSet`, agents, evaluators, logging, caching |
+| `packages/ai` | Agent framework and AI primitives — `Agent`, `BasicAgent`, `MiniSweAgent`, `Message`, `Tool` |
 | `packages/sandbox` | Container sandboxing — `SandboxManager`, Docker/Podman/local backends |
-| `packages/shared` | Shared models — `EvalResult`, `Score`, `Model`, `EvalSetResult` |
-
-
-Ideas:
-Multi-provider matrices. Today's Model has a provider field. If all models in a set must share the same provider, that's a constraint we should document. Alternatively, we could build one connector per provider and dispatch per-cell — more complex but more flexible. Which do you prefer for v1?
+| `packages/evals_results` | Shared output types — `EvalResult`, `Score`, `Model`, `EvalSetResult` |
