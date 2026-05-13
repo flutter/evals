@@ -15,7 +15,6 @@ export 'scenario.dart' show baselineScenario;
 // TODO:
 // Consider Concurrency and isolates for multi eval runs
 // Should we be writing JSON output as it happens rather than at the end of the run (yes)
-// Tests for saving code output
 
 // ---------------------------------------------------------------------------
 // runEvals — lifecycle + logging wrapper over EvalSet
@@ -48,7 +47,7 @@ Future<EvalSetResult> runEvals(
   );
 
   try {
-    final results = await evalSet.run();
+    final results = await evalSet.run(runDir: runDirPath);
 
     final completedAt = DateTime.now();
 

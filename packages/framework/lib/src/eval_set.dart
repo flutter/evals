@@ -13,7 +13,9 @@ import 'eval.dart';
 import 'eval_config.dart';
 import 'eval_context.dart';
 import 'logging/eval_log.dart';
+import 'output/sandbox_code_saver.dart';
 import 'scenario.dart';
+import 'util/string_util.dart';
 
 // Re-export so callers can use `baselineScenario` from a single import.
 export 'scenario.dart' show baselineScenario;
@@ -103,7 +105,11 @@ class EvalSet {
   Backend get backend => _backend ??= _resolveBackend();
 
   /// Run the full `models × scenarios × evals` matrix.
-  Future<List<EvalResult>> run() async {
+  ///
+  /// When [runDir] is provided and [EvalConfig.saveCode] is `true`,
+  /// the sandbox workspace is copied to `<runDir>/<cellId>/` after
+  /// each cell completes.
+  Future<List<EvalResult>> run({String? runDir}) async {
     final results = <EvalResult>[];
     final totalCells = models.length * scenarios.length * evals.length;
     var completed = 0;
@@ -118,7 +124,7 @@ class EvalSet {
             scenario.name,
           );
 
-          final result = await _runCell(eval, model, scenario);
+          final result = await _runCell(eval, model, scenario, runDir: runDir);
           results.add(result);
 
           completed++;
@@ -143,8 +149,9 @@ class EvalSet {
   Future<EvalResult> _runCell(
     Eval eval,
     ai.Model model,
-    Scenario scenario,
-  ) async {
+    Scenario scenario, {
+    String? runDir,
+  }) async {
     final completer = Completer<EvalResult>();
 
     runZonedGuarded(
@@ -180,6 +187,21 @@ class EvalSet {
           );
           final result = await eval.execute(context);
           EvalLog.evalComplete(result);
+
+          // Save the sandbox project if configured.
+          if (config.saveCode && runDir != null && session?.sandbox != null) {
+            try {
+              final cellId = toSafeId(result.id, allowHyphens: false);
+              await saveCodeFromSandbox(
+                session!.sandbox,
+                sandboxPath: config.sandboxWorkDir,
+                destDir: '$runDir/$cellId',
+              );
+            } catch (e, st) {
+              EvalLog.error('saveCode failed for "${eval.name}"', e, st);
+            }
+          }
+
           if (!completer.isCompleted) completer.complete(result);
         } catch (e, st) {
           EvalLog.error('Eval "${eval.name}" failed', e, st);

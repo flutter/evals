@@ -412,6 +412,14 @@ class EvalLog {
     }
   }
 
+  /// Log that a sandbox project was saved to [destDir].
+  static void codeSaved(String destDir) {
+    _writeLine(
+      '    $green💾 code saved$reset  $dim$destDir$reset',
+      minLevel: Level.INFO,
+    );
+  }
+
   /// Log a debug-level message (visible only at [Level.ALL]).
   static void debug(String message) {
     _writeLine('$dim$message$reset', minLevel: Level.ALL);

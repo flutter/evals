@@ -19,7 +19,23 @@ class EvalConfig {
   /// instantly — no API call.
   final String? cacheDir;
 
+  /// When `true`, the framework copies the sandbox working directory
+  /// to the run output directory after each eval cell completes.
+  ///
+  /// The project is saved to `<runDir>/<evalId>/` where `evalId` is
+  /// the cell identifier (e.g. `flutter_bug_fix_gemini-2.5-flash_baseline`).
+  ///
+  /// Has no effect when the eval doesn't use a sandbox.
+  final bool saveCode;
+
+  /// The path inside the sandbox to extract when [saveCode] is `true`.
+  ///
+  /// Defaults to `/workspace/app` — the conventional sandbox workspace.
+  final String sandboxWorkDir;
+
   const EvalConfig({
     this.cacheDir,
+    this.saveCode = false,
+    this.sandboxWorkDir = '/workspace/app',
   });
 }

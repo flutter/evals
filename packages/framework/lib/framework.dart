@@ -60,6 +60,7 @@ export 'src/logging/eval_log.dart';
 
 // Output
 export 'src/output/result_writer.dart';
+export 'src/output/sandbox_code_saver.dart';
 
 // Re-export the ai package for framework-agnostic primitives.
 export 'package:ai/ai.dart';
