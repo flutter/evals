@@ -115,15 +115,15 @@ abstract class Eval {
     String? failedPhase;
 
     try {
-      EvalLog.evalPhase('setUp');
+      EvalLog.evalPhase('  setUp');
       failedPhase = 'setUp';
       state = await setUp(state);
 
-      EvalLog.evalPhase('run');
+      EvalLog.evalPhase('  run');
       failedPhase = 'run';
       state = await run(state);
 
-      EvalLog.evalPhase('score');
+      EvalLog.evalPhase('  score');
       failedPhase = 'score';
       scores = await score(state);
       failedPhase = null; // Success — clear the marker.

@@ -12,10 +12,6 @@ import 'util/filesystem_util.dart';
 // Re-export so callers can use `baselineScenario` from a single import.
 export 'scenario.dart' show baselineScenario;
 
-// TODO:
-// Consider Concurrency and isolates for multi eval runs
-// Should we be writing JSON output as it happens rather than at the end of the run (yes)
-
 // ---------------------------------------------------------------------------
 // runEvals — lifecycle + logging wrapper over EvalSet
 // ---------------------------------------------------------------------------

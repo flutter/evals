@@ -103,11 +103,18 @@ class PodmanSandboxManager implements SandboxManager {
   }
 
   /// Build the image if it hasn't been built yet.
+  ///
+  /// Streams build output line-by-line so operators see progress during
+  /// long image builds (Flutter SDK download, pub cache warm-up, etc.).
   Future<void> _ensureImageBuilt() async {
     if (_imageBuilt) return;
 
     _log.info('Building image "$imageName" from $dockerfilePath...');
-    final result = await _run(
+    _log.info('This may take several minutes on first run (downloading SDKs, '
+        'warming caches)...');
+
+    final sw = Stopwatch()..start();
+    final result = await _runStreaming(
       [
         'podman', 'build',
         '-t', imageName,
@@ -116,6 +123,7 @@ class PodmanSandboxManager implements SandboxManager {
       ],
       timeout: const Duration(minutes: 10),
     );
+    sw.stop();
 
     if (!result.success) {
       throw SandboxException(
@@ -124,7 +132,8 @@ class PodmanSandboxManager implements SandboxManager {
     }
 
     _imageBuilt = true;
-    _log.info('Image "$imageName" built successfully');
+    _log.info('Image "$imageName" built successfully '
+        'in ${sw.elapsed.inSeconds}s');
   }
 
   @override
@@ -339,7 +348,7 @@ class PodmanSandboxManager implements SandboxManager {
         );
   }
 
-  /// Run a host-side process.
+  /// Run a host-side process, capturing all output at the end.
   static Future<ExecResult> _run(
     List<String> command, {
     Duration? timeout,
@@ -362,6 +371,91 @@ class PodmanSandboxManager implements SandboxManager {
           exitCode: int.parse(results[2]),
           stdout: results[0],
           stderr: results[1],
+        );
+      }();
+
+      if (timeout != null) {
+        return await resultFuture.timeout(
+          timeout,
+          onTimeout: () {
+            process.kill(ProcessSignal.sigterm);
+            throw SandboxTimeoutException(
+              'Command timed out: ${command.join(' ')}',
+              timeout: timeout,
+            );
+          },
+        );
+      }
+
+      return await resultFuture;
+    } on ProcessException catch (e) {
+      throw SandboxException(
+        'Failed to start process: ${command.join(' ')}',
+        cause: e,
+      );
+    }
+  }
+
+  /// Run a host-side process, streaming stdout/stderr line-by-line to the
+  /// logger as it runs.
+  ///
+  /// Used for long-running commands (e.g. image builds) where silence is
+  /// confusing.
+  static Future<ExecResult> _runStreaming(
+    List<String> command, {
+    Duration? timeout,
+  }) async {
+    try {
+      final process = await Process.start(
+        command.first,
+        command.skip(1).toList(),
+      );
+
+      await process.stdin.close();
+
+      final stdoutBuf = StringBuffer();
+      final stderrBuf = StringBuffer();
+
+      // Stream stdout lines to the logger.
+      final stdoutDone = process.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+        stdoutBuf.writeln(line);
+        // Log build step lines (e.g. "Step 3/8 : RUN apt-get...")
+        if (line.startsWith('STEP') ||
+            line.startsWith('Step') ||
+            line.startsWith('-->') ||
+            line.startsWith('COMMIT') ||
+            line.contains('Successfully tagged')) {
+          _log.fine(line);
+        }
+      }).asFuture<void>();
+
+      // Stream stderr lines.
+      final stderrDone = process.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+        stderrBuf.writeln(line);
+        // Podman emits build progress on stderr.
+        if (line.startsWith('STEP') ||
+            line.startsWith('Step') ||
+            line.startsWith('-->') ||
+            line.startsWith('COMMIT') ||
+            line.contains('Successfully tagged')) {
+          _log.fine(line);
+        }
+      }).asFuture<void>();
+
+      final Future<ExecResult> resultFuture = () async {
+        final exitCode = await process.exitCode;
+        await stdoutDone;
+        await stderrDone;
+        return ExecResult(
+          exitCode: exitCode,
+          stdout: stdoutBuf.toString(),
+          stderr: stderrBuf.toString(),
         );
       }();
 

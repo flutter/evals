@@ -83,17 +83,18 @@ Future<void> _copyRecursive(
   }
 }
 
-/// Attempts to determine if [path] is a directory in the sandbox.
+/// Determines if [path] is a directory in the sandbox.
 ///
-/// Uses a heuristic: tries to list the path. If it succeeds, it's a
-/// directory. If it throws, it's a file (or doesn't exist).
+/// Uses `test -d` for an accurate check. The previous heuristic
+/// (attempting `listDirectory`) incorrectly identified files as
+/// directories because `ls -1 <file>` succeeds on regular files.
 Future<bool> _isDirectory(
   SandboxEnvironment sandbox,
   String path,
 ) async {
   try {
-    await sandbox.listDirectory(path);
-    return true;
+    final result = await sandbox.exec(['test', '-d', path]);
+    return result.success;
   } catch (_) {
     return false;
   }

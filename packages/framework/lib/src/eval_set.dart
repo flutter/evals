@@ -161,12 +161,14 @@ class EvalSet {
 
     runZonedGuarded(
       () async {
+        EvalLog.evalPhase('sandbox');
         final session = await sandbox?.createSession(
           eval.name,
           evalId: '${model}_${scenario.name}',
         );
 
         // Let the backend build the agent for this cell.
+        EvalLog.evalPhase('agent');
         final cellAgent = backend.buildCellAgent(
           model: model,
           sandbox: session?.sandbox,
@@ -177,6 +179,7 @@ class EvalSet {
 
         try {
           if (scenario.mcpServers.isNotEmpty) {
+            EvalLog.evalPhase('mcp');
             mcpSession = await backend.startMcpSession(
               scenario.mcpServers,
             );
@@ -190,12 +193,15 @@ class EvalSet {
             sandbox: session?.sandbox,
             mcpTools: mcpTools,
           );
+
+          EvalLog.evalPhase('execute');
           final result = await eval.execute(context);
           EvalLog.evalComplete(result);
 
           // Save the sandbox project if configured.
           if (config.saveCode && runDir != null && session?.sandbox != null) {
             try {
+              EvalLog.evalPhase('saveCode');
               final cellId = toSafeId(result.id, allowHyphens: false);
               await saveCodeFromSandbox(
                 session!.sandbox,

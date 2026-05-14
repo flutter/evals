@@ -68,13 +68,12 @@ class MiniSweAgent extends Agent {
   });
 
   @override
-  MiniSweAgent copyWith({String? model}) =>
-      MiniSweAgent(
-        ai: ai,
-        model: model ?? this.model,
-        tools: tools,
-        config: config,
-      );
+  MiniSweAgent copyWith({String? model}) => MiniSweAgent(
+    ai: ai,
+    model: model ?? this.model,
+    tools: tools,
+    config: config,
+  );
 
   /// Run the agent loop.
   ///

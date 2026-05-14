@@ -346,3 +346,6 @@ final session = await sandbox.createSession('my-eval');
 | `packages/ai` | Agent framework and AI primitives — `Agent`, `BasicAgent`, `MiniSweAgent`, `Message`, `Tool` |
 | `packages/sandbox` | Container sandboxing — `SandboxManager`, Docker/Podman/local backends |
 | `packages/evals_results` | Shared output types — `EvalResult`, `Score`, `Model`, `EvalSetResult` |
+
+
+

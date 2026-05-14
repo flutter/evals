@@ -94,8 +94,8 @@ void main() async {
       saveCode: true,
     ),
     sandbox: PodmanSandboxManager(
-      dockerfilePath: 'example/docker/Dockerfile',
-      buildContext: 'example',
+      dockerfilePath: 'docker/Dockerfile',
+      buildContext: '.',
     ),
   );
 
