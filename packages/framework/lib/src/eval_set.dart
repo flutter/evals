@@ -114,7 +114,16 @@ class EvalSet {
   /// When [runDir] is provided and [EvalConfig.saveCode] is `true`,
   /// the sandbox workspace is copied to `<runDir>/<cellId>/` after
   /// each cell completes.
-  Future<List<EvalResult>> run({String? runDir}) async {
+  ///
+  /// When [onResult] is provided, it is called after each cell completes
+  /// with the [EvalResult] and the list of all results so far. This
+  /// enables incremental output writing (e.g. trajectory files, partial
+  /// eval.json).
+  Future<List<EvalResult>> run({
+    String? runDir,
+    Future<void> Function(EvalResult result, List<EvalResult> allResults)?
+        onResult,
+  }) async {
     final results = <EvalResult>[];
     final totalCells = models.length * scenarios.length * evals.length;
     var completed = 0;
@@ -131,6 +140,15 @@ class EvalSet {
 
           final result = await _runCell(eval, model, scenario, runDir: runDir);
           results.add(result);
+
+          // Fire the incremental callback.
+          if (onResult != null) {
+            try {
+              await onResult(result, results);
+            } catch (e, st) {
+              EvalLog.error('onResult callback failed', e, st);
+            }
+          }
 
           completed++;
         }

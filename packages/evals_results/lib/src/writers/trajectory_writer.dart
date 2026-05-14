@@ -27,16 +27,29 @@ Future<void> writeTrajectories(
   required String runDir,
 }) async {
   for (final result in results) {
-    final trajectory = result.trajectory;
-    if (trajectory == null || trajectory.isEmpty) continue;
-
-    final safeId = result.id.replaceAll('/', '-');
-    final file = File(p.join(runDir, '${safeId}_trajectory.jsonl'));
-    final sink = file.openWrite();
-    for (final message in trajectory) {
-      sink.writeln(jsonEncode(message.toJson()));
-    }
-    await sink.flush();
-    await sink.close();
+    await writeTrajectory(result, runDir: runDir);
   }
+}
+
+/// Write a single trajectory file for one [EvalResult] into [runDir].
+///
+/// Produces: `<runDir>/<evalId>_trajectory.jsonl`
+///
+/// This is safe to call incrementally — each call writes one file and does
+/// not depend on other results.
+Future<void> writeTrajectory(
+  EvalResult result, {
+  required String runDir,
+}) async {
+  final trajectory = result.trajectory;
+  if (trajectory == null || trajectory.isEmpty) return;
+
+  final safeId = result.id.replaceAll('/', '-');
+  final file = File(p.join(runDir, '${safeId}_trajectory.jsonl'));
+  final sink = file.openWrite();
+  for (final message in trajectory) {
+    sink.writeln(jsonEncode(message.toJson()));
+  }
+  await sink.flush();
+  await sink.close();
 }

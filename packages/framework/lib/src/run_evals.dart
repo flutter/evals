@@ -43,7 +43,21 @@ Future<EvalSetResult> runEvals(
   );
 
   try {
-    final results = await evalSet.run(runDir: runDirPath);
+    final results = await evalSet.run(
+      runDir: runDirPath,
+      onResult: (result, allResults) async {
+        // Write this cell's trajectory immediately.
+        await writeTrajectory(result, runDir: runDirPath);
+
+        // Update the eval.json with all results so far.
+        final partialResult = buildEvalSetResult(
+          allResults,
+          startedAt,
+          DateTime.now(),
+        );
+        await writeEvalLogToDir(partialResult, runDir: runDirPath);
+      },
+    );
 
     final completedAt = DateTime.now();
 
@@ -53,8 +67,8 @@ Future<EvalSetResult> runEvals(
       completedAt,
     );
 
+    // Final write with the definitive completedAt timestamp.
     await writeEvalLogToDir(evalSetResult, runDir: runDirPath);
-    await writeTrajectories(evalSetResult.results, runDir: runDirPath);
 
     EvalLog.footer(evalSetResult, outputDir: runDirPath);
 
