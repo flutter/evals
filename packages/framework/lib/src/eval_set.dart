@@ -5,6 +5,8 @@ import 'package:ai/ai.dart' as ai;
 import 'package:devals_sandbox/sandbox.dart';
 import 'package:evals_results/evals_results.dart';
 import 'package:genkit/genkit.dart' as g;
+import 'package:genkit/plugin.dart' show GenkitPlugin;
+import 'package:genkit_anthropic/genkit_anthropic.dart' as anthropic;
 import 'package:genkit_google_genai/genkit_google_genai.dart' as genai;
 
 import 'backend/backend.dart';
@@ -39,7 +41,10 @@ export 'scenario.dart' show baselineScenario;
 ///
 /// The backend is auto-resolved from `Model.provider`:
 /// - `googleai` → Google AI (reads `GEMINI_API_KEY` from env)
-/// - `vertexai` → Vertex AI (uses Application Default Credentials)
+/// - `anthropic` → Anthropic (reads `ANTHROPIC_API_KEY` from env)
+///
+/// Mixed providers are supported — the framework creates a Genkit instance
+/// with all needed plugins.
 ///
 /// ## Advanced usage (explicit backend)
 ///
@@ -236,49 +241,63 @@ class EvalSet {
   // Auto-resolution
   // ---------------------------------------------------------------------------
 
-  /// Validates that models can be auto-resolved (same provider, known provider,
-  /// required env vars present). Called from the constructor for fail-fast.
+  /// Validates that models can be auto-resolved (known provider, required env
+  /// vars present). Called from the constructor for fail-fast.
   void _validateModelsForAutoResolution() {
     final providers = models.map((m) => m.provider).toSet();
-    if (providers.length > 1) {
-      throw ArgumentError(
-        'All models in an EvalSet must use the same provider when no '
-        'explicit backend is given. Got: $providers. '
-        'Pass a Backend explicitly for mixed-provider matrices.',
-      );
-    }
 
-    final provider = providers.single;
-    switch (provider) {
-      case 'googleai':
-        final apiKey = Platform.environment['GEMINI_API_KEY'];
-        if (apiKey == null || apiKey.isEmpty) {
+    for (final provider in providers) {
+      switch (provider) {
+        case 'googleai':
+          final apiKey = Platform.environment['GEMINI_API_KEY'];
+          if (apiKey == null || apiKey.isEmpty) {
+            throw ArgumentError(
+              'Model provider "googleai" requires the GEMINI_API_KEY '
+              'environment variable to be set.',
+            );
+          }
+        case 'anthropic':
+          final apiKey = Platform.environment['ANTHROPIC_API_KEY'];
+          if (apiKey == null || apiKey.isEmpty) {
+            throw ArgumentError(
+              'Model provider "anthropic" requires the ANTHROPIC_API_KEY '
+              'environment variable to be set.',
+            );
+          }
+        default:
           throw ArgumentError(
-            'Model provider "googleai" requires the GEMINI_API_KEY '
-            'environment variable to be set.',
+            'Unknown model provider "$provider". '
+            'Supported auto-resolved providers: googleai, anthropic. '
+            'For other providers, pass a Backend explicitly.',
           );
-        }
-      default:
-        throw ArgumentError(
-          'Unknown model provider "$provider". '
-          'Supported auto-resolved providers: googleai. '
-          'For other providers, pass a Backend explicitly.',
-        );
+      }
     }
   }
 
-  /// Builds the correct [Backend] from the model provider.
+  /// Builds the correct [Backend] from the model providers.
+  ///
+  /// Creates a Genkit instance with all needed plugins for the providers
+  /// present in [models].
   Backend _resolveBackend() {
-    final provider = models.first.provider;
+    final providers = models.map((m) => m.provider).toSet();
+    final plugins = <GenkitPlugin>[];
 
-    final plugin = switch (provider) {
-      'googleai' => genai.googleAI(
-          apiKey: Platform.environment['GEMINI_API_KEY'],
-        ),
-      _ => throw StateError('Unreachable — validated in constructor'),
-    };
+    for (final provider in providers) {
+      switch (provider) {
+        case 'googleai':
+          plugins.add(genai.googleAI(
+            apiKey: Platform.environment['GEMINI_API_KEY'],
+          ));
+        case 'anthropic':
+          plugins.add(anthropic.anthropic(
+            apiKey: Platform.environment['ANTHROPIC_API_KEY'],
+          ));
+        default:
+          throw StateError('Unreachable — validated in constructor');
+      }
+    }
 
-    final genkit = g.Genkit(plugins: [plugin]);
+    final genkit = g.Genkit(plugins: plugins);
 
     return GenkitBackend(
       genkit: genkit,

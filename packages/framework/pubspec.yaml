@@ -13,6 +13,7 @@ dependencies:
   devals_sandbox:
     path: ../sandbox
   genkit: ^0.11.0
+  genkit_anthropic: 0.2.1
   genkit_middleware: ^0.2.1
   genkit_mcp: ^0.1.2
   path: ^1.9.1

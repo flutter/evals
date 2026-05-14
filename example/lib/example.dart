@@ -1,31 +1,45 @@
 /// Comprehensive stress-test of the dart-evals framework.
 ///
-/// This file exercises every major surface of the framework in a single,
-/// runnable example:
+/// This library exports all example evals, evaluators, and utilities
+/// used in the example evaluation suite.
 ///
 /// ## Evals
-/// - [FlutterFeatureEval]  — parameterised agent eval graded by `flutter test`
-/// - [DartFixEval]         — agent eval graded by `dart analyze`
-/// - [ContextReadEval]     — single-turn eval graded by output content
+/// - [PubDevSearchEval]      — single-turn, tool-agnostic package search
+/// - [FlutterBugFixEval]     — agentic sandbox eval (BLoC mutation bug)
+/// - [DartBugFixEval]        — agentic sandbox eval (Dart CLI sort bug)
+/// - [FlutterFeatureEval]    — agentic sandbox eval (add reset button)
+/// - [DartDocumentationEval] — single-turn, no-sandbox knowledge eval
 ///
-/// ## Evaluators
-/// - [ExecEvaluator.flutterTest]  — built-in: run `flutter test` in sandbox
-/// - [ExecEvaluator.dartAnalyze]  — built-in: run `dart analyze --fatal-warnings`
-/// - [TrajectoryEvaluator]        — custom: inspect store metadata (steps, status)
-/// - [OutputContainsEvaluator]    — custom: regex/substring match on outputText
+/// ## Custom Evaluators
+/// - [TrajectoryEvaluator]      — inspect agent trajectory metadata
+/// - [OutputContainsEvaluator]  — regex/substring match on outputText
+/// - [FileChangedEvaluator]     — verify agent modified a specific file
+/// - [CodeQualityEvaluator]     — graduated Score.partial with weighted checks
 ///
-/// ## Framework features
-/// - [EvalSet] with multiple [models], [scenarios], and [evals]
-/// - [Scenario] with and without additional tools
-/// - [MiniSweAgent] with [AgentConfig] tuning
-/// - [SandboxTools.all] wired into the agent
-/// - [EvalContext.store] used for trajectory logging and downstream grading
-/// - [Score.partial] for graduated scores
-/// - Richly documented [main] that prints a formatted result summary
+/// ## Framework features exercised
+/// - [EvalSet] with multiple models (Google AI + Anthropic)
+/// - [Scenario] with and without MCP tools
+/// - Scenario-level evaluators
+/// - [ExecEvaluator.dartTest], [ExecEvaluator.flutterTest], [ExecEvaluator.dartAnalyze]
+/// - [IncludesEvaluator], [McpToolUsageEvaluator]
+/// - Custom setUp / run / cleanUp lifecycle
+/// - [EvalState.store] metadata for trajectory + file diffs
+/// - [Score.partial] for graduated scoring
+/// - `saveCode: true` for full project persistence
 ///
-/// Run from the `example/` directory:
-///   dart run lib/example.dart
+/// Run from the repo root:
+///   dart run example/bin/dash_evals_port.dart
 library;
 
-import 'package:framework/framework.dart';
-import 'package:evals_results/evals_results.dart';
+// Evals
+export 'src/evals/dart_bug_fix_eval.dart';
+export 'src/evals/dart_documentation_eval.dart';
+export 'src/evals/flutter_bug_fix_eval.dart';
+export 'src/evals/flutter_feature_eval.dart';
+export 'src/evals/mcp_pub_dev_search_eval.dart';
+
+// Evaluators
+export 'src/evaluators/code_quality_evaluator.dart';
+export 'src/evaluators/file_changed_evaluator.dart';
+export 'src/evaluators/output_contains_evaluator.dart';
+export 'src/evaluators/trajectory_evaluator.dart';
