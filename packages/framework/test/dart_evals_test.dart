@@ -15,6 +15,17 @@ class _AlwaysCorrectEvaluator extends Evaluator {
   Future<Score> evaluate(EvalState state) async => Score.correct();
 }
 
+/// A separate evaluator type for scenario-level scoring to avoid name collision.
+class _ScenarioEvaluator extends Evaluator {
+  const _ScenarioEvaluator();
+
+  @override
+  String get name => 'ScenarioEvaluator';
+
+  @override
+  Future<Score> evaluate(EvalState state) async => Score.correct();
+}
+
 /// A no-op agent that returns a fixed result without making real AI calls.
 class _MockAgent implements Agent {
   @override
@@ -260,14 +271,13 @@ void main() {
     });
 
     test('scenario evaluators are merged with eval evaluators', () async {
-      final scenarioEvaluator = _AlwaysCorrectEvaluator();
       final evalSet = EvalSet(
         backend: backend,
         models: [Model('test', 'model')],
         scenarios: [
-          Scenario(
+          const Scenario(
             name: 'with_evaluator',
-            evaluators: [scenarioEvaluator],
+            evaluators: [_ScenarioEvaluator()],
           ),
         ],
         evals: [_EchoEval('test')],
@@ -276,8 +286,30 @@ void main() {
       final results = await evalSet.run();
       final scores = results.first.scores;
 
-      expect(scores, isNotEmpty);
+      // Both eval-level and scenario-level evaluators should run.
+      expect(scores, hasLength(2));
+      expect(scores.containsKey('_AlwaysCorrectEvaluator'), isTrue);
+      expect(scores.containsKey('ScenarioEvaluator'), isTrue);
       expect(scores.values.every((s) => s.value == 1.0), isTrue);
+    });
+
+    test('throws on duplicate evaluator names', () async {
+      final evalSet = EvalSet(
+        backend: backend,
+        models: [Model('test', 'model')],
+        scenarios: [
+          const Scenario(
+            name: 'dup_evaluator',
+            evaluators: [_AlwaysCorrectEvaluator()],
+          ),
+        ],
+        evals: [_EchoEval('test')], // also has _AlwaysCorrectEvaluator
+      );
+
+      final results = await evalSet.run();
+      // The duplicate is caught during score(), recorded as _lifecycle error.
+      expect(results.first.scores.containsKey('_lifecycle'), isTrue);
+      expect(results.first.scores['_lifecycle']!.value, 0.0);
     });
 
     test('default run() produces output without override', () async {

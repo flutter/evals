@@ -190,20 +190,34 @@ abstract class Eval {
 
   /// Runs all evaluators — both eval-level and scenario-level — against
   /// the post-run state.
+  ///
+  /// Throws [ArgumentError] if two evaluators share the same [Evaluator.name],
+  /// which would cause one score to silently overwrite the other.
   Future<Map<String, Score>> score(EvalState state) async {
     final allEvaluators = [
       ...evaluators,
       ...state.context.scenario.evaluators,
     ];
+
+    // Detect duplicate evaluator names before running any of them.
+    final seen = <String>{};
+    for (final evaluator in allEvaluators) {
+      if (!seen.add(evaluator.name)) {
+        throw ArgumentError(
+          'Duplicate evaluator name "${evaluator.name}" in eval "$name". '
+          'Both eval-level and scenario-level evaluators define this name. '
+          'Override Evaluator.name on one instance to disambiguate.',
+        );
+      }
+    }
+
     final scores = <String, Score>{};
     for (final evaluator in allEvaluators) {
       try {
-        scores[evaluator.runtimeType.toString()] = await evaluator.evaluate(
-          state,
-        );
+        scores[evaluator.name] = await evaluator.evaluate(state);
       } catch (e, st) {
-        EvalLog.error('Evaluator ${evaluator.runtimeType} failed', e, st);
-        scores[evaluator.runtimeType.toString()] = Score.error(
+        EvalLog.error('Evaluator ${evaluator.name} failed', e, st);
+        scores[evaluator.name] = Score.error(
           explanation: 'Evaluator threw: $e',
         );
       }

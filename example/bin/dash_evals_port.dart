@@ -51,7 +51,9 @@ void main() async {
       ],
       // Scenario-level evaluator — only scores when MCP is available.
       evaluators: [
-        const McpToolUsageEvaluator(),
+        const McpToolUsageEvaluator(
+          requiredTools: ['dart/pub_dev_search'],
+        ),
       ],
     ),
   ];
