@@ -47,8 +47,11 @@ export 'src/evaluator.dart';
 
 // Built-in evaluators
 export 'src/evaluators/exec_evaluator.dart';
+export 'src/evaluators/grading_templates.dart';
 export 'src/evaluators/includes_evaluator.dart';
+export 'src/evaluators/majority_vote_evaluator.dart';
 export 'src/evaluators/mcp_tool_usage_evaluator.dart';
+export 'src/evaluators/model_graded_evaluator.dart';
 
 // Tools
 export 'src/tools/mcp_tools.dart';

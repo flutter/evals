@@ -125,6 +125,10 @@ abstract class Eval {
 
       EvalLog.evalPhase('  score');
       failedPhase = 'score';
+      // Store input/target so evaluators (e.g. ModelGradedEvaluator) can
+      // access them without needing a reference back to the Eval.
+      state.store['input'] = input;
+      state.store['target'] = target;
       scores = await score(state);
       failedPhase = null; // Success — clear the marker.
     } catch (e, st) {
