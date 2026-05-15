@@ -55,6 +55,7 @@ class _FakeAgent extends Agent {
     required String task,
     String systemMessage = '',
     List<Tool> additionalTools = const [],
+    List<Message> history = const [],
   }) async {
     return Result(
       messages: [

@@ -37,6 +37,7 @@ export 'src/backend/cli_backend/gemini_cli_backend.dart';
 
 // Core
 export 'src/eval.dart';
+export 'src/multi_step_eval.dart';
 export 'src/eval_config.dart';
 export 'src/eval_context.dart';
 export 'src/eval_set.dart';

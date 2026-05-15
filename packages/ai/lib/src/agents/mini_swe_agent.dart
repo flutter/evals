@@ -80,6 +80,7 @@ class MiniSweAgent extends Agent {
   /// [task] is the user's coding task (becomes the first user message).
   /// [systemMessage] is the system prompt (defaults to [defaultSystemMessage]).
   /// [additionalTools] are appended to [tools] for this run only.
+  /// [history] are previous messages (e.g. from previous steps).
   ///
   /// Returns a [Result] with the full trajectory, exit status, and
   /// token usage.
@@ -88,9 +89,11 @@ class MiniSweAgent extends Agent {
     required String task,
     String systemMessage = defaultSystemMessage,
     List<Tool> additionalTools = const [],
+    List<Message> history = const [],
   }) async {
     final messages = <Message>[
-      Message.text(Role.system, systemMessage),
+      ...history,
+      if (systemMessage.isNotEmpty) Message.text(Role.system, systemMessage),
       Message.text(Role.user, task),
     ];
 

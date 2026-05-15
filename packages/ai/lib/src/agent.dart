@@ -1,3 +1,4 @@
+import 'message.dart';
 import 'result.dart';
 import 'tool.dart';
 
@@ -34,11 +35,14 @@ abstract class Agent {
   /// [systemMessage] is the system prompt.
   /// [additionalTools] are tools available to SDK-based agents;
   ///   process-based agents that manage their own tool access may ignore this.
+  /// [history] is a list of previous messages (e.g. from previous steps)
+  ///   that should be prepended to this run's conversation.
   ///
   /// Returns a [Result] with the trajectory, exit status, and usage.
   Future<Result> run({
     required String task,
     String systemMessage,
     List<Tool> additionalTools = const [],
+    List<Message> history = const [],
   });
 }

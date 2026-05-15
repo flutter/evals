@@ -47,9 +47,11 @@ class BasicAgent extends Agent {
     required String task,
     String systemMessage = defaultSystemMessage,
     List<Tool> additionalTools = const [],
+    List<Message> history = const [],
   }) async {
     final messages = <Message>[
-      Message.text(Role.system, systemMessage),
+      ...history,
+      if (systemMessage.isNotEmpty) Message.text(Role.system, systemMessage),
       Message.text(Role.user, task),
     ];
 

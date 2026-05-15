@@ -31,6 +31,7 @@ class _MockAgent implements Agent {
     required String task,
     String systemMessage = '',
     List<ai.Tool> additionalTools = const [],
+    List<ai.Message> history = const [],
   }) async =>
       Result(
         messages: [

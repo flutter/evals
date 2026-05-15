@@ -58,6 +58,11 @@ class EvalResult extends Equatable {
   /// This is `null` for single-turn evals that don't produce a trajectory.
   final List<Message>? trajectory;
 
+  /// The number of steps successfully completed in a multi-step evaluation.
+  ///
+  /// This is `null` for standard single-step evals.
+  final int? stepsCompleted;
+
   /// Creates an [EvalResult].
   const EvalResult({
     required this.id,
@@ -73,6 +78,7 @@ class EvalResult extends Equatable {
     required this.completedAt,
     this.error,
     this.trajectory,
+    this.stepsCompleted,
   });
 
   /// Deserialises an [EvalResult] from a JSON map.
@@ -96,6 +102,7 @@ class EvalResult extends Equatable {
         ?.cast<Map<String, dynamic>>()
         .map(Message.fromJson)
         .toList(),
+    stepsCompleted: json['steps_completed'] as int?,
   );
 
   /// Total duration of this eval.
@@ -124,6 +131,7 @@ class EvalResult extends Equatable {
     if (error != null) 'error': error,
     if (trajectory != null)
       'trajectory': trajectory!.map((m) => m.toJson()).toList(),
+    if (stepsCompleted != null) 'steps_completed': stepsCompleted,
   };
 
   @override

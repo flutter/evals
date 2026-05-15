@@ -65,11 +65,12 @@ class GeminiCliAgent extends ai.Agent {
     required String task,
     String systemMessage = '',
     List<ai.Tool> additionalTools = const [],
+    List<ai.Message> history = const [],
   }) async {
     if (modelProvider != null) {
-      return _runWithProxy(task: task);
+      return _runWithProxy(task: task, history: history);
     } else {
-      return _runDirect(task: task);
+      return _runDirect(task: task, history: history);
     }
   }
 
@@ -77,7 +78,10 @@ class GeminiCliAgent extends ai.Agent {
   // Proxy-backed execution
   // ---------------------------------------------------------------------------
 
-  Future<ai.Result> _runWithProxy({required String task}) async {
+  Future<ai.Result> _runWithProxy({
+    required String task,
+    List<ai.Message> history = const [],
+  }) async {
     final proxy = GeminiApiProxy(provider: modelProvider!);
     await proxy.start();
 
@@ -106,7 +110,7 @@ class GeminiCliAgent extends ai.Agent {
       // The proxy transcript has the full message history.
       final messages = proxy.transcript.isNotEmpty
           ? List<ai.Message>.from(proxy.transcript)
-          : _syntheticMessages(task, result);
+          : _syntheticMessages(task, result, history);
 
       return ai.Result(
         messages: messages,
@@ -130,7 +134,10 @@ class GeminiCliAgent extends ai.Agent {
   // Direct execution (no proxy)
   // ---------------------------------------------------------------------------
 
-  Future<ai.Result> _runDirect({required String task}) async {
+  Future<ai.Result> _runDirect({
+    required String task,
+    List<ai.Message> history = const [],
+  }) async {
     EvalLog.debug('[GeminiCliAgent] Running in direct (no proxy) mode');
 
     final apiKey = Platform.environment['GEMINI_API_KEY'] ?? '';
@@ -150,7 +157,7 @@ class GeminiCliAgent extends ai.Agent {
     );
 
     return ai.Result(
-      messages: _syntheticMessages(task, result),
+      messages: _syntheticMessages(task, result, history),
       status: result.exitCode == 0
           ? ai.AgentStatus.completed
           : ai.AgentStatus.error,
@@ -170,9 +177,11 @@ class GeminiCliAgent extends ai.Agent {
   List<ai.Message> _syntheticMessages(
     String task,
     ExecResult result,
+    List<ai.Message> history,
   ) {
     final output = result.stdout.trim();
     return [
+      ...history,
       ai.Message(role: ai.Role.user, content: [ai.TextPart(task)]),
       if (output.isNotEmpty)
         ai.Message(role: ai.Role.model, content: [ai.TextPart(output)]),
