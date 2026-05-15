@@ -1,5 +1,11 @@
 # Changelog
 
+## 11 May, 2026
+
+Migrated to Dart. Complete rewrite of the evaluation framework — replaced the Python-based `dash_evals` runner and related packages with a pure-Dart framework.
+
+---
+
 ## Unreleased
 
 ### New

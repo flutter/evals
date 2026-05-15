@@ -1,0 +1,17 @@
+name: devals_sandbox
+description: Docker-based sandboxing for eval workloads. Manages container lifecycles, command execution, and file I/O.
+version: 0.0.1
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  logging: ^1.3.0
+  path: ^1.9.0
+  yaml: ^3.1.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: any

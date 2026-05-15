@@ -7,9 +7,10 @@ environment:
   sdk: ^3.10.0
 
 workspace:
-  - packages/devals_cli
-  - packages/dataset_config_dart
-  - tool/config_parity
+  - packages/ai
+  - packages/framework
+  - packages/evals_results
+  - packages/sandbox
 
 dependencies:
   args: ^2.7.0

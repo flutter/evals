@@ -1,0 +1,11 @@
+name: dart_cli_project
+description: A Dart CLI app with a buggy sort function (contains bug for evaluation)
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ^3.0.0
+
+dev_dependencies:
+  test: ^1.25.0
+  lints: ^3.0.0

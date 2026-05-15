@@ -1,0 +1,29 @@
+# Docker Compose config for the Flutter eval sandbox.
+#
+# This brings up a single service — `app` — built from the local Dockerfile.
+# The DockerSandboxManager mounts the Flutter project into /workspace/app
+# via file provisioning and exec()s commands (flutter test, dart analyze, etc.)
+# against it.
+#
+# Usage with DockerSandboxManager:
+#   final manager = DockerSandboxManager();
+#   await manager.taskInit('flutter_feature', configFile: 'path/to/docker-compose.yml');
+
+services:
+  app:
+    build:
+      # Context is the example/ directory so `COPY fixtures/ /fixtures/` works.
+      # Run `docker compose build` from example/ or anywhere — compose resolves
+      # the path relative to the location of this compose file.
+      context: ..
+      dockerfile: docker/Dockerfile
+    # Keep the container alive so exec() calls can run inside it
+    command: tail -f /dev/null
+    working_dir: /workspace
+    # Resource limits — comfortable for Flutter test + analysis
+    mem_limit: 4g
+    cpus: 2.0
+    # Mark as locally-built so DockerSandboxManager skips pulling
+    x-local: true
+    # Mark as the default service (first environment returned by sampleInit)
+    x-default: true
